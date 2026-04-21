@@ -1,0 +1,110 @@
+# generated: 2026-04-21
+# last_updated: 2026-04-21 (Story 1.1 → ready-for-dev, Epic 1 → in-progress)
+# project: SolarBotDevelopment
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-21
+last_updated: 2026-04-21
+project: SolarBotDevelopment
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Add-on Foundation & Branding
+  epic-1: in-progress
+  1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: ready-for-dev
+  1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: backlog
+  1-3-ha-websocket-foundation-mit-reconnect-logik: backlog
+  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: backlog
+  1-5-ha-sidebar-registrierung-mit-alkly-branding: backlog
+  1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: backlog
+  1-7-i18n-foundation-mit-locales-de-json: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Setup-Wizard & Hardware-Onboarding
+  epic-2: backlog
+  2-1-wizard-shell-mit-drei-hardware-pfaden-linear-1-aktion-pro-screen: backlog
+  2-2-auto-detection-mit-device-template-system-live-werten: backlog
+  2-3-funktionstest-mit-live-chart-dramaturgie-commissioning: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
+  epic-3: backlog
+  3-1-core-controller-pipeline-sensor-policy-executor-event-source-readback-rate-limit: backlog
+  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: backlog
+  3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
+  3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
+  3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog
+  3-6-user-config-min-max-soc-nacht-entlade-zeitfenster: backlog
+  3-7-fail-safe-bei-kommunikations-ausfall: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Diagnose, Latenz-Messung & Support-Workflow
+  epic-4: backlog
+  4-1-diagnose-route-mit-abgesetztem-opening-letzte-100-regelzyklen: backlog
+  4-2-letzte-20-fehler-warnungen-mit-klartext-handlungsempfehlung: backlog
+  4-3-verbindungs-status-panel-ha-ws-entities-lizenz: backlog
+  4-4-e2e-regelungs-latenz-auswertung-im-diagnose-tab: backlog
+  4-5-diagnose-export-als-strukturierter-bug-report-kippbar: backlog
+  4-6-github-issues-bug-report-template: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Dashboard mit Euro-Wert & Live-Visualisierung
+  epic-5: backlog
+  5-1-dashboard-shell-mit-responsive-navigation-hero-zone-euro-wert-als-2-s-kernaussage: backlog
+  5-2-bezugspreis-anpassung-inline-per-stepper: backlog
+  5-3-beleg-kpis-getrennt-ausgewiesen-kwh-selbst-verbraucht-kwh-selbst-gesteuert: backlog
+  5-4-energy-ring-flow-visualisierung-mit-custom-pv-icons: backlog
+  5-5-aktueller-regelmodus-modus-wechsel-animation: backlog
+  5-6-aktiver-idle-state-als-positive-aussage: backlog
+  5-7-charakter-zeile-ueber-hero-bei-eigenem-tun-kippbar-fallback-neutral-mode: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Updates, Backup & Add-on-Lifecycle
+  epic-6: backlog
+  6-1-auto-update-via-ha-add-on-store: backlog
+  6-2-backup-rotation-vor-jedem-update: backlog
+  6-3-manueller-rollback-pfad-mit-automatischer-backup-wiederherstellung: backlog
+  6-4-ha-version-kompatibilitaets-matrix-in-addon-yaml: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Lizenzierung & Commercial Activation
+  epic-7: backlog
+  7-1-installations-disclaimer-als-sichtbare-checkbox-vor-aktivierung: backlog
+  7-2-lemonsqueezy-kauf-flow-im-wizard-rabatt-code-einloesung: backlog
+  7-3-lizenz-signatur-verifikation-beim-start: backlog
+  7-4-monatliche-re-validation-mit-14-tage-graceful-period: backlog
+  7-5-lizenz-status-integration-in-diagnose-panel-epic-4: backlog
+  epic-7-retrospective: optional
