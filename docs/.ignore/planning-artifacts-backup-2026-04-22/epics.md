@@ -482,12 +482,6 @@ So that Solarbot über den HA Add-on Store installierbar ist und das Fundament f
 **When** er läuft
 **Then** keine externen Port-Expositionen außer HA-Ingress
 
-**Given** der Container startet zum ersten Mal
-**When** `main.py` die Datenbank initialisiert
-**Then** `PRAGMA journal_mode=WAL` und `PRAGMA synchronous=NORMAL` sind aktiv
-**And** eine `meta`-Tabelle mit `schema_version`-Row existiert
-**And** `persistence/migrate.py` wendet alle `persistence/sql/NNN_*.sql`-Dateien forward-only an (in v1 liegt `001_initial.sql` mit leerem Produktiv-Schema vor; produktive Tabellen werden von späteren Stories ergänzt)
-
 ### Story 1.2: Landing-Page-Voraussetzungs-Hinweis + HA-Versions-Range
 
 As a Interessent auf alkly.de,
@@ -507,7 +501,7 @@ So that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 **Given** ein Nutzer versucht Solarbot auf einer nicht-unterstützten HA-Version zu installieren
 **When** der Add-on-Store die Installation prüft
 **Then** eine Install-Warning wird gezeigt
-**And** die supported HA-Version-Range ist in `addon/config.yaml` deklariert
+**And** die supported HA-Version-Range ist in `addon.yaml` deklariert
 
 ### Story 1.3: HA WebSocket Foundation mit Reconnect-Logik
 
@@ -538,12 +532,6 @@ So that alle späteren Epics sich auf einen verlässlichen Kommunikationskanal z
 **Given** ein Test-Setup mit Mock-HA-WebSocket
 **When** ein simulierter Abbruch ausgelöst wird
 **Then** der Client reconnected innerhalb 30 s automatisch ohne manuelle Intervention
-
-**Given** der Container läuft
-**When** `GET /api/health` aufgerufen wird
-**Then** der Endpoint liefert JSON mit mindestens `ha_ws_connected: bool` und `uptime_seconds: int` (keine Wrapper-Hülle, direktes Objekt — CLAUDE.md Regel 4)
-**And** HTTP-Status ist 200, solange der Prozess läuft (auch bei verlorener HA-WS-Verbindung — der Verbindungs-Zustand steckt im Payload, nicht im HTTP-Code)
-**And** der Endpoint ist HA-Binary-Sensor-tauglich und ohne Telemetrie (NFR17)
 
 ### Story 1.4: ALKLY-Design-System-Foundation — Tokens & lokale DM-Sans-Pipeline
 
@@ -596,7 +584,7 @@ So that ich Solarbot in meiner gewohnten HA-Navigation wiederfinde.
 **When** der Nutzer HA öffnet
 **Then** der HA-Sidebar zeigt den Eintrag „Solarbot by ALKLY" mit ALKLY-Icon
 
-**Given** `addon/config.yaml`
+**Given** `addon.yaml`
 **When** Ingress konfiguriert ist
 **Then** die Ingress-URL ist deklariert und das Icon ist als Asset im Image eingebettet
 
