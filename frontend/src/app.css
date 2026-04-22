@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+/*
+  ALKLY design tokens live here as CSS Custom Properties
+  (Single source — no lib/tokens/*.ts, per Amendment 2026-04-22).
+  Full token set arrives in Story 1.4; placeholders below so the
+  Svelte shell compiles against stable names.
+*/
+@theme {
+  --color-brand-primary: #0ea5e9;
+  --color-brand-ink: #0f172a;
+  --color-brand-paper: #ffffff;
+
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}

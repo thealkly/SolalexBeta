@@ -1,5 +1,5 @@
 # Wettbewerber-Profil 4: openWB
-**Tiefen-Analyse mit Original-Nutzerstimmen, Begeisterungs-Features und Solarbot-Differenzierung**
+**Tiefen-Analyse mit Original-Nutzerstimmen, Begeisterungs-Features und Solalex-Differenzierung**
 
 Stand: April 2026 · Quellen: openWB-Forum (forum.openwb.de), Photovoltaikforum, TFF-Forum (Tesla Fahrer & Freunde), Akkudoktor-Forum, openWB-Wiki, e-mobileo Shop, openWB-Website, GitHub `snaptec/openWB`
 
@@ -21,7 +21,7 @@ Stand: April 2026 · Quellen: openWB-Forum (forum.openwb.de), Photovoltaikforum,
 
 ## 2. Was openWB fundamental ist
 
-openWB ist die einzige der bisher analysierten Lösungen, die **Hardware und Software gekoppelt verkauft**. Das ist sowohl die größte Stärke als auch die größte Schwäche — und es definiert den fundamentalen Unterschied zu Solarbot.
+openWB ist die einzige der bisher analysierten Lösungen, die **Hardware und Software gekoppelt verkauft**. Das ist sowohl die größte Stärke als auch die größte Schwäche — und es definiert den fundamentalen Unterschied zu Solalex.
 
 Die Selbstbeschreibung des Inhabers im TFF-Forum ist klar: *"In einigen Threads hier wurde die openWB bereits erwähnt. Letztes Jahr hauptsächlich als Bastellösung, derweil hat sich aber einiges getan und der Status steht ihr definitiv nicht mehr zu. Die Bausatzvariante gibt es immer noch, ebenso aber auch eine ansehnliche Variante mit Touchscreen Display. (...) Was unterscheidet die openWB von anderen Wallboxen? Eines der Kernfeatures ist das PV-geführte Laden. Dazu kommt Lastmanagement und Hausanschlussüberwachung mit bis zu 3 Ladepunkten."*
 
@@ -29,7 +29,7 @@ Eine andere User-Aussage trifft das Wesen exakt: *"Was viele Leute nicht sehen �
 
 Das ist openWBs strategische DNA: **Die Wallbox ist der Trojaner, die EMS-Software ist das Produkt.** Wer nur eine Wallbox will, kauft eine günstigere. Wer ein lokales, deutsches, ehrliches Energiemanagement-System will, das ohne Cloud läuft und eine Wallbox als Beigabe mitbringt, kauft openWB.
 
-Und genau hier liegt die Marktöffnung für Solarbot: **Wer kein 1.500-€-Hardware-Bundle kaufen will, sondern nur die Software-Intelligenz braucht — den lässt openWB systematisch links liegen.**
+Und genau hier liegt die Marktöffnung für Solalex: **Wer kein 1.500-€-Hardware-Bundle kaufen will, sondern nur die Software-Intelligenz braucht — den lässt openWB systematisch links liegen.**
 
 ---
 
@@ -43,7 +43,7 @@ openWB wird in der DACH-Community **fast immer in einem Atemzug** mit dem Wort "
 
 Aus Forum-Thread #8271: *"Mit der openWB-software2 kann jede openWB unabhängige Lademodi nutzen — auch 2x PV-Laden. Cool ist auch das Lastmanagement, was softwaremäßig Überlastungen von LSS vorbeugt. (...) Ich bin sehr begeistert, was die Wallbox alles kann."*
 
-**Lehre für Solarbot:** Lastmanagement zwischen mehreren Verbrauchern ist openWBs Stärke und EVCCs offene Baustelle. Solarbot kann hier eine **dritte Position** einnehmen: nicht "Lastmanagement zwischen mehreren Wallboxen" (das ist openWBs Domäne), sondern "**Priorisierung zwischen Verbrauchern unterschiedlicher Klassen**" — Akku vs. Wärmepumpe vs. Heizstab vs. (über EVCC) Auto. Das ist eine andere Achse — und sie ist im V1.x-Roadmap-Plan bereits angedacht.
+**Lehre für Solalex:** Lastmanagement zwischen mehreren Verbrauchern ist openWBs Stärke und EVCCs offene Baustelle. Solalex kann hier eine **dritte Position** einnehmen: nicht "Lastmanagement zwischen mehreren Wallboxen" (das ist openWBs Domäne), sondern "**Priorisierung zwischen Verbrauchern unterschiedlicher Klassen**" — Akku vs. Wärmepumpe vs. Heizstab vs. (über EVCC) Auto. Das ist eine andere Achse — und sie ist im V1.x-Roadmap-Plan bereits angedacht.
 
 ### 3.2 Modularer Hardware-Aufbau und Reparierbarkeit
 
@@ -51,7 +51,7 @@ Aus dem Photovoltaikforum-Thread "Wer hat negative Erfahrungen mit der OpenWB?":
 
 Das ist eine identitätsstiftende Aussage: openWB ist **reparierbar**, im Gegensatz zu Wegwerf-Hardware aus Asien. Das spricht eine Wertegruppe an, die sich über Hardware-Souveränität definiert.
 
-**Lehre für Solarbot:** Solarbot ist Software, daher gibt es nichts zu reparieren — aber wir können das gleiche **Werte-Versprechen** geben: **"Solarbot bleibt funktionsfähig, auch wenn ALKLY morgen verschwindet."** Das ist der Software-Pendant zur Hardware-Reparierbarkeit. Konkret: lokale Lizenz-Validierung, keine Cloud-Pflicht, klare Lizenz-Regeln im Insolvenz-Fall.
+**Lehre für Solalex:** Solalex ist Software, daher gibt es nichts zu reparieren — aber wir können das gleiche **Werte-Versprechen** geben: **"Solalex bleibt funktionsfähig, auch wenn ALKLY morgen verschwindet."** Das ist der Software-Pendant zur Hardware-Reparierbarkeit. Konkret: lokale Lizenz-Validierung, keine Cloud-Pflicht, klare Lizenz-Regeln im Insolvenz-Fall.
 
 ### 3.3 Touchscreen, MID-Eichung, Plug & Charge
 
@@ -65,7 +65,7 @@ openWB liefert physische Premium-Features, die andere Lösungen nicht haben:
 
 Aus dem e-mobileo-Shop: *"openWB series2 Pro ist das ideale Modell für gehobene Ansprüche, ist bereits für bidirektionales Laden (V2G, V2H, ...) vorbereitet und beherrscht Plug & Charge."*
 
-**Lehre für Solarbot:** Wir können diese Hardware-Premium-Features nicht liefern. Aber wir können sie **respektieren** und eine andere Differenzierung bauen: **"Solarbot ist die Software-Intelligenz für Leute, die keine 2.000-€-Wallbox brauchen — oder die ihre Wallbox schon haben."** Das ist eine ehrliche Marktöffnung, die niemanden beleidigt.
+**Lehre für Solalex:** Wir können diese Hardware-Premium-Features nicht liefern. Aber wir können sie **respektieren** und eine andere Differenzierung bauen: **"Solalex ist die Software-Intelligenz für Leute, die keine 2.000-€-Wallbox brauchen — oder die ihre Wallbox schon haben."** Das ist eine ehrliche Marktöffnung, die niemanden beleidigt.
 
 ### 3.4 Deutsche Firma, deutscher Support, deutsche Wertschöpfung
 
@@ -73,19 +73,19 @@ openWB ist eine deutsche GmbH & Co KG mit Sitz und Entwicklung in Deutschland. D
 
 Aus dem Forum-Support-Thread: *"Vor 2 Wochen wurde zur noch besseren Partnerunterstützung auch eine Tel.-Hotline eingerichtet, wo alle geschulten Partner im Notfall zugreifen können."*
 
-**Lehre für Solarbot:** Alex und ALKLY sind ebenfalls deutsch. Das ist ein gemeinsamer Wert, kein Konkurrenz-Punkt. Solarbot kann sich als **"die deutsche Software-Antwort auf den deutschen Hardware-Pionier"** positionieren — also komplementär, nicht konfrontativ.
+**Lehre für Solalex:** Alex und ALKLY sind ebenfalls deutsch. Das ist ein gemeinsamer Wert, kein Konkurrenz-Punkt. Solalex kann sich als **"die deutsche Software-Antwort auf den deutschen Hardware-Pionier"** positionieren — also komplementär, nicht konfrontativ.
 
 ### 3.5 Open Source als Vertrauenssignal
 
 Auch wenn openWB Hardware verkauft: Die Software ist auf GitHub (`snaptec/openWB`) öffentlich einsehbar. Das ist eine seltene Ehrlichkeit in einem kommerziellen Produkt, und sie wird in der Community geschätzt.
 
-**Lehre für Solarbot:** Solarbot ist closed-source. Aber wir können die gleichen **Werte** leben: öffentliche Roadmap, transparente Issue-Tracker, klare Kommunikation. Das ist nicht das Gleiche wie Open Source — aber es ist mehr als das, was die Hersteller-Apps (Anker, Zendure) je liefern werden.
+**Lehre für Solalex:** Solalex ist closed-source. Aber wir können die gleichen **Werte** leben: öffentliche Roadmap, transparente Issue-Tracker, klare Kommunikation. Das ist nicht das Gleiche wie Open Source — aber es ist mehr als das, was die Hersteller-Apps (Anker, Zendure) je liefern werden.
 
 ### 3.6 Migration von DIY zur kommerziellen Lösung als bewusste Reife-Geschichte
 
 openWB ist 2018 als "openSource Wallbox Bastel-Idee" gestartet (Original-Quote des Gründers im TFF-Forum) und hat sich systematisch professionalisiert. Diese Reife-Geschichte ist Teil der Marken-Identität: *"Letztes Jahr hauptsächlich als Bastellösung, derweil hat sich aber einiges getan und der Status steht ihr definitiv nicht mehr zu."*
 
-**Lehre für Solarbot:** Solarbots Migration vom Blueprint-Produkt (300+ Käufer) zum vollständigen Solarbot-System ist eine analoge Reife-Geschichte. Die sollte erzählt werden — als Vertrauenssignal an die Beta-Tester und frühen Käufer. Eine Story-Line wie *"Vom Blueprint zur ersten echten Software für die Energiewende-Heimanwender"* ist authentisch und glaubwürdig.
+**Lehre für Solalex:** Solalexs Migration vom Blueprint-Produkt (300+ Käufer) zum vollständigen Solalex-System ist eine analoge Reife-Geschichte. Die sollte erzählt werden — als Vertrauenssignal an die Beta-Tester und frühen Käufer. Eine Story-Line wie *"Vom Blueprint zur ersten echten Software für die Energiewende-Heimanwender"* ist authentisch und glaubwürdig.
 
 ---
 
@@ -111,7 +111,7 @@ Ein anderer User (mit Node-RED): *"ich hab mir was in Node-Red gebaut wo ich ein
 
 Aber: Diese Funktion ist **nur ein binärer Sperr-Schalter** für ausgewählte Hardware — nicht eine echte Akku-Steuerung. Und ein anderer User pointiert das wunderbar: *"So oder so: EVCC hat bereits eine, wenn auch rudimentäre, aktive Speicher-Steuerung, OpenWB nicht."*
 
-**Solarbot-Differenzierung:** Das ist ein massiver Trumpf für Solarbot. **Akku-Steuerung ist Solarbots Kern, nicht eine optionale Sperr-Funktion.** Während openWB den Akku als unkontrollierbare Black Box behandelt, ist Solarbot von Tag eins darauf optimiert. Botschaft: **"Was openWB für deine Wallbox ist, ist Solarbot für deinen Akku."**
+**Solalex-Differenzierung:** Das ist ein massiver Trumpf für Solalex. **Akku-Steuerung ist Solalexs Kern, nicht eine optionale Sperr-Funktion.** Während openWB den Akku als unkontrollierbare Black Box behandelt, ist Solalex von Tag eins darauf optimiert. Botschaft: **"Was openWB für deine Wallbox ist, ist Solalex für deinen Akku."**
 
 Das ist die gleiche Botschaft, die wir auch gegen EVCC verwenden — aber gegen openWB ist sie noch stärker, weil openWB tatsächlich eine professionelle Wallbox-Lösung ist und die Akku-Lücke in der gleichen Architektur-Klasse besteht.
 
@@ -131,7 +131,7 @@ Das ist mit Abstand der häufigste konkrete Frust-Punkt — und er wird seit Jah
 
 **Die offizielle Antwort der Community ist immer die gleiche:** *"Backup ist immer wichtig. Ist aber auch kein großer Aufwand wenn man es einmal eingerichtet hat."* Aber wenn die Box stirbt, ohne dass ein aktuelles Backup existiert, sind oft monatelange Verbrauchsdaten weg.
 
-**Solarbot-Differenzierung:** Solarbot läuft auf der HA-Installation des Nutzers. HA hat eingebaute Backup-Mechanismen (Snapshots), die unabhängig von Solarbot funktionieren. Solarbot selbst speichert Konfiguration als HA-Add-on, also im HA-Backup-Mechanismus. **Es gibt keinen separaten "Solarbot stirbt, Daten weg"-Ausfallpunkt.** Das ist ein massiver Stabilitäts-Vorteil — und sollte aktiv vermarktet werden: *"Solarbot teilt sich das Schicksal deines Home Assistant. Wenn HA läuft, läuft Solarbot. Wenn HA gesichert ist, ist Solarbot gesichert."*
+**Solalex-Differenzierung:** Solalex läuft auf der HA-Installation des Nutzers. HA hat eingebaute Backup-Mechanismen (Snapshots), die unabhängig von Solalex funktionieren. Solalex selbst speichert Konfiguration als HA-Add-on, also im HA-Backup-Mechanismus. **Es gibt keinen separaten "Solalex stirbt, Daten weg"-Ausfallpunkt.** Das ist ein massiver Stabilitäts-Vorteil — und sollte aktiv vermarktet werden: *"Solalex teilt sich das Schicksal deines Home Assistant. Wenn HA läuft, läuft Solalex. Wenn HA gesichert ist, ist Solalex gesichert."*
 
 ### 4.3 Software 2.x: Update-Drama und Konfigurationsverlust
 
@@ -159,14 +159,14 @@ Der User hat 14 Tage versucht, ist gescheitert, ist zurück auf die alte SD-Kart
 
 Das ist die aktuelle Beta-Software. UI-Bugs auf iPhones, Eingabe-Validierung bricht in Safari, Strompreis-Anzeige bricht. Und **das ist die Premium-Lösung**, für die Nutzer 1.500 € bezahlt haben.
 
-**Solarbot-Differenzierung:** Solarbots Update-Pfad ist **fundamental anders**:
+**Solalex-Differenzierung:** Solalexs Update-Pfad ist **fundamental anders**:
 - Updates über den HA Add-on Store (atomar, mit Rollback)
 - Konfiguration wird automatisch mitgewandert (HA-Standard)
 - Keine SD-Karten-Tausch-Aktionen
 - Keine "5-Minuten-Bug-Fenster"
 - Konsequente Versionierung mit klaren Migrations-Schritten
 
-Im PRD ist das bereits angedacht und sollte hier nochmal als prominentes Differenzierungs-Merkmal markiert werden. Botschaft: **"Solarbot updatet sich selbst. Du machst nichts."**
+Im PRD ist das bereits angedacht und sollte hier nochmal als prominentes Differenzierungs-Merkmal markiert werden. Botschaft: **"Solalex updatet sich selbst. Du machst nichts."**
 
 ### 4.4 Lieferzeiten und Vorkasse-Frust
 
@@ -176,7 +176,7 @@ Im PRD ist das bereits angedacht und sollte hier nochmal als prominentes Differe
 
 2.000 € Vorkasse, doppelte Lieferzeit, Support antwortet nicht. Das ist Hardware-Geschäft im Jahr 2024 — und es zeigt einen fundamentalen Nachteil des Hardware-Modells: **Wenn etwas schiefgeht, hängt man fest.**
 
-**Solarbot-Differenzierung:** Solarbot hat keinen Lieferprozess. Kein Versand, keine Vorkasse, keine 20-Wochen-Wartezeiten. Klick → installiert → läuft. Das ist nicht nur ein Convenience-Vorteil, das ist ein **fundamentaler Geschäftsmodell-Vorteil** — und in Zeiten von Lieferketten-Unsicherheit ein massives Verkaufsargument.
+**Solalex-Differenzierung:** Solalex hat keinen Lieferprozess. Kein Versand, keine Vorkasse, keine 20-Wochen-Wartezeiten. Klick → installiert → läuft. Das ist nicht nur ein Convenience-Vorteil, das ist ein **fundamentaler Geschäftsmodell-Vorteil** — und in Zeiten von Lieferketten-Unsicherheit ein massives Verkaufsargument.
 
 ### 4.5 Hoher Preis im Vergleich zu Standard-Wallboxen
 
@@ -186,9 +186,9 @@ Aus Thread #8271 ("Richtige Komponenten?"): *"Die openWB Pro klingt zwar interes
 
 Eine openWB kostet je nach Modell 1.000–2.500 €. Eine generische 11-kW-Wallbox kostet 400–700 €. Der Aufpreis ist die Software-Intelligenz — aber für viele Nutzer ist dieser Aufpreis nicht verständlich, weil sie die Software-Tiefe nicht erkennen.
 
-**Solarbot-Differenzierung:** Solarbot kostet ein Bruchteil davon — und liefert die Software-Intelligenz **ohne Hardware-Verpflichtung**. Das ist eine gigantische Marktöffnung für die Gruppe, die "openWB klingt cool, aber ich gebe keine 1.500 € für eine Wallbox aus" sagt.
+**Solalex-Differenzierung:** Solalex kostet ein Bruchteil davon — und liefert die Software-Intelligenz **ohne Hardware-Verpflichtung**. Das ist eine gigantische Marktöffnung für die Gruppe, die "openWB klingt cool, aber ich gebe keine 1.500 € für eine Wallbox aus" sagt.
 
-Konkrete Botschaft: **"openWB ist die deutsche Premium-Hardware-Lösung. Solarbot ist die deutsche Premium-Software-Lösung — ohne Hardware-Pflicht."**
+Konkrete Botschaft: **"openWB ist die deutsche Premium-Hardware-Lösung. Solalex ist die deutsche Premium-Software-Lösung — ohne Hardware-Pflicht."**
 
 ### 4.6 Lastmanagement bei Netzwerk-Ausfall: keine Sicherheit
 
@@ -198,7 +198,7 @@ Antwort eines anderen Users: *"Zusammengefasst bedeutet das doch, fällt das Net
 
 Übersetzt: openWBs Lastmanagement schützt **nicht zuverlässig** vor Hausanschluss-Überlast, wenn das Netzwerk hängt. Das ist ein schweres Sicherheits-Fragezeichen für eine Lösung, die explizit als "Lastmanagement-System" vermarktet wird.
 
-**Solarbot-Differenzierung:** Solarbot macht **kein** klassisches Wallbox-Lastmanagement (das ist EVCCs/openWBs Domäne). Aber Solarbot kann transparenter mit Ausfällen umgehen: Im Diagnose-Tab wird sichtbar, wenn eine Quelle länger nicht aktualisiert wurde, und Fail-Safe-Modi lassen sich konfigurieren. Das ist im PRD bereits angedacht.
+**Solalex-Differenzierung:** Solalex macht **kein** klassisches Wallbox-Lastmanagement (das ist EVCCs/openWBs Domäne). Aber Solalex kann transparenter mit Ausfällen umgehen: Im Diagnose-Tab wird sichtbar, wenn eine Quelle länger nicht aktualisiert wurde, und Fail-Safe-Modi lassen sich konfigurieren. Das ist im PRD bereits angedacht.
 
 ### 4.7 Konfiguration ist DIY-historisch komplex geblieben
 
@@ -210,7 +210,7 @@ Mehrere Threads zeigen, dass die openWB-Konfiguration eine Lernkurve hat, die f�
 
 Selbst ein Power-User, der den Umstieg professionell durchführt, findet die UI-Hierarchie und das Bedienkonzept unintuitiv.
 
-**Solarbot-Differenzierung:** Solarbots UX-Plan (Klarheit vor Features, Ergebnis vor Technik, Freude durch Reduktion) ist die direkte Antithese. Wir können einen klaren Vergleich machen: openWB hat 50+ Konfigurations-Optionen pro Ladepunkt, Solarbot hat 5 Hauptmodi. Beide haben ihren Platz — aber für die Mainstream-Zielgruppe ist Solarbot zugänglicher.
+**Solalex-Differenzierung:** Solalexs UX-Plan (Klarheit vor Features, Ergebnis vor Technik, Freude durch Reduktion) ist die direkte Antithese. Wir können einen klaren Vergleich machen: openWB hat 50+ Konfigurations-Optionen pro Ladepunkt, Solalex hat 5 Hauptmodi. Beide haben ihren Platz — aber für die Mainstream-Zielgruppe ist Solalex zugänglicher.
 
 ### 4.8 MQTT-Komplexität bei HA-Integration
 
@@ -218,7 +218,7 @@ Selbst ein Power-User, der den Umstieg professionell durchführt, findet die UI-
 
 Übersetzt: openWB lässt sich über MQTT mit HA verbinden, aber die Integration ist fragil und kann Grundfunktionen brechen. Der Support empfiehlt: erst openWB standalone konfigurieren, dann erst HA dranhängen.
 
-**Solarbot-Differenzierung:** Solarbot **ist** ein HA Add-on. Es gibt keine externe Integration, keine MQTT-Bridge, keine "Standalone vs. mit HA"-Unterscheidung. Solarbot ist HA-nativ, von der ersten Sekunde an.
+**Solalex-Differenzierung:** Solalex **ist** ein HA Add-on. Es gibt keine externe Integration, keine MQTT-Bridge, keine "Standalone vs. mit HA"-Unterscheidung. Solalex ist HA-nativ, von der ersten Sekunde an.
 
 ### 4.9 Cloud-Support-Modell vs. echte lokale Kontrolle
 
@@ -226,7 +226,7 @@ openWB hat einen Cloud-Dienst (openWB-Cloud) für Remote-Zugriff und Support-Akt
 
 Das ist nicht "böse Cloud" wie bei Anker — aber es ist ein Hybrid, der die "100 % lokal"-Botschaft schwächt.
 
-**Solarbot-Differenzierung:** Solarbot ist **keine** Cloud-Anbindung. Lizenz-Aktivierung läuft einmal, danach ist alles lokal. Botschaft: *"Wenn dein Internet ausfällt, läuft Solarbot weiter. Wenn ALKLY morgen verschwindet, läuft Solarbot weiter."*
+**Solalex-Differenzierung:** Solalex ist **keine** Cloud-Anbindung. Lizenz-Aktivierung läuft einmal, danach ist alles lokal. Botschaft: *"Wenn dein Internet ausfällt, läuft Solalex weiter. Wenn ALKLY morgen verschwindet, läuft Solalex weiter."*
 
 ### 4.10 Hardware-Lock-in trotz "Open Source"-Versprechen
 
@@ -234,13 +234,13 @@ Auch wenn die Software offen ist: Wer eine openWB-Hardware kauft, ist faktisch a
 
 Das ist nicht vorwerfbar — aber es ist ein **echter Lock-in**, der in der Marketing-Botschaft "Open Source" gerne übersehen wird.
 
-**Solarbot-Differenzierung:** Solarbot hat **null Hardware-Lock-in**. Der Nutzer kann morgen aufhören, Solarbot zu nutzen, und seine HA-Installation läuft weiter. Das ist eine Form von Freiheit, die nur Software-only-Lösungen bieten können.
+**Solalex-Differenzierung:** Solalex hat **null Hardware-Lock-in**. Der Nutzer kann morgen aufhören, Solalex zu nutzen, und seine HA-Installation läuft weiter. Das ist eine Form von Freiheit, die nur Software-only-Lösungen bieten können.
 
 ---
 
 ## 5. Strukturelle Schwächen — die Architektur-Wahrheiten
 
-**S1: Hardware-Geschäft hat Lieferketten-Risiken.** Wenn ESP32 oder Steckdosen-Komponenten knapp werden, leiden die Lieferzeiten. Solarbot hat dieses Problem null.
+**S1: Hardware-Geschäft hat Lieferketten-Risiken.** Wenn ESP32 oder Steckdosen-Komponenten knapp werden, leiden die Lieferzeiten. Solalex hat dieses Problem null.
 
 **S2: SD-Karten-Speicher ist ein bekanntes Single-Point-of-Failure.** openWB nutzt es seit Jahren und hat es nicht gelöst. Das ist eine architektonische Entscheidung, die nicht reversibel ist, ohne die gesamte Hardware-Linie zu überarbeiten.
 
@@ -256,15 +256,15 @@ Das ist nicht vorwerfbar — aber es ist ein **echter Lock-in**, der in der Mark
 
 ---
 
-## 6. Solarbot-Differenzierung — wo wir konkret anders sind
+## 6. Solalex-Differenzierung — wo wir konkret anders sind
 
-| Dimension | openWB | Solarbot |
+| Dimension | openWB | Solalex |
 |---|---|---|
 | Geschäftsmodell | Hardware + Software gebündelt | Software-only, Add-on |
 | Einstiegspreis | 1.000 € (Custom) bis 2.500 € (Pro) | Bruchteil |
 | Lieferzeit | 12–20 Wochen | Sofort-Download |
 | Akku-Steuerung | Nicht möglich | Kern-Feature |
-| Wallbox-Steuerung | Stärke (eigene Box) | Nicht Solarbots Domäne |
+| Wallbox-Steuerung | Stärke (eigene Box) | Nicht Solalexs Domäne |
 | Lastmanagement | Mehrere Wallboxen | Verbraucher-Priorisierung (Akku/WP/Heizstab/EVCC) |
 | SD-Karten-Tod-Risiko | Wiederkehrend | Null (HA-basiert) |
 | Update-Pfad | SD-Karten-Tausch + Bug-Fenster | HA Add-on Store, atomar |
@@ -280,44 +280,44 @@ Das ist nicht vorwerfbar — aber es ist ein **echter Lock-in**, der in der Mark
 
 openWB ist anders zu positionieren als die bisherigen Wettbewerber. Es ist **nicht** ein offener Konkurrent wie EVCC (gegen den wir mit Co-Existenz arbeiten), und es ist **nicht** ein potenzieller Partner wie EOS. Es ist ein **etablierter Premium-Hardware-Anbieter** in einem angrenzenden Segment, und der richtige Umgang ist:
 
-**1. Respekt vor der Pionierarbeit.** openWB hat 2018 als Bastelprojekt angefangen und ist heute eine ernstzunehmende Firma mit deutscher Wertschöpfung. Das verdient Anerkennung — und ist **gemeinsame Wertegrundlage** mit ALKLY/Solarbot.
+**1. Respekt vor der Pionierarbeit.** openWB hat 2018 als Bastelprojekt angefangen und ist heute eine ernstzunehmende Firma mit deutscher Wertschöpfung. Das verdient Anerkennung — und ist **gemeinsame Wertegrundlage** mit ALKLY/Solalex.
 
-**2. Klare Markt-Trennung.** openWB ist die Lösung für: "Ich brauche eine deutsche, lokale, professionelle Wallbox mit Energiemanagement und ich gebe gerne 1.500–2.500 € dafür aus." Solarbot ist die Lösung für: "Ich habe schon eine Wallbox (oder will eine günstige), und ich brauche die Akku-Steuerungs-Intelligenz."
+**2. Klare Markt-Trennung.** openWB ist die Lösung für: "Ich brauche eine deutsche, lokale, professionelle Wallbox mit Energiemanagement und ich gebe gerne 1.500–2.500 € dafür aus." Solalex ist die Lösung für: "Ich habe schon eine Wallbox (oder will eine günstige), und ich brauche die Akku-Steuerungs-Intelligenz."
 
 **3. Kein direkter Vergleich auf der Landing Page.** openWB ist eine **angrenzende Kategorie**, kein direkter Wettbewerber. Wir vergleichen uns nicht mit Wallbox-Anbietern auf der Landing Page, weil wir keine Wallbox sind.
 
-**4. Software-Intelligenz für openWB-Nutzer als V2-Idee.** Wenn ein openWB-Nutzer gleichzeitig einen Akku hat (und das ist die wachsende Zielgruppe), kann Solarbot als **Komplement** dienen: openWB regelt das Auto, Solarbot regelt den Akku. Beide laufen auf der gleichen HA-Installation. Das ist eine technisch saubere Integration.
+**4. Software-Intelligenz für openWB-Nutzer als V2-Idee.** Wenn ein openWB-Nutzer gleichzeitig einen Akku hat (und das ist die wachsende Zielgruppe), kann Solalex als **Komplement** dienen: openWB regelt das Auto, Solalex regelt den Akku. Beide laufen auf der gleichen HA-Installation. Das ist eine technisch saubere Integration.
 
-**5. Eine sehr konkrete Zielgruppen-Brücke.** Es gibt eine Gruppe von openWB-Nutzern, die **frustriert** sind, weil openWB ihren Akku nicht steuert. Diese Gruppe ist eine **wertvolle Solarbot-Zielgruppe**, weil sie HA bereits nutzt, das technische Verständnis hat und Solarbot als die fehlende Puzzle-Stelle erkennt.
+**5. Eine sehr konkrete Zielgruppen-Brücke.** Es gibt eine Gruppe von openWB-Nutzern, die **frustriert** sind, weil openWB ihren Akku nicht steuert. Diese Gruppe ist eine **wertvolle Solalex-Zielgruppe**, weil sie HA bereits nutzt, das technische Verständnis hat und Solalex als die fehlende Puzzle-Stelle erkennt.
 
 ---
 
-## 8. Was Solarbot von openWB lernen muss
+## 8. Was Solalex von openWB lernen muss
 
-**1. Lastmanagement als Konzept ernst nehmen.** openWB hat das Konzept seit Jahren etabliert. Solarbot muss eine analoge "Verbraucher-Priorisierung" liefern — auch wenn es eine andere Achse ist (Akku/WP/Heizstab statt mehrere Wallboxen). Im PRD V1.x angedacht.
+**1. Lastmanagement als Konzept ernst nehmen.** openWB hat das Konzept seit Jahren etabliert. Solalex muss eine analoge "Verbraucher-Priorisierung" liefern — auch wenn es eine andere Achse ist (Akku/WP/Heizstab statt mehrere Wallboxen). Im PRD V1.x angedacht.
 
-**2. Premium-Anspruch in der UX.** openWB hat einen klaren Premium-Anspruch: "Wir sind teurer, aber wir liefern Qualität." Solarbot ist nicht teuer im Vergleich, aber wir können einen analogen Qualitäts-Anspruch leben: **"Solarbot ist nicht das Billigste, aber das Beste — für das, was es tut."**
+**2. Premium-Anspruch in der UX.** openWB hat einen klaren Premium-Anspruch: "Wir sind teurer, aber wir liefern Qualität." Solalex ist nicht teuer im Vergleich, aber wir können einen analogen Qualitäts-Anspruch leben: **"Solalex ist nicht das Billigste, aber das Beste — für das, was es tut."**
 
-**3. Deutsche Wertschöpfung als Vertrauenssignal.** openWB nutzt das systematisch in der Außenwirkung. ALKLY ist ebenfalls deutsch — das sollte stärker in der Solarbot-Außenkommunikation sein.
+**3. Deutsche Wertschöpfung als Vertrauenssignal.** openWB nutzt das systematisch in der Außenwirkung. ALKLY ist ebenfalls deutsch — das sollte stärker in der Solalex-Außenkommunikation sein.
 
-**4. Modulare Hardware-Idee als Software-Pendant.** openWB ist reparierbar, weil die Komponenten austauschbar sind. Solarbot kann analog **modular und transparent** sein — z. B. mit klaren Schnittstellen, Profile-Marketplace (V1.x), einer Architektur, die Drittanbieter-Erweiterungen ermöglicht.
+**4. Modulare Hardware-Idee als Software-Pendant.** openWB ist reparierbar, weil die Komponenten austauschbar sind. Solalex kann analog **modular und transparent** sein — z. B. mit klaren Schnittstellen, Profile-Marketplace (V1.x), einer Architektur, die Drittanbieter-Erweiterungen ermöglicht.
 
 **5. Forum als Community-Kraft.** openWB hat ein extrem aktives Forum (forum.openwb.de) mit hunderten von Threads pro Woche. Das ist ein massiver Vermögenswert. Alex hat schon einen Discord — der sollte die gleiche Energie und Frequenz bekommen.
 
-**6. Open-Source-Software trotz kommerzieller Hardware.** openWB beweist, dass sich Open Source und kommerzielles Geschäftsmodell **nicht ausschließen müssen**. Solarbot ist closed-source — aber wir können langfristig darüber nachdenken, ob Teile (z. B. die Profile-Marketplace-Definitionen) Open Source werden.
+**6. Open-Source-Software trotz kommerzieller Hardware.** openWB beweist, dass sich Open Source und kommerzielles Geschäftsmodell **nicht ausschließen müssen**. Solalex ist closed-source — aber wir können langfristig darüber nachdenken, ob Teile (z. B. die Profile-Marketplace-Definitionen) Open Source werden.
 
 ---
 
-## 9. Was Solarbot konkret besser machen muss als openWB — die fünf Prioritäten
+## 9. Was Solalex konkret besser machen muss als openWB — die fünf Prioritäten
 
 **Priorität 1: Akku-Steuerung als nicht-verhandelbarer Kern.**
-Während openWB den Akku als Black Box behandelt, ist Solarbots gesamte Architektur darauf ausgelegt, Akkus zu orchestrieren. Direkte Antwort auf 4+ openWB-Forenstimmen, die diese Lücke schmerzhaft beschreiben.
+Während openWB den Akku als Black Box behandelt, ist Solalexs gesamte Architektur darauf ausgelegt, Akkus zu orchestrieren. Direkte Antwort auf 4+ openWB-Forenstimmen, die diese Lücke schmerzhaft beschreiben.
 
 **Priorität 2: Null-SD-Karten-Risiko.**
-Solarbot teilt sich das Schicksal der HA-Installation. HA hat eingebaute Backup-/Snapshot-Mechanismen. Es gibt keinen separaten "Solarbot stirbt"-Ausfallpunkt. Direkte Antwort auf jahrelangen SD-Karten-Tod-Frust.
+Solalex teilt sich das Schicksal der HA-Installation. HA hat eingebaute Backup-/Snapshot-Mechanismen. Es gibt keinen separaten "Solalex stirbt"-Ausfallpunkt. Direkte Antwort auf jahrelangen SD-Karten-Tod-Frust.
 
 **Priorität 3: Atomare Updates ohne Bug-Fenster.**
-Solarbot updatet sich über den HA Add-on Store, mit automatischen Backups und sauberem Rollback. Direkte Antwort auf das Software-2.x-Migrations-Drama von openWB.
+Solalex updatet sich über den HA Add-on Store, mit automatischen Backups und sauberem Rollback. Direkte Antwort auf das Software-2.x-Migrations-Drama von openWB.
 
 **Priorität 4: Sofortige Verfügbarkeit ohne Lieferzeit.**
 Klick → installiert → läuft. Keine 20-Wochen-Wartezeiten, keine Vorkasse. Direkte Antwort auf den 2.000-€-Vorkasse-Frust aus dem PV-Forum.
@@ -331,55 +331,55 @@ Lizenz-Aktivierung einmal, danach vollständig lokal. Keine "Support-Cloud", kei
 
 Drei fertige Sätze für Landing Page, Pitch und Outreach:
 
-> **"openWB ist die deutsche Premium-Wallbox mit Software. Solarbot ist die deutsche Premium-Software ohne Hardware-Pflicht."**
+> **"openWB ist die deutsche Premium-Wallbox mit Software. Solalex ist die deutsche Premium-Software ohne Hardware-Pflicht."**
 
-> **"Was openWB für deine Wallbox ist, ist Solarbot für deinen Akku."**
+> **"Was openWB für deine Wallbox ist, ist Solalex für deinen Akku."**
 
-> **"Keine SD-Karten, keine Lieferzeiten, keine Update-Bug-Fenster. Solarbot teilt sich das Schicksal deines Home Assistant — und wenn das läuft, läuft Solarbot."**
+> **"Keine SD-Karten, keine Lieferzeiten, keine Update-Bug-Fenster. Solalex teilt sich das Schicksal deines Home Assistant — und wenn das läuft, läuft Solalex."**
 
 Eine vierte Botschaft, speziell für die "frustrierten openWB-Nutzer":
 
-> **"Du hast eine openWB und einen Akku, der dich frustriert? Solarbot regelt deinen Akku — openWB lädt weiter dein Auto. Beide leben friedlich auf der gleichen Home-Assistant-Installation."**
+> **"Du hast eine openWB und einen Akku, der dich frustriert? Solalex regelt deinen Akku — openWB lädt weiter dein Auto. Beide leben friedlich auf der gleichen Home-Assistant-Installation."**
 
 ---
 
 ## 11. Risiken und blinde Flecken
 
-**Risiko 1: openWB baut Akku-Steuerung in V2.2 oder V2.3 nach.** Möglich, aber unwahrscheinlich, weil es nicht zur Marken-DNA passt. Falls doch, bleibt Solarbots Setup-Einfachheit und das fehlende Hardware-Bundle trotzdem differenzierend.
+**Risiko 1: openWB baut Akku-Steuerung in V2.2 oder V2.3 nach.** Möglich, aber unwahrscheinlich, weil es nicht zur Marken-DNA passt. Falls doch, bleibt Solalexs Setup-Einfachheit und das fehlende Hardware-Bundle trotzdem differenzierend.
 
 **Risiko 2: openWB-Community fühlt sich angegriffen.** Real, aber durch die "komplementäre Positionierung"-Strategie minimiert. Wir greifen openWB nirgends frontal an — wir sagen nur: "Wir bedienen ein anderes Segment."
 
-**Risiko 3: Wir unterschätzen das deutsche Premium-Hardware-Segment.** openWB beweist, dass es eine Käufergruppe gibt, die für Qualität und deutsche Wertschöpfung gerne 1.500 € zahlt. Solarbot zielt auf eine andere Gruppe — aber die Existenz dieser Gruppe sollte uns nicht überraschen.
+**Risiko 3: Wir unterschätzen das deutsche Premium-Hardware-Segment.** openWB beweist, dass es eine Käufergruppe gibt, die für Qualität und deutsche Wertschöpfung gerne 1.500 € zahlt. Solalex zielt auf eine andere Gruppe — aber die Existenz dieser Gruppe sollte uns nicht überraschen.
 
-**Risiko 4: openWB schmiedet Allianzen mit Speicher-Herstellern.** Das wäre ein direkter Angriff auf Solarbots Kern. Mitigation: Solarbot baut früh seine eigenen Partnerschaften zu Speicher-Shops auf (siehe DIY-Analyse, Punkt zur Distribution über selbstbau-pv.de etc.).
+**Risiko 4: openWB schmiedet Allianzen mit Speicher-Herstellern.** Das wäre ein direkter Angriff auf Solalexs Kern. Mitigation: Solalex baut früh seine eigenen Partnerschaften zu Speicher-Shops auf (siehe DIY-Analyse, Punkt zur Distribution über selbstbau-pv.de etc.).
 
-**Risiko 5: Cloud-Dienst-Skandal trifft openWB.** Falls openWBs Support-Cloud kompromittiert wird, kann das die gesamte deutsche Premium-Wallbox-Branche unter Druck setzen. Solarbot ist davor sicher, weil es keine Cloud hat.
+**Risiko 5: Cloud-Dienst-Skandal trifft openWB.** Falls openWBs Support-Cloud kompromittiert wird, kann das die gesamte deutsche Premium-Wallbox-Branche unter Druck setzen. Solalex ist davor sicher, weil es keine Cloud hat.
 
 ---
 
 ## 12. Konkrete nächste Schritte
 
 **Sofort (vor Spike-Phase):**
-- Im PRD verankern, dass openWB als **angrenzende Kategorie**, nicht als direkter Wettbewerber behandelt wird. Solarbot vergleicht sich nicht mit Wallbox-Anbietern.
+- Im PRD verankern, dass openWB als **angrenzende Kategorie**, nicht als direkter Wettbewerber behandelt wird. Solalex vergleicht sich nicht mit Wallbox-Anbietern.
 - Eine **konkrete Zielgruppen-Persona** für "openWB-Nutzer mit Akku-Frust" definieren — das ist eine sehr wertvolle Akquisitions-Quelle.
 
 **Vor Beta:**
-- Eine kurze Doku-Seite "Solarbot mit openWB kombinieren" vorbereiten — fair, technisch korrekt, ohne Konkurrenz-Sprech. Das ist ein Asset für die Brücken-Zielgruppe.
-- Im openWB-Forum (sehr vorsichtig, sehr respektvoll) testen, ob Akku-Steuerungs-Frage einen Hinweis auf Solarbot rechtfertigt — niemals als Spam, immer als hilfreiche Information.
+- Eine kurze Doku-Seite "Solalex mit openWB kombinieren" vorbereiten — fair, technisch korrekt, ohne Konkurrenz-Sprech. Das ist ein Asset für die Brücken-Zielgruppe.
+- Im openWB-Forum (sehr vorsichtig, sehr respektvoll) testen, ob Akku-Steuerungs-Frage einen Hinweis auf Solalex rechtfertigt — niemals als Spam, immer als hilfreiche Information.
 
 **Beta-Phase:**
 - 2–3 openWB-Nutzer als Beta-Tester gewinnen, die einen Akku haben und die Lücke schmerzhaft kennen. Ihre Erfahrungs-Berichte sind besonders wertvoll, weil sie die "Komplement"-Story aus erster Hand erzählen können.
-- Ein Vergleichs-Artikel auf alkly.de: *"openWB vs. Solarbot — wofür brauchst du was?"* Fair, beide Tools positiv, klare Empfehlung "wenn du eine Wallbox kaufen willst und Geld hast: openWB. Wenn du einen Akku optimieren willst: Solarbot."
+- Ein Vergleichs-Artikel auf alkly.de: *"openWB vs. Solalex — wofür brauchst du was?"* Fair, beide Tools positiv, klare Empfehlung "wenn du eine Wallbox kaufen willst und Geld hast: openWB. Wenn du einen Akku optimieren willst: Solalex."
 
 **Post-Launch:**
-- Beobachten, ob aus dem openWB-Forum Anfragen kommen ("ich habe eine openWB, aber meinen Akku will sie nicht steuern — was tun?"). Diese User sind die wertvollste Solarbot-Akquisitionsquelle aus der openWB-Welt.
-- Falls openWB jemals eine HA-Integration verbessert: Solarbot kann darauf aufbauen. Wir lesen openWB-Daten als "Wallbox-Verbraucher" und priorisieren entsprechend.
+- Beobachten, ob aus dem openWB-Forum Anfragen kommen ("ich habe eine openWB, aber meinen Akku will sie nicht steuern — was tun?"). Diese User sind die wertvollste Solalex-Akquisitionsquelle aus der openWB-Welt.
+- Falls openWB jemals eine HA-Integration verbessert: Solalex kann darauf aufbauen. Wir lesen openWB-Daten als "Wallbox-Verbraucher" und priorisieren entsprechend.
 
 ---
 
 ## 13. Die wichtigste Erkenntnis dieser Analyse
 
-openWB ist die einzige der vier bisher analysierten Lösungen, die **als direkte Vergleichs-Folie** für Solarbot **nicht** taugt — weil sie ein anderes Geschäftsmodell ist (Hardware + Software gebündelt), eine andere Zielgruppe bedient (Premium-EFH mit Wallbox-Bedarf) und ein anderes Preissegment besetzt (10–25× teurer).
+openWB ist die einzige der vier bisher analysierten Lösungen, die **als direkte Vergleichs-Folie** für Solalex **nicht** taugt — weil sie ein anderes Geschäftsmodell ist (Hardware + Software gebündelt), eine andere Zielgruppe bedient (Premium-EFH mit Wallbox-Bedarf) und ein anderes Preissegment besetzt (10–25× teurer).
 
 Aber: openWB ist **kulturell** eine wichtige Referenz. Die Community-Stimmen aus dem openWB-Forum zeigen, was deutsche Solar-Power-User wirklich wollen:
 
@@ -390,9 +390,9 @@ Aber: openWB ist **kulturell** eine wichtige Referenz. Die Community-Stimmen aus
 - Ehrliche Kommunikation
 - Lange Lebensdauer (auch wenn die Realität mit SD-Karten-Tod und Update-Drama dem Anspruch nicht immer gerecht wird)
 
-Das sind exakt die **gleichen Werte**, die Solarbot leben muss. openWB ist nicht der Feind — openWB ist die deutsche Premium-Hardware-Schwester, mit der Solarbot **gemeinsam ein Ökosystem** bilden kann. Und die wertvollste taktische Erkenntnis: **Solarbot kann die Software-Antwort für die Akku-Lücke sein, die openWB seit Jahren offen lässt.**
+Das sind exakt die **gleichen Werte**, die Solalex leben muss. openWB ist nicht der Feind — openWB ist die deutsche Premium-Hardware-Schwester, mit der Solalex **gemeinsam ein Ökosystem** bilden kann. Und die wertvollste taktische Erkenntnis: **Solalex kann die Software-Antwort für die Akku-Lücke sein, die openWB seit Jahren offen lässt.**
 
-Wenn das gelingt, ist Solarbot nicht nur ein Konkurrent in einem überfüllten Markt — Solarbot ist die fehlende Komponente in einem deutschen Premium-Energiemanagement-Stack, der heute aus openWB (Wallbox), Solarbot (Akku) und HA (Backbone) besteht. Das ist eine Position, die niemand sonst in dieser Klarheit bedient.
+Wenn das gelingt, ist Solalex nicht nur ein Konkurrent in einem überfüllten Markt — Solalex ist die fehlende Komponente in einem deutschen Premium-Energiemanagement-Stack, der heute aus openWB (Wallbox), Solalex (Akku) und HA (Backbone) besteht. Das ist eine Position, die niemand sonst in dieser Klarheit bedient.
 
 ---
 

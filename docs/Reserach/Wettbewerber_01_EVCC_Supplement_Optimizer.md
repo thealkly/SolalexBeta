@@ -7,11 +7,11 @@ Quellen: `evcc-io/optimizer` GitHub-Repo, `docs.evcc.io/en/docs/features/optimiz
 
 ## 1. Warum dieses Supplement
 
-Als die EVCC-Analyse (Wettbewerber_01_EVCC.md) geschrieben wurde, war der Optimizer bereits bekannt, aber nicht in der Tiefe untersucht. Alex hat nun gezielt nach dem aktuellen Stand gefragt — weil EVCC damit **in Solarbots Kern-Territorium vorstößt**: Hausbatterie-Optimierung.
+Als die EVCC-Analyse (Wettbewerber_01_EVCC.md) geschrieben wurde, war der Optimizer bereits bekannt, aber nicht in der Tiefe untersucht. Alex hat nun gezielt nach dem aktuellen Stand gefragt — weil EVCC damit **in Solalexs Kern-Territorium vorstößt**: Hausbatterie-Optimierung.
 
-Die Frage, die dieses Supplement beantwortet: **Wie ernst müssen wir den EVCC Optimizer als Bedrohung für Solarbot nehmen?**
+Die Frage, die dieses Supplement beantwortet: **Wie ernst müssen wir den EVCC Optimizer als Bedrohung für Solalex nehmen?**
 
-Die kurze Antwort: **Ernst, aber die Bedrohung ist in den nächsten 12–18 Monaten noch nicht real — und die Architektur-Entscheidungen des Optimizers spielen Solarbot sogar in die Hände.**
+Die kurze Antwort: **Ernst, aber die Bedrohung ist in den nächsten 12–18 Monaten noch nicht real — und die Architektur-Entscheidungen des Optimizers spielen Solalex sogar in die Hände.**
 
 Die lange Antwort im Folgenden.
 
@@ -46,7 +46,7 @@ Und aus der offiziellen Dokumentation: *"The optimizer is currently informationa
 
 Und aus der deutschen Version: *"Der Optimizer ist in einem frühen Entwicklungsstadium. Die angezeigten Daten sind derzeit informativ. Steuerungsaktionen folgen in zukünftigen Versionen."*
 
-**Übersetzung in Klartext:** Nach ~9 Monaten aktiver Entwicklung (Mitte 2025 bis April 2026) zeigt der Optimizer nur **Forecasts und Einsparpotenziale an**. Er trifft keine einzige reale Steuerungsentscheidung. Die Lücke zwischen "Vorhersage zeigen" und "Akku tatsächlich regeln" ist eine Lücke von Monaten bis Jahren — wie man an Solarbot sieht, der diese Lücke seit Jahren löst, braucht man dafür Hysterese, EEPROM-Schutz, Deadbands, Fail-Safes, Multi-WR-Handling und einen Haufen Edge-Case-Logik.
+**Übersetzung in Klartext:** Nach ~9 Monaten aktiver Entwicklung (Mitte 2025 bis April 2026) zeigt der Optimizer nur **Forecasts und Einsparpotenziale an**. Er trifft keine einzige reale Steuerungsentscheidung. Die Lücke zwischen "Vorhersage zeigen" und "Akku tatsächlich regeln" ist eine Lücke von Monaten bis Jahren — wie man an Solalex sieht, der diese Lücke seit Jahren löst, braucht man dafür Hysterese, EEPROM-Schutz, Deadbands, Fail-Safes, Multi-WR-Handling und einen Haufen Edge-Case-Logik.
 
 ### 3.2 Der Optimizer ist experimentell, fragil und mit schweren Stabilitätsproblemen
 
@@ -116,17 +116,17 @@ Aus Discussion #23213: *"Ich muss sagen: Ich bin wirklich begeistert vom neuen O
 
 Aus Discussion #23153: *"Unabhängig von meinem technischen Problem finde ich die Idee dahinter richtig klasse! Am liebsten wäre mir solcast Peak abhängig die Batterie in der früh sogar zu entladen, sodass meine 60 % Drosselung mittags optimiert werden kann."*
 
-**Die Idee ist gut.** Die Vision ist gut. Die Visualisierung ist gut. Die technische Umsetzung im Prototyp ist sauber. Aber — und das ist entscheidend — **die Lücke zwischen Prototyp und Produktionsreife ist riesig.** Und genau in dieser Lücke hat Solarbot seine Marktöffnung.
+**Die Idee ist gut.** Die Vision ist gut. Die Visualisierung ist gut. Die technische Umsetzung im Prototyp ist sauber. Aber — und das ist entscheidend — **die Lücke zwischen Prototyp und Produktionsreife ist riesig.** Und genau in dieser Lücke hat Solalex seine Marktöffnung.
 
 ---
 
-## 5. Die strategische Einordnung für Solarbot
+## 5. Die strategische Einordnung für Solalex
 
-### 5.1 Was bedeutet der Optimizer für die Solarbot-These?
+### 5.1 Was bedeutet der Optimizer für die Solalex-These?
 
-Die Solarbot-These lautet: *"Akku-Steuerung ist die universelle Lücke aller Wallbox-fokussierten Lösungen."*
+Die Solalex-These lautet: *"Akku-Steuerung ist die universelle Lücke aller Wallbox-fokussierten Lösungen."*
 
-Der Optimizer beweist diese These — **und unterstreicht sie gleichzeitig**. EVCC erkennt das Problem, sieht die Marktlücke, und beginnt, eine Lösung zu bauen. Das ist **Validierung** für Solarbots Marktthese.
+Der Optimizer beweist diese These — **und unterstreicht sie gleichzeitig**. EVCC erkennt das Problem, sieht die Marktlücke, und beginnt, eine Lösung zu bauen. Das ist **Validierung** für Solalexs Marktthese.
 
 Gleichzeitig zeigt der Optimizer, wie schwer diese Aufgabe wirklich ist. Nach 9 Monaten aktiver Entwicklung hat ein großes Open-Source-Team mit starker Community und kommerzieller Sponsoring-Finanzierung **noch nicht einen einzigen realen Steuerungsbefehl** an einen Akku geschickt. Sie zeigen nur Vorhersagen.
 
@@ -140,35 +140,35 @@ Gleichzeitig zeigt der Optimizer, wie schwer diese Aufgabe wirklich ist. Nach 9 
 - Notabschaltungs-Logik bei Fehlern
 - Integration mit bestehenden Wechselrichter-Regelungen (damit man sich nicht gegenseitig stört)
 
-Solarbot beschäftigt sich mit all dem seit 2+ Jahren im Rahmen des Nulleinspeisungs-Blueprints. EVCC fängt jetzt erst damit an.
+Solalex beschäftigt sich mit all dem seit 2+ Jahren im Rahmen des Nulleinspeisungs-Blueprints. EVCC fängt jetzt erst damit an.
 
 ### 5.2 Die neue, schärfere Positionierung gegenüber EVCC
 
-Die bisherige Co-Existenz-Botschaft aus der EVCC-Analyse lautete: *"EVCC ist großartig für dein Auto. Solarbot ist großartig für alles andere."*
+Die bisherige Co-Existenz-Botschaft aus der EVCC-Analyse lautete: *"EVCC ist großartig für dein Auto. Solalex ist großartig für alles andere."*
 
 Nach der Optimizer-Analyse wird diese Botschaft **noch präziser und ehrlicher**:
 
-> **"EVCC plant. Solarbot regelt."**
+> **"EVCC plant. Solalex regelt."**
 
 Oder ausführlicher:
 
-> **"Während EVCC experimentelle Vorhersagen für deinen Akku zeigt, regelt Solarbot ihn schon heute — real, lokal, stabil und produktionsreif."**
+> **"Während EVCC experimentelle Vorhersagen für deinen Akku zeigt, regelt Solalex ihn schon heute — real, lokal, stabil und produktionsreif."**
 
 Oder noch ehrlicher, mit Anerkennung:
 
-> **"Der EVCC Optimizer beweist, wie wichtig Akku-Optimierung ist. Solarbot macht es seit Jahren — nicht als Prototyp, sondern als produktionsreife Lösung."**
+> **"Der EVCC Optimizer beweist, wie wichtig Akku-Optimierung ist. Solalex macht es seit Jahren — nicht als Prototyp, sondern als produktionsreife Lösung."**
 
 Das ist keine Herabsetzung von EVCC — es ist eine **faire, technisch korrekte** Beschreibung des Status. Der Optimizer ist explizit als experimentell gekennzeichnet. Diese Tatsache ist kein Geheimnis, sondern steht in der offiziellen Dokumentation.
 
-### 5.3 Die vier Solarbot-Vorteile, die der Optimizer-Vergleich schärft
+### 5.3 Die vier Solalex-Vorteile, die der Optimizer-Vergleich schärft
 
-**1. Real-time control vs. Informational only.** Der härteste, eindeutigste Vorteil. Solarbot ändert wirklich Werte im Akku. Der Optimizer zeigt nur "was wäre wenn".
+**1. Real-time control vs. Informational only.** Der härteste, eindeutigste Vorteil. Solalex ändert wirklich Werte im Akku. Der Optimizer zeigt nur "was wäre wenn".
 
-**2. No sponsor token vs. Sponsor token required.** Solarbot ist für jeden zugänglich, der die Lizenz kauft. Der Optimizer ist nur für zahlende EVCC-Sponsoren nutzbar — und das in einer Zwei-Klassen-Struktur, die die Community ohnehin schon frustriert.
+**2. No sponsor token vs. Sponsor token required.** Solalex ist für jeden zugänglich, der die Lizenz kauft. Der Optimizer ist nur für zahlende EVCC-Sponsoren nutzbar — und das in einer Zwei-Klassen-Struktur, die die Community ohnehin schon frustriert.
 
-**3. 100 % lokal vs. Cloud-abhängig (oder kompliziert lokal).** Solarbot ruft keinen Cloud-Dienst auf. Der Optimizer ruft standardmäßig `optimizer.evcc.io` auf — was EVCCs eigene "100 % lokal"-Botschaft unterwandert und für Nutzer überraschend ist.
+**3. 100 % lokal vs. Cloud-abhängig (oder kompliziert lokal).** Solalex ruft keinen Cloud-Dienst auf. Der Optimizer ruft standardmäßig `optimizer.evcc.io` auf — was EVCCs eigene "100 % lokal"-Botschaft unterwandert und für Nutzer überraschend ist.
 
-**4. Stabil vom ersten Tag vs. System-Killer-Bugs.** Solarbot darf keinen Raspberry Pi von 10 % auf 100 % CPU treiben. Der Optimizer tut genau das, dokumentiert in Discussion #23153. Das ist eine erzählbare Geschichte für Solarbots Stabilitäts-Versprechen.
+**4. Stabil vom ersten Tag vs. System-Killer-Bugs.** Solalex darf keinen Raspberry Pi von 10 % auf 100 % CPU treiben. Der Optimizer tut genau das, dokumentiert in Discussion #23153. Das ist eine erzählbare Geschichte für Solalexs Stabilitäts-Versprechen.
 
 ### 5.4 Die neue Zielgruppen-Nuance: "Frustrierte Optimizer-Tester"
 
@@ -178,13 +178,13 @@ Durch den Optimizer entsteht eine neue, sehr konkrete Akquisitions-Persona:
 - Einen Sponsor Token hat (also zahlungsbereit ist)
 - Den Optimizer installiert hat (also das Problem kennt)
 - Feststellt, dass er nur Vorhersagen sieht (also das Feature-Gap kennt)
-- Eine echte Akku-Steuerung will (also Solarbots Kern-Feature braucht)
+- Eine echte Akku-Steuerung will (also Solalexs Kern-Feature braucht)
 - HA bereits nutzt (also die Infrastruktur hat)
 - Eventuell sogar durch den Optimizer-Setup-Prozess erschöpft ist
 
-Das ist eine **goldene Zielgruppe** für Solarbot. Diese Leute verstehen die Domäne, sie verstehen den Wert von Software-Intelligenz, und sie haben bereits gezeigt, dass sie Geld für Energie-Software ausgeben.
+Das ist eine **goldene Zielgruppe** für Solalex. Diese Leute verstehen die Domäne, sie verstehen den Wert von Software-Intelligenz, und sie haben bereits gezeigt, dass sie Geld für Energie-Software ausgeben.
 
-**Konkrete Akquisitions-Idee:** Eine kurze, faire Blog-Post auf alkly.de mit dem Titel *"Der EVCC Optimizer zeigt dir, was passieren könnte. Solarbot sorgt dafür, dass es passiert."* Kein Angriff, keine Herabsetzung — nur eine ehrliche Einordnung, wer welche Rolle im Stack übernimmt. Mit einem klaren CTA: "Wenn du EVCC für dein Auto und den Optimizer für Forecasts nutzt, fehlt dir noch die Akku-Steuerung. Genau da kommt Solarbot rein."
+**Konkrete Akquisitions-Idee:** Eine kurze, faire Blog-Post auf alkly.de mit dem Titel *"Der EVCC Optimizer zeigt dir, was passieren könnte. Solalex sorgt dafür, dass es passiert."* Kein Angriff, keine Herabsetzung — nur eine ehrliche Einordnung, wer welche Rolle im Stack übernimmt. Mit einem klaren CTA: "Wenn du EVCC für dein Auto und den Optimizer für Forecasts nutzt, fehlt dir noch die Akku-Steuerung. Genau da kommt Solalex rein."
 
 ---
 
@@ -192,13 +192,13 @@ Das ist eine **goldene Zielgruppe** für Solarbot. Diese Leute verstehen die Dom
 
 Das ist die entscheidende Langzeit-Frage. Meine Einschätzung, basierend auf dem, was ich gesehen habe:
 
-**12 Monate (April 2027):** Der Optimizer ist wahrscheinlich immer noch im experimentellen Zustand, hat aber erste simple Steuerungs-Aktionen. Wahrscheinlich nur für ausgewählte Akku-Modelle (die, die EVCC bereits auslesen kann). Setup bleibt Sponsor-Token-gebunden. Solarbot ist zu diesem Zeitpunkt längst im Markt und hat seine Zielgruppe etabliert.
+**12 Monate (April 2027):** Der Optimizer ist wahrscheinlich immer noch im experimentellen Zustand, hat aber erste simple Steuerungs-Aktionen. Wahrscheinlich nur für ausgewählte Akku-Modelle (die, die EVCC bereits auslesen kann). Setup bleibt Sponsor-Token-gebunden. Solalex ist zu diesem Zeitpunkt längst im Markt und hat seine Zielgruppe etabliert.
 
 **24 Monate (April 2028):** Der Optimizer steuert wahrscheinlich Akkus einiger großer Hersteller aktiv. Die Sponsor-Token-Hürde bleibt. Die Stabilität wird besser sein. Zu diesem Zeitpunkt **könnte** er zu einem realen Wettbewerber werden — aber für einen sehr spezifischen Nutzer-Typ: EVCC-Power-User mit Auto, Akku, und Sponsor-Bereitschaft.
 
-**36 Monate (April 2029):** Der Optimizer ist möglicherweise produktionsreif. Aber bis dahin hat Solarbot drei Vorteile ausgebaut: Marktposition, Kundenbasis, Hardware-spezifisches Wissen. Die Konkurrenz wird real, aber nicht existenzbedrohend, weil Solarbots Fokus (Balkonkraftwerk + Akku + Nicht-EV-Nutzer) für EVCC nie der Kern sein wird.
+**36 Monate (April 2029):** Der Optimizer ist möglicherweise produktionsreif. Aber bis dahin hat Solalex drei Vorteile ausgebaut: Marktposition, Kundenbasis, Hardware-spezifisches Wissen. Die Konkurrenz wird real, aber nicht existenzbedrohend, weil Solalexs Fokus (Balkonkraftwerk + Akku + Nicht-EV-Nutzer) für EVCC nie der Kern sein wird.
 
-**Das strukturelle Argument:** EVCC ist und bleibt eine Wallbox-zentrierte Lösung. Der Optimizer wird immer *"wie optimiere ich Auto + Akku gemeinsam"* beantworten. Solarbot beantwortet *"wie optimiere ich meinen Akku, egal ob ich ein Auto habe oder nicht"*. Diese Achsen-Differenz bleibt — und wird sich mit der Zeit sogar vertiefen, weil immer mehr Nutzer Akkus ohne E-Autos kaufen.
+**Das strukturelle Argument:** EVCC ist und bleibt eine Wallbox-zentrierte Lösung. Der Optimizer wird immer *"wie optimiere ich Auto + Akku gemeinsam"* beantworten. Solalex beantwortet *"wie optimiere ich meinen Akku, egal ob ich ein Auto habe oder nicht"*. Diese Achsen-Differenz bleibt — und wird sich mit der Zeit sogar vertiefen, weil immer mehr Nutzer Akkus ohne E-Autos kaufen.
 
 ---
 
@@ -211,8 +211,8 @@ Die folgenden Änderungen sollten in Wettbewerber_01_EVCC.md v1.1 integriert wer
 
 **Patch 2: Verschärfte Botschaft in Kapitel 10 ("Botschaften")**
 Hinzufügen:
-> **"EVCC plant. Solarbot regelt."**
-> **"Während EVCC experimentelle Vorhersagen für deinen Akku zeigt, regelt Solarbot ihn schon heute — real, lokal, stabil und produktionsreif."**
+> **"EVCC plant. Solalex regelt."**
+> **"Während EVCC experimentelle Vorhersagen für deinen Akku zeigt, regelt Solalex ihn schon heute — real, lokal, stabil und produktionsreif."**
 
 **Patch 3: Neuer Risiko-Punkt in Kapitel 11**
 > **"Risiko: EVCC Optimizer wird 2027–2028 produktionsreif."** Mit der Einordnung aus Kapitel 6 dieses Supplements: real, aber nicht existenzbedrohend, weil die Achsen-Differenz (EV-zentriert vs. Akku-zentriert) strukturell bleibt.
@@ -224,15 +224,15 @@ Hinzufügen:
 
 ## 8. Die wichtigste Erkenntnis dieses Supplements
 
-Der EVCC Optimizer ist **keine akute Bedrohung** für Solarbot — aber er ist **die beste Validierung** der Solarbot-These, die wir uns wünschen könnten.
+Der EVCC Optimizer ist **keine akute Bedrohung** für Solalex — aber er ist **die beste Validierung** der Solalex-These, die wir uns wünschen könnten.
 
-EVCC, der größte und erfolgreichste Open-Source-Wettbewerber in diesem Raum, sagt mit dem Optimizer öffentlich: *"Akku-Optimierung ist wichtig. Wir fangen jetzt an, daran zu arbeiten."* Nach 9 Monaten Arbeit zeigen sie nur Forecasts. Solarbot regelt seit Jahren.
+EVCC, der größte und erfolgreichste Open-Source-Wettbewerber in diesem Raum, sagt mit dem Optimizer öffentlich: *"Akku-Optimierung ist wichtig. Wir fangen jetzt an, daran zu arbeiten."* Nach 9 Monaten Arbeit zeigen sie nur Forecasts. Solalex regelt seit Jahren.
 
-Das ist nicht Schadenfreude — das ist **Marktreife**. EVCC validiert den Markt, der Optimizer validiert das Bedürfnis, und Solarbot steht bereits da mit einer funktionierenden Lösung.
+Das ist nicht Schadenfreude — das ist **Marktreife**. EVCC validiert den Markt, der Optimizer validiert das Bedürfnis, und Solalex steht bereits da mit einer funktionierenden Lösung.
 
-Die taktische Konsequenz: **Solarbot sollte in den nächsten 12 Monaten mit maximaler Geschwindigkeit in den Markt — bevor der Optimizer produktionsreif wird.** Nicht panisch, sondern planvoll. Das 9-Wochen-MVP-Timeline ist genau richtig. Die Beta-Phase sollte nicht verschoben werden. Die HACS-Submission sollte früher als später kommen.
+Die taktische Konsequenz: **Solalex sollte in den nächsten 12 Monaten mit maximaler Geschwindigkeit in den Markt — bevor der Optimizer produktionsreif wird.** Nicht panisch, sondern planvoll. Das 9-Wochen-MVP-Timeline ist genau richtig. Die Beta-Phase sollte nicht verschoben werden. Die HACS-Submission sollte früher als später kommen.
 
-Und die Co-Existenz-Story mit EVCC wird durch den Optimizer **stärker, nicht schwächer**. EVCC hat jetzt einen offiziellen Grund, warum Solarbot existieren darf: *"Wir arbeiten am Optimizer, aber er ist experimentell. Wenn du heute eine stabile Akku-Regelung willst, gibt es Solarbot."* Das ist die Art von indirekter Empfehlung, die wir über Jahre hinweg organisch wachsen lassen können.
+Und die Co-Existenz-Story mit EVCC wird durch den Optimizer **stärker, nicht schwächer**. EVCC hat jetzt einen offiziellen Grund, warum Solalex existieren darf: *"Wir arbeiten am Optimizer, aber er ist experimentell. Wenn du heute eine stabile Akku-Regelung willst, gibt es Solalex."* Das ist die Art von indirekter Empfehlung, die wir über Jahre hinweg organisch wachsen lassen können.
 
 ---
 
@@ -244,8 +244,8 @@ Und die Co-Existenz-Story mit EVCC wird durch den Optimizer **stärker, nicht sc
 3. Die neue Zielgruppen-Persona "Frustrierter Optimizer-Tester" in den PRD und/oder in die Beta-Tester-Liste aufnehmen.
 
 **Vor Beta:**
-4. Blog-Post-Entwurf vorbereiten: *"Der EVCC Optimizer zeigt dir, was passieren könnte. Solarbot sorgt dafür, dass es passiert."* — fair, anerkennend, mit klarer Positionierung.
-5. In den Solarbot-Materialien eine kurze FAQ-Antwort vorbereiten: *"Wie unterscheidet sich Solarbot vom EVCC Optimizer?"* mit den vier Differenzierungs-Punkten aus 5.3.
+4. Blog-Post-Entwurf vorbereiten: *"Der EVCC Optimizer zeigt dir, was passieren könnte. Solalex sorgt dafür, dass es passiert."* — fair, anerkennend, mit klarer Positionierung.
+5. In den Solalex-Materialien eine kurze FAQ-Antwort vorbereiten: *"Wie unterscheidet sich Solalex vom EVCC Optimizer?"* mit den vier Differenzierungs-Punkten aus 5.3.
 
 **Beta-Phase:**
 6. 1–2 Beta-Tester gezielt aus der Optimizer-Test-Community gewinnen. Diese User sind technisch versiert, zahlungsbereit und kennen die Lücke bereits.

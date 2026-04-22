@@ -1,0 +1,37 @@
+name: Feature Request
+description: Schlage eine neue Funktion für Solalex vor.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Mitdenken! Bitte beschreibe den Use-Case so konkret wie möglich —
+        ein gutes Beispiel aus dem Alltag hilft mehr als abstrakte Features.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem löst die Funktion?
+      placeholder: "Heute muss ich jedes Mal manuell ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Wie stellst Du Dir die Lösung vor?
+      placeholder: "Solalex könnte ..."
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Betroffene Hardware (Wechselrichter / Akku / Meter)
+      placeholder: "z. B. Hoymiles HMS-800W-2T + Marstek Venus 3E"
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Weitere Kontext-Infos
+      placeholder: "HA-Version, bisherige Workarounds, Screenshots …"

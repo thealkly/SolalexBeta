@@ -3,17 +3,17 @@ stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
-  - docs/Solarbot-Deep-Research.md
+  - docs/Solalex-Deep-Research.md
   - _bmad-output/brainstorming/brainstorming-session-2026-04-14.md
   - docs/ALKLY_CI_Brand_Guidelines.md
-  - docs/solarbot-design-system.md
+  - docs/solalex-design-system.md
 workflowType: 'ux-design'
-project_name: 'Solarbot'
+project_name: 'Solalex'
 user_name: 'Alex'
 date: '2026-04-20'
 ---
 
-# UX Design Specification Solarbot
+# UX Design Specification Solalex
 
 **Author:** Alex
 **Date:** 2026-04-20
@@ -26,14 +26,14 @@ date: '2026-04-20'
 
 ### Project Vision
 
-Solarbot ist kein Dashboard, das Zahlen zeigt, und keine App, die sich konfigurieren lässt. Solarbot ist ein unsichtbarer Regler mit einem sichtbaren Beweis — eine Maschine, die ab Sekunde 1 autonom arbeitet, eingebettet im HA-Ingress-Frame, und dem Nutzer einmal am Abend mit genau einer Zahl sagt: „Das hat's dir heute gebracht."
+Solalex ist kein Dashboard, das Zahlen zeigt, und keine App, die sich konfigurieren lässt. Solalex ist ein unsichtbarer Regler mit einem sichtbaren Beweis — eine Maschine, die ab Sekunde 1 autonom arbeitet, eingebettet im HA-Ingress-Frame, und dem Nutzer einmal am Abend mit genau einer Zahl sagt: „Das hat's dir heute gebracht."
 
 Die UI läuft als HA-Ingress-embedded Web-App (FastAPI + Svelte) auf Desktop und Tablet in der HA-Sidebar. Sie muss sich in HA-Dark/Light-Mode einfügen, ohne die ALKLY-Identität zu verlieren. Und sie muss fühlbar cooler wirken als jedes Hersteller-App, jedes EVCC-Dashboard und jede generische SmartHome-Oberfläche — weil PV als Domain mehr emotionale Aufladung verträgt: es geht um das eigene Haus, eigenes Geld, eigene Autarkie.
 
 Kern-Designprinzipien:
 - **Ergebnis vor Technik** — Euro vor kWh, Ersparnis vor Watt.
 - **Charakter bei Tun, Fakten bei Zahlen** — strikt getrennt. Zahlen entertainen nie.
-- **Sichtbare Autonomie** — der Regel-Modus, die aktive Entscheidung, der Idle-State als positive Aussage. Solarbot zeigt Denken, nicht nur Zustände.
+- **Sichtbare Autonomie** — der Regel-Modus, die aktive Entscheidung, der Idle-State als positive Aussage. Solalex zeigt Denken, nicht nur Zustände.
 - **Pull, nicht Push** — keine Benachrichtigungen. Wenn der Nutzer das Dashboard öffnet, muss es sofort lebendig wirken, auch wenn nichts passiert.
 - **100% lokal, auch in Assets** — DM Sans als selbst-gehostete WOFF2 im Add-on-Container. Kein Google-Fonts-CDN, kein externes Preconnect. Lokalität ist nicht nur Backend-Prinzip, sondern Design-Prinzip.
 
@@ -43,17 +43,17 @@ Vier Personas prägen die UX-Entscheidungen (aus PRD-Journeys destilliert):
 
 **Marstek-Micha (44% der Warteliste, Kern-Segment)** — Frustrierter Bastler, hat nach drei Wochen YAML-Kampf gekündigt. Will, dass „es endlich läuft". UX-Implikation: Wizard führt in unter 10 Minuten zum Erfolg. Akku-Pool darf keine Komplexität nach aussen zeigen. Der Funktionstest ist der emotionale Beweis-Moment („Readback bestätigt, Akku lädt").
 
-**Beta-Björn (Blueprint-Kunde, IT-affin)** — Hat bereits eine funktionierende Lösung, ist skeptisch gegenüber Migration. UX-Implikation: Die Migration muss sichtbar schlanker werden als vorher. Zwei-Schritte-„bist du sicher"-Moment bei der Übernahme. Blueprint-Automation wird durch Solarbot deaktiviert, sichtbar, deterministisch.
+**Beta-Björn (Blueprint-Kunde, IT-affin)** — Hat bereits eine funktionierende Lösung, ist skeptisch gegenüber Migration. UX-Implikation: Die Migration muss sichtbar schlanker werden als vorher. Zwei-Schritte-„bist du sicher"-Moment bei der Übernahme. Blueprint-Automation wird durch Solalex deaktiviert, sichtbar, deterministisch.
 
 **Neugier-Nils (31, Einsteiger, erstes BKW)** — YAML-scheu, liest alles zweimal. UX-Implikation: Live-Werte neben jedem Sensor im Wizard als „ja, das bin ich"-Moment. „Kein Akku"-Pfad wird lautlos übersprungen. Funktionstest wird zur Mini-Demo, in der er zum ersten Mal versteht, was seine Hardware kann.
 
-**Alex Kly (Gesicht der Marke)** — Macht Support selbst in Discord. UX-Implikation: Diagnose-Export ist ein einziger Klick. Charakter-Zeilen im Dashboard spiegeln seine YouTube-Tonalität (direkt, Du-Ansprache, konkret). Kein anonymes Produkt — Solarbot hat erkennbar ein Gesicht.
+**Alex Kly (Gesicht der Marke)** — Macht Support selbst in Discord. UX-Implikation: Diagnose-Export ist ein einziger Klick. Charakter-Zeilen im Dashboard spiegeln seine YouTube-Tonalität (direkt, Du-Ansprache, konkret). Kein anonymes Produkt — Solalex hat erkennbar ein Gesicht.
 
 ### Key Design Challenges
 
 **1. HA-Ingress-Frame ist eine fremde Box.** Wir haben kein volles Browserfenster, keine URL-Kontrolle, HA-Sidebar steht links. Breite variiert stark: Desktop 1200px+, Tablet 768px, Mobile-HA-App 420px. Das bestehende interne Design-System ist Mobile-First (420px). Für v1 brauchen wir ein responsives System mit drei klaren Breakpoints (420 / 768 / 1200+) und einer Layout-Shift-Logik, die auf Desktop nicht wie eine hochgezogene Mobile-App wirkt.
 
-**2. Dark/Light-Mode-Adaption mit ALKLY-Farbidentität.** HA erzwingt Theme-Wechsel. Solarbot darf dabei nicht bleich werden. Teal und Rot müssen als Tokens mit modus-spezifischer Saturation definiert werden — Teal im Dark-Mode braucht etwas mehr Glow, Rot im Light-Mode braucht etwas mehr Sättigung, damit Kontrast-Wahrnehmung identisch bleibt.
+**2. Dark/Light-Mode-Adaption mit ALKLY-Farbidentität.** HA erzwingt Theme-Wechsel. Solalex darf dabei nicht bleich werden. Teal und Rot müssen als Tokens mit modus-spezifischer Saturation definiert werden — Teal im Dark-Mode braucht etwas mehr Glow, Rot im Light-Mode braucht etwas mehr Sättigung, damit Kontrast-Wahrnehmung identisch bleibt.
 
 **3. Setup-Wizard vs. Daily-Dashboard — zwei UX-Regime.** Der Wizard ist linear, bildschirmfüllend, fokussiert, eine primäre Aktion pro Screen. Das Dashboard ist parallel, modular, glanz-orientiert, mehrere parallele Informations-Zonen. Beide dürfen sich nicht fremd anfühlen, aber auch nicht identisch sein. Einheitliche Tokens, unterschiedliche Komposition.
 
@@ -65,13 +65,13 @@ Vier Personas prägen die UX-Entscheidungen (aus PRD-Journeys destilliert):
 
 ### Design Opportunities
 
-Hier wird Solarbot sichtbar cooler als der Markt.
+Hier wird Solalex sichtbar cooler als der Markt.
 
-**A. „Gedanken-Layer" im Dashboard.** Eine dezente Zeile über dem Euro-Wert erzählt den aktuellen Regel-Modus narrativ: „Venus-Pool lädt mit 1.400 W · Überschuss wird gespeichert." Kein Balken-Chart, sondern eine animierte Status-Kette mit Piktogrammen. Das ist der Moat gegen jedes andere PV-Tool — Solarbot zeigt Denken, nicht Zustände.
+**A. „Gedanken-Layer" im Dashboard.** Eine dezente Zeile über dem Euro-Wert erzählt den aktuellen Regel-Modus narrativ: „Venus-Pool lädt mit 1.400 W · Überschuss wird gespeichert." Kein Balken-Chart, sondern eine animierte Status-Kette mit Piktogrammen. Das ist der Moat gegen jedes andere PV-Tool — Solalex zeigt Denken, nicht Zustände.
 
-**B. Flow-Visualisierung statt Zahlen-Kacheln.** PV → Haus / Akku / Netz als animated flow: SVG-Paths mit moving particles in Teal (Erzeugung/Überschuss) und Rot (Bezug/Verbrauch), nicht als klassisches Energieflussdiagramm. Finanz-Apps zeigen „Geld fließt" — Solarbot zeigt „Energie fließt", mit derselben emotionalen Qualität.
+**B. Flow-Visualisierung statt Zahlen-Kacheln.** PV → Haus / Akku / Netz als animated flow: SVG-Paths mit moving particles in Teal (Erzeugung/Überschuss) und Rot (Bezug/Verbrauch), nicht als klassisches Energieflussdiagramm. Finanz-Apps zeigen „Geld fließt" — Solalex zeigt „Energie fließt", mit derselben emotionalen Qualität.
 
-**C. Funktionstest als Dramaturgie.** Der Moment, in dem Solarbot zum ersten Mal das WR-Limit testweise setzt, wird zur Mini-Demo mit Live-Chart, Readback-Check als animiertem Tick, Ergebnis-Feedback. Das ist der Wow-Moment aus Nils' Journey 3. Jede spätere PV-Erfahrung wird an diesem Moment gemessen.
+**C. Funktionstest als Dramaturgie.** Der Moment, in dem Solalex zum ersten Mal das WR-Limit testweise setzt, wird zur Mini-Demo mit Live-Chart, Readback-Check als animiertem Tick, Ergebnis-Feedback. Das ist der Wow-Moment aus Nils' Journey 3. Jede spätere PV-Erfahrung wird an diesem Moment gemessen.
 
 **D. Modus-Wechsel sichtbar inszeniert.** Akku-voll → Drossel-Übergang wird nicht versteckt, sondern animiert: Ring wechselt Farbe, Badge rotiert, kurzer Status-Text erklärt. Zeigt dem Nutzer: ich denke gerade aktiv. Das ist die visuelle Beweisführung für die adaptive Regelungs-Strategie (Innovation #8 aus PRD).
 
@@ -87,16 +87,16 @@ Hier wird Solarbot sichtbar cooler als der Markt.
 
 ### Defining Experience
 
-Solarbots gesamte UX steht oder fällt mit genau einer Interaktion: Der Nutzer öffnet das Dashboard aus der HA-Sidebar und sieht innerhalb von 2 Sekunden eine Euro-Zahl, die sagt, wie viel Solarbot heute für ihn gesteuert hat.
+Solalexs gesamte UX steht oder fällt mit genau einer Interaktion: Der Nutzer öffnet das Dashboard aus der HA-Sidebar und sieht innerhalb von 2 Sekunden eine Euro-Zahl, die sagt, wie viel Solalex heute für ihn gesteuert hat.
 
-Das ist kein Feature. Das ist der Produkt-Lackmustest. Wenn der Moment nicht klickt (keine Scroll-Bewegung, keine Interpretation, keine Zweideutigkeit), scheitert Solarbot. Wenn er klickt, wird er jeden Abend wiederholt und baut tägliches Vertrauen auf.
+Das ist kein Feature. Das ist der Produkt-Lackmustest. Wenn der Moment nicht klickt (keine Scroll-Bewegung, keine Interpretation, keine Zweideutigkeit), scheitert Solalex. Wenn er klickt, wird er jeden Abend wiederholt und baut tägliches Vertrauen auf.
 
 **Core Loop:**
 
-1. Sidebar-Klick auf „Solarbot" (1 Klick)
+1. Sidebar-Klick auf „Solalex" (1 Klick)
 2. Dashboard rendert mit Euro-Zahl als visuellem Held (unter 2 s)
 3. Optionaler Blick auf Energy Ring und Flow (Live-Zustand)
-4. Dashboard wieder zu — Solarbot arbeitet autonom weiter
+4. Dashboard wieder zu — Solalex arbeitet autonom weiter
 
 Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgeladen, aber danach strukturell irrelevant.
 
@@ -122,11 +122,11 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 **2. „Kein Akku" wird lautlos übersprungen.** Der Wizard fragt nicht, sondern überspringt Schritte, die keinen Sinn machen.
 
-**3. Blueprint-Import ist ein „Ja"-Klick.** Solarbot erkennt das bestehende Blueprint, liest die Helfer, übernimmt Werte, deaktiviert das Alte.
+**3. Blueprint-Import ist ein „Ja"-Klick.** Solalex erkennt das bestehende Blueprint, liest die Helfer, übernimmt Werte, deaktiviert das Alte.
 
 **4. Modus-Wechsel passieren ohne Nutzer-Eingriff.** Drossel ↔ Speicher ↔ Multi werden automatisch per Hysterese gewählt. Der Nutzer sieht den Modus, kann ihn nicht setzen.
 
-**5. Funktionstest zeigt Effekt, bevor er erklärt wird.** Solarbot setzt testweise das WR-Limit auf 50 W. Der Nutzer sieht die Einspeisung live fallen und versteht in Sekunde 3, was passiert, ohne Erklärungstext.
+**5. Funktionstest zeigt Effekt, bevor er erklärt wird.** Solalex setzt testweise das WR-Limit auf 50 W. Der Nutzer sieht die Einspeisung live fallen und versteht in Sekunde 3, was passiert, ohne Erklärungstext.
 
 **6. Diagnose-Export ist ein Klick.** Strukturiertes JSON in den Zwischenspeicher oder als Download. Kein Form-Ausfüllen.
 
@@ -134,15 +134,15 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 ### Critical Success Moments
 
-**Moment 1: Der 2-Sekunden-Dashboard-Hit.** Wenn Solarbot die 2-Sekunden-Kernaussage verfehlt, ist das Produkt jeden Abend tot. TTFD unter 2 s, Euro-Zahl im oberen Drittel, kein Scrolling nötig.
+**Moment 1: Der 2-Sekunden-Dashboard-Hit.** Wenn Solalex die 2-Sekunden-Kernaussage verfehlt, ist das Produkt jeden Abend tot. TTFD unter 2 s, Euro-Zahl im oberen Drittel, kein Scrolling nötig.
 
 **Moment 2: Der Funktionstest-Klick.** Emotional für Micha („Readback bestätigt, Akku lädt"), Verstehens-Moment für Nils. Wenn dieser Moment flackert oder unklar ist, kippt das Vertrauen.
 
 **Moment 3: Die erste Euro-Zahl am Abend nach Setup.** Klein, aber real. Anker für die nächsten 30 Tage Nutzung. Null oder unglaubwürdig = Trial tot.
 
-**Moment 4: Der Idle-State als positive Aussage.** Sanftes Atmen, Teal-Soft-Hintergrund, Zeile „Alles im Ziel. Ich überwache weiter." Wenn das wie ein Fehler aussieht, verliert Solarbot seinen Differentiator.
+**Moment 4: Der Idle-State als positive Aussage.** Sanftes Atmen, Teal-Soft-Hintergrund, Zeile „Alles im Ziel. Ich überwache weiter." Wenn das wie ein Fehler aussieht, verliert Solalex seinen Differentiator.
 
-**Moment 5: Modus-Wechsel als sichtbarer Beweis der Intelligenz.** Ring-Farbe-Shift, Badge-Rotation, kurze Status-Zeile. Zeigt: Solarbot denkt. Wenn versteckt, bleibt Solarbot Blackbox.
+**Moment 5: Modus-Wechsel als sichtbarer Beweis der Intelligenz.** Ring-Farbe-Shift, Badge-Rotation, kurze Status-Zeile. Zeigt: Solalex denkt. Wenn versteckt, bleibt Solalex Blackbox.
 
 **Moment 6: Dark-Mode-Umschaltung ohne Bruch.** Teal behält Lebendigkeit, Rot behält Warnkraft, keine bleichen Zonen. Schlechter Dark-Mode zerstört das „hochwertig"-Empfinden in einer Sekunde.
 
@@ -150,9 +150,9 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 **1. Ergebnis vor Technik.** Euro vor kWh. Ersparnis vor Watt. Technische Werte sind immer nachgeordnet und kleiner als das Ergebnis.
 
-**2. Charakter bei Tun, Fakten bei Zahlen.** Strikt getrennte Zonen. Zahlen sind nackt, präzise, ohne Adjektive. Charakter-Zeilen nur, wenn Solarbot über sein eigenes Tun berichtet.
+**2. Charakter bei Tun, Fakten bei Zahlen.** Strikt getrennte Zonen. Zahlen sind nackt, präzise, ohne Adjektive. Charakter-Zeilen nur, wenn Solalex über sein eigenes Tun berichtet.
 
-**3. Sichtbare Autonomie, nicht Kontroll-Illusion.** Der Nutzer sieht, was Solarbot tut, kann es aber nicht fein-steuern. Keine Schieberegler für Deadbands, keine Modus-Selektoren.
+**3. Sichtbare Autonomie, nicht Kontroll-Illusion.** Der Nutzer sieht, was Solalex tut, kann es aber nicht fein-steuern. Keine Schieberegler für Deadbands, keine Modus-Selektoren.
 
 **4. Pull, nicht Push, aber lebendig beim Öffnen.** Keine Benachrichtigungen. Aber wenn das Dashboard geöffnet wird, muss es sofort atmen, fließen, reagieren, auch im Idle-State.
 
@@ -162,7 +162,7 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 **7. Desktop ist canonical, Mobile/Tablet sind Ableitungen.** Bruch mit Convention, aber HA-Ingress-Desktop ist der dominante Kontext. Design wird für 1200px+ entworfen, dann runterskaliert.
 
-**8. Keine Überraschungen nach Start.** Was Solarbot einschaltet, schaltet Solarbot auch aus. Keine „Geist-Verbraucher", keine unerklärten Aktionen.
+**8. Keine Überraschungen nach Start.** Was Solalex einschaltet, schaltet Solalex auch aus. Keine „Geist-Verbraucher", keine unerklärten Aktionen.
 
 ## Desired Emotional Response
 
@@ -170,13 +170,13 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 **Dominantes Gefühl: Gelassene Souveränität.**
 
-Solarbot erzeugt kein „Yeah, ich hab's im Griff"-Bastler-Stolz. Solarbot erzeugt die ruhige Souveränität eines Hausbesitzers, der weiß, dass die Maschine für ihn arbeitet, und der deshalb nicht mehr drüber nachdenken muss. Das Vorbild ist ein gut eingestellter Thermostat in einem teuren Haus: du weißt, er läuft, du weißt, er ist gut, und genau deshalb denkst du 99% der Zeit nicht an ihn. Wenn du doch hinschaust, siehst du ein schönes Display, eine klare Zahl, und du denkst: „Passt."
+Solalex erzeugt kein „Yeah, ich hab's im Griff"-Bastler-Stolz. Solalex erzeugt die ruhige Souveränität eines Hausbesitzers, der weiß, dass die Maschine für ihn arbeitet, und der deshalb nicht mehr drüber nachdenken muss. Das Vorbild ist ein gut eingestellter Thermostat in einem teuren Haus: du weißt, er läuft, du weißt, er ist gut, und genau deshalb denkst du 99% der Zeit nicht an ihn. Wenn du doch hinschaust, siehst du ein schönes Display, eine klare Zahl, und du denkst: „Passt."
 
 Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht mit Konfetti-Animation. Sondern die Art von Befriedigung, die man bei einer eleganten Finanzapp beim Monats-Blick empfindet: „Sieh an. Das hat sich gelohnt."
 
 ### Emotional Journey Mapping
 
-| Phase | Vorher (Frust-Zustand) | Solarbot-Zustand (Ziel) |
+| Phase | Vorher (Frust-Zustand) | Solalex-Zustand (Ziel) |
 |---|---|---|
 | Entdeckung (Landingpage) | Skepsis — „Wieder ein Tool, das Cloud braucht?" | Erleichterung — „Endlich einer, der sagt: lokal, einmalig, läuft" |
 | Installation | Angst — „Zwei Stunden Fummelei" | Überraschung — „Das war's? Drei Klicks?" |
@@ -190,11 +190,11 @@ Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht m
 
 ### Micro-Emotions
 
-**1. Vertrauen vs. Skepsis** — der tragende Balken. Solarbot operiert in einem Markt voller Cloud-Abzocker und Hobby-Bastelei. Jede UI-Entscheidung muss Vertrauen aufbauen: das „100% lokal"-Footer-Badge, der Funktionstest als sichtbarer Beweis, die Charakter-Zeilen in Alex' Stimme, die strenge Trennung von „Zahlen nackt, Charakter über Tun". Vertrauen ist keine Marketing-Kategorie, sondern UX-Substanz.
+**1. Vertrauen vs. Skepsis** — der tragende Balken. Solalex operiert in einem Markt voller Cloud-Abzocker und Hobby-Bastelei. Jede UI-Entscheidung muss Vertrauen aufbauen: das „100% lokal"-Footer-Badge, der Funktionstest als sichtbarer Beweis, die Charakter-Zeilen in Alex' Stimme, die strenge Trennung von „Zahlen nackt, Charakter über Tun". Vertrauen ist keine Marketing-Kategorie, sondern UX-Substanz.
 
 **2. Zuversicht vs. Verwirrung.** Jeder Wizard-Schritt muss so klar sein, dass der Nutzer am Ende sagt „Ich habe das verstanden", nicht „Ich habe das abgeklickt". Der Funktionstest ist der Lakritzstein-Moment für Nils — er versteht in 3 Sekunden, was seine Hardware kann, weil er den Effekt live sieht.
 
-**3. Befriedigung vs. Ungeduld.** Die Euro-Zahl wird nicht übertrieben. Wenn sie 0,14 € sagt, ist das die Wahrheit. Die UI feiert das nicht, sondern zeigt es nüchtern. Die Nüchternheit selbst ist der emotionale Anker: „Solarbot lügt mich nicht an."
+**3. Befriedigung vs. Ungeduld.** Die Euro-Zahl wird nicht übertrieben. Wenn sie 0,14 € sagt, ist das die Wahrheit. Die UI feiert das nicht, sondern zeigt es nüchtern. Die Nüchternheit selbst ist der emotionale Anker: „Solalex lügt mich nicht an."
 
 **4. Gelassenheit vs. Kontrollzwang.** Der Nutzer soll die Zahl sehen, zuklappen, gehen. Wenn er anfängt, am Dashboard zu fummeln, Modi zu setzen, Deadbands zu justieren, haben wir UX-technisch verloren. Die UI muss sich anfühlen, dass es nichts zu tun gibt. Das ist gewollt.
 
@@ -217,7 +217,7 @@ Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht m
 
 ### Design Implications
 
-**Vertrauen → Euro-Zahl als Hero, nicht Watt.** Technische Präzision des Hero-KPI beweist, dass Solarbot nicht mit Prozenten rumrechnet. Die Zahl ist verifizierbar gegen Netz-Zähler. Das Dashboard hat ein „Wie wird das berechnet?"-Link direkt unter der Zahl (Klick öffnet inline-Panel mit Formel, keine Modal).
+**Vertrauen → Euro-Zahl als Hero, nicht Watt.** Technische Präzision des Hero-KPI beweist, dass Solalex nicht mit Prozenten rumrechnet. Die Zahl ist verifizierbar gegen Netz-Zähler. Das Dashboard hat ein „Wie wird das berechnet?"-Link direkt unter der Zahl (Klick öffnet inline-Panel mit Formel, keine Modal).
 
 **Zuversicht → Live-Werte im Wizard.** Jeder Sensor zeigt im Wizard seinen aktuellen Wert („AC-Leistung: 412 W"). Der Nutzer bestätigt nicht eine Entity, sondern eine Messgröße, die er erkennt.
 
@@ -227,7 +227,7 @@ Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht m
 
 **Zugehörigkeit → Footer mit Alex' Micro-Avatar.** 24px rund, Text „Made by Alex Kly · Discord · GitHub · Privacy". Sichtbar, aber nicht dominant.
 
-**Staunen → Funktionstest als Mini-Demo.** Nicht nur Checkliste, sondern live-Chart mit WR-Limit-Verlauf, Netz-Einspeisung, SoC. Die 30 Sekunden sind eine Mini-Reportage über das, was Solarbot gerade tut.
+**Staunen → Funktionstest als Mini-Demo.** Nicht nur Checkliste, sondern live-Chart mit WR-Limit-Verlauf, Netz-Einspeisung, SoC. Die 30 Sekunden sind eine Mini-Reportage über das, was Solalex gerade tut.
 
 **Trust-Anchors im Dashboard:**
 - Zahl kann angetippt werden und zeigt „heute gesteuert: 1.247 Wh × 30 ct/kWh = 0,37 €" (Transparenz-Overlay)
@@ -238,13 +238,13 @@ Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht m
 
 **1. Nüchternheit als Vertrauensstifter.** Die Zahlen werden nicht verkauft. Ein Euro ist ein Euro, nicht „dein grüner Moment". Sprache ist konkret, direkt, Alex'sche Du-Ansprache ohne Verkaufs-Patina.
 
-**2. Ruhe als Default-Ton.** Animationen subtil, Farben getokt, Layouts geordnet. Solarbot ist kein Schreihals. Selbst der Hero-Moment (2-Sekunden-Zahl) ist ruhig inszeniert — keine Eintritts-Animation länger als 400 ms.
+**2. Ruhe als Default-Ton.** Animationen subtil, Farben getokt, Layouts geordnet. Solalex ist kein Schreihals. Selbst der Hero-Moment (2-Sekunden-Zahl) ist ruhig inszeniert — keine Eintritts-Animation länger als 400 ms.
 
 **3. Staunen nur dort, wo es ehrlich ist.** Drei Momente verdienen Glanz: Funktionstest, Modus-Wechsel, erste Euro-Zahl am Abend. Außerhalb dieser Momente wird Glanz reduziert — sonst stumpft er ab.
 
 **4. Charakter atmet mit den Zahlen.** Je kleiner die Euro-Zahl, desto leiser der Charakter. „0,00 € gesteuert" → keine Charakter-Zeile. „2,40 €" → sachliche Zeile. „18,40 €/Monat" → ruhige Feier („Solider Monat."). Niemals umgekehrt.
 
-**5. Idle ist ein Feature, kein Bug.** Wenn Solarbot nichts tut, sagt das Dashboard das laut. Der Idle-State ist die UX-Metapher für „die Maschine funktioniert, du kannst weggehen".
+**5. Idle ist ein Feature, kein Bug.** Wenn Solalex nichts tut, sagt das Dashboard das laut. Der Idle-State ist die UX-Metapher für „die Maschine funktioniert, du kannst weggehen".
 
 **6. Anti-Patina, Anti-Bling.** Keine Gradients, die nach 2027 aussehen wie 2020. Keine Glassmorphism-Exzesse außerhalb der Bottom-Nav. Die UI soll in 5 Jahren noch zeitlos wirken — deshalb Timeless-Tokens statt Trend-Effekte.
 
@@ -252,23 +252,23 @@ Die zweite Schicht ist stille Befriedigung. Nicht laut, nicht feierlich, nicht m
 
 ### Inspiring Products Analysis
 
-Solarbot zieht Inspiration bewusst nicht aus SmartHome-Apps (Gimmick-Dashboards oder Ingenieurs-Cockpits), sondern aus Domains mit hoher emotionaler Aufladung und klarer Einzelzahl-Dominanz.
+Solalex zieht Inspiration bewusst nicht aus SmartHome-Apps (Gimmick-Dashboards oder Ingenieurs-Cockpits), sondern aus Domains mit hoher emotionaler Aufladung und klarer Einzelzahl-Dominanz.
 
-**Apple Wallet / Apple Fitness** — Die eine Zahl regiert den Screen. Kein Clutter, keine Tab-Navigation auf der Startansicht. Fitness zeigt Ring, Wallet zeigt Karte. Beide dominieren visuell. Solarbot übernimmt: Hero-Zone mit Euro-Zahl als absoluter Mittelpunkt, Activity-Ring als Inspiration für Energy Ring — aber PV-spezifisch. Solarbot übernimmt nicht: die feiern-die-Zahlen-Ästhetik. Ring bleibt, Konfetti nicht.
+**Apple Wallet / Apple Fitness** — Die eine Zahl regiert den Screen. Kein Clutter, keine Tab-Navigation auf der Startansicht. Fitness zeigt Ring, Wallet zeigt Karte. Beide dominieren visuell. Solalex übernimmt: Hero-Zone mit Euro-Zahl als absoluter Mittelpunkt, Activity-Ring als Inspiration für Energy Ring — aber PV-spezifisch. Solalex übernimmt nicht: die feiern-die-Zahlen-Ästhetik. Ring bleibt, Konfetti nicht.
 
-**Robinhood / N26 / Trade Republic** — Finanz-Zahlen mit Animation, die sich lebendig anfühlen ohne effekthascherisch zu sein. „Geld bewegt sich" wird visuell spürbar: Line-Charts mit weichem Anstieg, Pulsing-Indicators für Live-Daten, Gradient-Flächen als Subtilität. Solarbot übernimmt: Flow-Logik (Geld fließt → Energie fließt), Line-Chart-Ästhetik, Live-Mikro-Puls. Solarbot übernimmt nicht: die rot/grüne Aggressivität bei Kursschwankungen.
+**Robinhood / N26 / Trade Republic** — Finanz-Zahlen mit Animation, die sich lebendig anfühlen ohne effekthascherisch zu sein. „Geld bewegt sich" wird visuell spürbar: Line-Charts mit weichem Anstieg, Pulsing-Indicators für Live-Daten, Gradient-Flächen als Subtilität. Solalex übernimmt: Flow-Logik (Geld fließt → Energie fließt), Line-Chart-Ästhetik, Live-Mikro-Puls. Solalex übernimmt nicht: die rot/grüne Aggressivität bei Kursschwankungen.
 
-**Linear** — Tastatur-First-Bedienung, fluide Transitions, sofortige Reaktion. Die App fühlt sich wie ein Werkzeug an, nicht wie ein Tool. Solarbot übernimmt: Transitions-Timing, Command-Palette-Denkweise (v2), Typografie-Disziplin. Solarbot übernimmt nicht: die Dichte an Funktionen.
+**Linear** — Tastatur-First-Bedienung, fluide Transitions, sofortige Reaktion. Die App fühlt sich wie ein Werkzeug an, nicht wie ein Tool. Solalex übernimmt: Transitions-Timing, Command-Palette-Denkweise (v2), Typografie-Disziplin. Solalex übernimmt nicht: die Dichte an Funktionen.
 
-**Tesla App** — Auto als animiertes 2D/3D-Element im Zentrum. Sichtbare Ladung, sichtbarer Status. Der Nutzer sieht das Gerät, nicht die Zahlen. Solarbot übernimmt: das Haus als zentrales visuelles Element der Flow-Visualisierung, Akku als kleines Thermometer mit SoC-Füllung. Solarbot übernimmt nicht: 3D-Render-Aufwand — wir bleiben 2D-SVG, ist schneller, lokaler, zeitloser.
+**Tesla App** — Auto als animiertes 2D/3D-Element im Zentrum. Sichtbare Ladung, sichtbarer Status. Der Nutzer sieht das Gerät, nicht die Zahlen. Solalex übernimmt: das Haus als zentrales visuelles Element der Flow-Visualisierung, Akku als kleines Thermometer mit SoC-Füllung. Solalex übernimmt nicht: 3D-Render-Aufwand — wir bleiben 2D-SVG, ist schneller, lokaler, zeitloser.
 
-**Things 3 / Craft (macOS-Ästhetik)** — Ruhe, Weißraum, DM-Sans-würdige Typografie, Mikro-Details (Checkbox-Animation mit leichtem Spring), dezente Farbakzente. Solarbot übernimmt: Spacing-Disziplin (8px-Raster), Shadow-System (2 Ebenen max), „Atmen"-Qualität. Solarbot übernimmt nicht: skeuomorphe Tendenzen.
+**Things 3 / Craft (macOS-Ästhetik)** — Ruhe, Weißraum, DM-Sans-würdige Typografie, Mikro-Details (Checkbox-Animation mit leichtem Spring), dezente Farbakzente. Solalex übernimmt: Spacing-Disziplin (8px-Raster), Shadow-System (2 Ebenen max), „Atmen"-Qualität. Solalex übernimmt nicht: skeuomorphe Tendenzen.
 
-**Strava (Statistik-Screen)** — Performance-Zahlen in Kontext (heute vs. Woche vs. Monat) mit narrativen Annotations. Solarbot übernimmt: Kontext-Zahlen im Stats-Tab (April: 18,40 € · März: 12,60 € · +46%), narrative Einordnung — aber in Solarbot-Ruhe („Solider Monat.", nicht „Personal Best!").
+**Strava (Statistik-Screen)** — Performance-Zahlen in Kontext (heute vs. Woche vs. Monat) mit narrativen Annotations. Solalex übernimmt: Kontext-Zahlen im Stats-Tab (April: 18,40 € · März: 12,60 € · +46%), narrative Einordnung — aber in Solalex-Ruhe („Solider Monat.", nicht „Personal Best!").
 
-**Zigbee2MQTT Web-UI** — Als HA-Add-on-Referenz und bewusste Untergrenze. Solarbot muss sichtbar besser aussehen als Zigbee2MQTT, um den Premium-Preis zu rechtfertigen. Zigbee2MQTT ist das Niveau, das HA-Power-User als „OK" empfinden. Solarbot muss „Woah" auslösen.
+**Zigbee2MQTT Web-UI** — Als HA-Add-on-Referenz und bewusste Untergrenze. Solalex muss sichtbar besser aussehen als Zigbee2MQTT, um den Premium-Preis zu rechtfertigen. Zigbee2MQTT ist das Niveau, das HA-Power-User als „OK" empfinden. Solalex muss „Woah" auslösen.
 
-**Copilot (iOS) / Cashflow** — Monats-Übersicht mit einer dominanten Zahl + 3 Kontext-Kacheln, Kategorisierung durch Farbcode, Vertrauen durch Transparenz. Solarbot übernimmt: Monats-Ansicht-Aufbau, „Transparenz-Overlay" beim Antippen der Hero-Zahl.
+**Copilot (iOS) / Cashflow** — Monats-Übersicht mit einer dominanten Zahl + 3 Kontext-Kacheln, Kategorisierung durch Farbcode, Vertrauen durch Transparenz. Solalex übernimmt: Monats-Ansicht-Aufbau, „Transparenz-Overlay" beim Antippen der Hero-Zahl.
 
 ### Transferable UX Patterns
 
@@ -283,7 +283,7 @@ Solarbot zieht Inspiration bewusst nicht aus SmartHome-Apps (Gimmick-Dashboards 
 - Inline-Editing für Bezugspreis: Tap auf die Zahl → Stepper erscheint unter der Zahl, keine Modal. Enter/Blur speichert.
 - Transparenz-Overlay: Tap auf Hero-Zahl → Inline-Panel fährt aus mit Formel und Quelle.
 - Tastatur-Kürzel (Linear-Stil): `1/2/3/4` springt zwischen Hauptansichten, `D` öffnet Diagnose, `?` zeigt Shortcut-Referenz. Klein, aber für Alex/Björn ein Qualitätsmerkmal.
-- Live-Feedback im Funktionstest (Robinhood-Stil): während Solarbot das WR-Limit setzt, zeigt sich ein Live-Chart mit 5-Sekunden-Fenster. Readback als Checkmark-Animation (Spring-Easing).
+- Live-Feedback im Funktionstest (Robinhood-Stil): während Solalex das WR-Limit setzt, zeigt sich ein Live-Chart mit 5-Sekunden-Fenster. Readback als Checkmark-Animation (Spring-Easing).
 - Optimistic UI (Linear-Stil): Toggle schaltet sofort um, WebSocket-Bestätigung kommt nach. Bei Failure rollt Toggle zurück mit sanfter Animation + Fehler-Zeile.
 
 **Visual-Patterns**
@@ -333,7 +333,7 @@ Solarbot zieht Inspiration bewusst nicht aus SmartHome-Apps (Gimmick-Dashboards 
 - Activity-Ring von Apple Fitness → PV-spezifisch, ohne Ring-Schließen-Feiern
 - Bottom-Nav-Glass nur dort, nicht durchgehend
 - Tesla-Geräte-Animation als 2D-SVG, nicht 3D
-- Copilot-Monats-Ansicht in Solarbot-ruhig statt Finanz-App-dramatisch
+- Copilot-Monats-Ansicht in Solalex-ruhig statt Finanz-App-dramatisch
 
 **Zu vermeiden (Avoid):**
 - SmartHome-App-Clutter (Lovelace-Wildwuchs)

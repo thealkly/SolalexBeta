@@ -1,0 +1,13 @@
+#!/usr/bin/with-contenv bashio
+# s6-overlay v3 finish handler: halt the container when the service stops
+# so the HA Supervisor can report a clean shutdown and restart cleanly.
+declare exit_code=${1:-0}
+
+bashio::log.info "Solalex service exited with code ${exit_code}"
+
+# Exit code 256 tells s6 to bring down the whole container (not just restart the service).
+if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 256 ]]; then
+    bashio::log.warning "Unexpected exit — s6 will restart the service"
+fi
+
+exit 0

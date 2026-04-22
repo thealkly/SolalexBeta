@@ -1,9 +1,9 @@
 ---
 stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-02c-executive-summary', 'step-01b-continue', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional', 'step-10-nonfunctional', 'step-11-polish', 'step-12-complete']
 inputDocuments:
-  - docs/PRD-Solarbot-MVP-2.md
-  - docs/Solarbot-Beta-Plan.md
-  - docs/Solarbot-Deep-Research.md
+  - docs/PRD-Solalex-MVP-2.md
+  - docs/Solalex-Beta-Plan.md
+  - docs/Solalex-Deep-Research.md
   - docs/Temp Research/ALKLY_Kundenanalyse_Personas_Report.md
   - _bmad-output/brainstorming/brainstorming-session-2026-04-14.md
   - docs/Wettbewerber_01_EVCC.md
@@ -32,10 +32,10 @@ classification:
   projectContext: greenfield_code_brownfield_planning
 tagline: 'Steuert deinen Solar lokal und sekundengenau.'
 vision:
-  coreInsight: 'HA als Entity-Layer ist der Moat — Solarbot orchestriert, baut keine Treiber'
+  coreInsight: 'HA als Entity-Layer ist der Moat — Solalex orchestriert, baut keine Treiber'
   differentiator: 'Aktive, sekundengenaue Steuerung — nicht Prognose, nicht Beobachtung'
   valueProps:
-    - 'Du integrierst. Solarbot regelt.'
+    - 'Du integrierst. Solalex regelt.'
     - 'Steuert deinen Solar lokal und sekundengenau.'
   realProblem: 'Cloud-Müdigkeit + Preisspread — Solar gekauft für Autarkie, Software sabotiert sie'
   whyNow:
@@ -51,7 +51,7 @@ vision:
     beleg: 'Selbst verbraucht (kWh) + Selbst gesteuert (kWh)'
     delta: 'Monats-Ersparnis vs. optionale 7-Tage-Baseline (v1.1)'
   uxPrinciples:
-    - 'Pull, nicht Push — Solarbot piekst nie, antwortet wenn gefragt'
+    - 'Pull, nicht Push — Solalex piekst nie, antwortet wenn gefragt'
     - 'Dashboard: 2 Sekunden bis zur Kernaussage'
     - 'Charakter bei eigenem Tun, Fakten bei Zahlen — strikt getrennt'
   openDecisions:
@@ -63,13 +63,13 @@ vision:
     - 'Blueprint-Import-Wizard statt Clean Cut (P0 MVP)'
     - 'SetpointProvider-Interface in Woche 1 (Forecast-Naht)'
     - 'Regelungs-Watchdog mit Closed-Loop-Readback + Fail-Safe (P0 MVP)'
-    - 'Solarbot Lite gestrichen — HA Container/Core best-effort ohne Support'
+    - 'Solalex Lite gestrichen — HA Container/Core best-effort ohne Support'
     - 'Pre-Order-Phase Woche 5-6 als Intent-Beleg'
 ---
 
-# Product Requirements Document - Solarbot
+# Product Requirements Document - Solalex
 
-**App Name:** Solarbot
+**App Name:** Solalex
 **Brand:** ALKLY (alkly.de)
 **Tagline:** Steuert deinen Solar lokal und sekundengenau.
 **Author:** Alex
@@ -81,28 +81,28 @@ vision:
 
 Du hast Tausende Euro in Solar investiert — und trotzdem fließt dein Strom für Centbeträge ins Netz. Der Spread ist brutal: ~30 ct/kWh Bezug, 0–8 ct/kWh Einspeisung. Jede Kilowattstunde, die dein Haus verlässt statt sie selbst zu verbrauchen, ist ein 4–5× Verlust. Dazu kommt: Hersteller-Apps sind träge und cloud-abhängig, bestehende Lösungen erfordern YAML-Expertise oder Abonnements, und keine Lösung am Markt steuert deinen Akku zuhause produktionsreif — lokal, ohne Cloud, ohne Abo.
 
-**Solarbot ändert das.** Lokal. Automatisch. Ab der ersten Sekunde.
+**Solalex ändert das.** Lokal. Automatisch. Ab der ersten Sekunde.
 
-**Solarbot** ist ein Home Assistant Add-on das Wechselrichter, Akkus und Verbraucher sekundengenau steuert — nicht überwacht, nicht prognostiziert, sondern aktiv regelt. Ein PID-Regler mit Hardware-spezifischen Defaults erreicht ±5 W Genauigkeit. Ein Setup-Wizard mit Auto-Detection macht die Erstkonfiguration in unter 10 Minuten möglich. Danach vergisst du, dass Solarbot läuft — bis du abends auf das Dashboard schaust und siehst, wie viel Euro Solarbot heute für dich gesteuert hat.
+**Solalex** ist ein Home Assistant Add-on das Wechselrichter, Akkus und Verbraucher sekundengenau steuert — nicht überwacht, nicht prognostiziert, sondern aktiv regelt. Ein PID-Regler mit Hardware-spezifischen Defaults erreicht ±5 W Genauigkeit. Ein Setup-Wizard mit Auto-Detection macht die Erstkonfiguration in unter 10 Minuten möglich. Danach vergisst du, dass Solalex läuft — bis du abends auf das Dashboard schaust und siehst, wie viel Euro Solalex heute für dich gesteuert hat.
 
 **Kern-Prinzipien:**
 - **100 % lokal im Betrieb** — null Cloud-Pings für Steuerung oder Daten, keine stille Telemetrie. Lizenzprüfung einmal pro Monat (mit Graceful Degradation bei vorübergehendem Offline-Status)
-- **Pull, nicht Push** — Solarbot piekst nie; das Dashboard antwortet in 2 Sekunden mit einer Euro-Zahl als Kern-Aussage
+- **Pull, nicht Push** — Solalex piekst nie; das Dashboard antwortet in 2 Sekunden mit einer Euro-Zahl als Kern-Aussage
 - **Sichtbarer Beweis** — dreistufige KPI-Pyramide: Euro-Ersparnis (Headline) → kWh selbst verbraucht und aktiv gesteuert (Beleg) → Monats-Delta vs. Baseline (optional)
 - **Aktiv, nicht prognostisch** — v1 regelt reaktiv und sekundengenau; eine architektonische Naht für Forecast-Erweiterung ist ab Tag 1 vorhanden
-- **Persönlichkeit ohne Lärm** — Solarbot kommuniziert mit einem definierten Charakter, der Vertrauen schafft, ohne zu nerven. Fakten sprechen für sich, der Charakter spricht über sein eigenes Tun
+- **Persönlichkeit ohne Lärm** — Solalex kommuniziert mit einem definierten Charakter, der Vertrauen schafft, ohne zu nerven. Fakten sprechen für sich, der Charakter spricht über sein eigenes Tun
 
-### Was Solarbot besonders macht
+### Was Solalex besonders macht
 
-**1. Dein Strom bleibt bei dir.** Solarbot steuert Wechselrichter und Akkus so, dass nahezu null Watt ans Netz verschenkt werden — automatisch, ohne dass du eingreifen musst. Was andere Lösungen nur beobachten oder prognostizieren, regelt Solarbot aktiv.
+**1. Dein Strom bleibt bei dir.** Solalex steuert Wechselrichter und Akkus so, dass nahezu null Watt ans Netz verschenkt werden — automatisch, ohne dass du eingreifen musst. Was andere Lösungen nur beobachten oder prognostizieren, regelt Solalex aktiv.
 
-**2. Alles was Home Assistant kennt, kennt Solarbot.** Solarbot baut keine eigenen Hardware-Treiber. Es nutzt die Geräte, die bereits in deinem HA als Entities existieren — und erbt damit die Kompatibilität von 2000+ Integrationen. Kein anderes Steuerungstool nutzt diese Hebelwirkung.
+**2. Alles was Home Assistant kennt, kennt Solalex.** Solalex baut keine eigenen Hardware-Treiber. Es nutzt die Geräte, die bereits in deinem HA als Entities existieren — und erbt damit die Kompatibilität von 2000+ Integrationen. Kein anderes Steuerungstool nutzt diese Hebelwirkung.
 
-**3. Deine Batterie schaltet nie unkontrolliert ab.** Jeder Steuerbefehl wird per Closed-Loop-Verifikation geprüft. Bei Kommunikationsausfall greift ein automatischer Fail-Safe — Solarbot steuert nie blind.
+**3. Deine Batterie schaltet nie unkontrolliert ab.** Jeder Steuerbefehl wird per Closed-Loop-Verifikation geprüft. Bei Kommunikationsausfall greift ein automatischer Fail-Safe — Solalex steuert nie blind.
 
-**4. Dein bestehendes Setup wird respektiert.** 300 bestehende Blueprint-Kunden werden nicht zum Neustart gezwungen. Ein Import-Wizard erkennt bestehende Konfigurationen und übernimmt sie als Solarbot-Preset.
+**4. Dein bestehendes Setup wird respektiert.** 300 bestehende Blueprint-Kunden werden nicht zum Neustart gezwungen. Ein Import-Wizard erkennt bestehende Konfigurationen und übernimmt sie als Solalex-Preset.
 
-**5. Vertrauen durch Transparenz.** Öffentliche Roadmap auf GitHub, Community-Support auf Discord, Beta-Pioneers-Programm, ALKLY YouTube-Kanal als persönlicher Draht zum Entwickler. Solarbot ist kein anonymes Produkt — es hat ein Gesicht.
+**5. Vertrauen durch Transparenz.** Öffentliche Roadmap auf GitHub, Community-Support auf Discord, Beta-Pioneers-Programm, ALKLY YouTube-Kanal als persönlicher Draht zum Entwickler. Solalex ist kein anonymes Produkt — es hat ein Gesicht.
 
 ### Geschäftsmodell
 
@@ -136,13 +136,13 @@ Geschätzt 500.000+ PV-Haushalte mit Home Assistant im DACH-Raum (bei ~3 Mio. PV
 
 ### User Success
 
-**Hero-KPI (Produkt-Versprechen):** Euro-Wert der gesteuerten Ersparnis pro Haushalt. Das Dashboard zeigt in 2 Sekunden: „Solarbot hat dir diesen Monat X € gesteuert."
+**Hero-KPI (Produkt-Versprechen):** Euro-Wert der gesteuerten Ersparnis pro Haushalt. Das Dashboard zeigt in 2 Sekunden: „Solalex hat dir diesen Monat X € gesteuert."
 
 **Beleg-KPI:** kWh selbst verbraucht + kWh selbst gesteuert — strikt getrennt, keine kontrafaktischen Schätzungen.
 
 **Delta-KPI (ab v1.1, opt-in):** Monats-Ersparnis vs. optionale 7-Tage-Baseline.
 
-**Attributions-Regel „selbst gesteuert":** Nur kWh, die Solarbot aktiv zugewiesen hat — Akku-Lade-/Entladebefehle, Verbraucher-Aktivierung, WR-Drossel. Passiver Selbstverbrauch zählt separat.
+**Attributions-Regel „selbst gesteuert":** Nur kWh, die Solalex aktiv zugewiesen hat — Akku-Lade-/Entladebefehle, Verbraucher-Aktivierung, WR-Drossel. Passiver Selbstverbrauch zählt separat.
 
 **Bezugspreis in v1:** Nutzerseitig konfigurierbar (Default 30 ct/kWh, jederzeit anpassbar). Live-Tarife folgen in v1.5.
 
@@ -235,7 +235,7 @@ Kaskaden-Modell (Überschuss + Entlade mit Gates) · Multi-WR + Multi-Akku mit S
 
 ### Vision — v3+
 
-Peak-Shaving · Speed-Aware-Pool-Verteilung · Wallbox als First-Class-Verbraucher · NL-Internationalisierung (ab 2027) · Community Template Store · Installateur-Programm (B2B2C) · Optional Solarbot Lite (Custom Integration für HA Container/Core) · CRA-Compliance-Framework (SBOM, Vulnerability-Process).
+Peak-Shaving · Speed-Aware-Pool-Verteilung · Wallbox als First-Class-Verbraucher · NL-Internationalisierung (ab 2027) · Community Template Store · Installateur-Programm (B2B2C) · Optional Solalex Lite (Custom Integration für HA Container/Core) · CRA-Compliance-Framework (SBOM, Vulnerability-Process).
 
 ## User Journeys
 
@@ -243,47 +243,47 @@ Peak-Shaving · Speed-Aware-Pool-Verteilung · Wallbox als First-Class-Verbrauch
 
 **Opening Scene:** Sonntagnachmittag, 15:40 Uhr. Michael sitzt auf der Couch, Laptop auf dem Schoß. Draußen scheint die Sonne auf sein 8,6-kWp-Dach. Der Marstek CT002 hängt wieder fest — dritte Woche in Folge. Seine zwei Venus 3E zeigen im Hersteller-App-Dashboard widersprüchliche SoC-Werte. Er hat eine Stunde mit der Marstek-App probiert, dann 40 Minuten in YAML-Configs rumgewurschtelt. Jetzt: 1.600 W Sonne draußen, 0 W landet im Akku. Er schüttelt den Kopf: „Ich habe 4.000 Euro für zwei Akkus bezahlt, damit sie nichts tun?"
 
-**Rising Action:** YouTube schlägt ein ALKLY-Video vor — „Marstek-Speicher in Home Assistant steuern". Drei Minuten später öffnet er die Solarbot-Landingpage. Er liest: „Du integrierst. Solarbot regelt." HA-OS-Check grün, Wartelisten-Platz frei. Er trägt sich ein, bekommt sofort eine E-Mail mit der Repository-URL. Add-on-Store → URL hinzufügen → 2 Klicks installiert. Setup-Wizard startet im HA-Frame. Auto-Detection findet den Shelly 3EM und beide Marstek Venus in 4 Sekunden. Er wählt Kauf, LemonSqueezy öffnet sich, zahlt, kommt zurück.
+**Rising Action:** YouTube schlägt ein ALKLY-Video vor — „Marstek-Speicher in Home Assistant steuern". Drei Minuten später öffnet er die Solalex-Landingpage. Er liest: „Du integrierst. Solalex regelt." HA-OS-Check grün, Wartelisten-Platz frei. Er trägt sich ein, bekommt sofort eine E-Mail mit der Repository-URL. Add-on-Store → URL hinzufügen → 2 Klicks installiert. Setup-Wizard startet im HA-Frame. Auto-Detection findet den Shelly 3EM und beide Marstek Venus in 4 Sekunden. Er wählt Kauf, LemonSqueezy öffnet sich, zahlt, kommt zurück.
 
-**Climax:** Funktionstest läuft. Solarbot setzt ein Akku-Lade-Kommando von 300 W auf Venus 1 — Readback bestätigt: „300 W, Akku lädt." Dasselbe auf Venus 2. Micha atmet aus. Er klickt „Aktivieren". Neun Minuten nach Install zeigt das Dashboard: **0 W Einspeisung · Venus-Pool lädt mit 1.400 W · +0,08 € in der ersten Minute**.
+**Climax:** Funktionstest läuft. Solalex setzt ein Akku-Lade-Kommando von 300 W auf Venus 1 — Readback bestätigt: „300 W, Akku lädt." Dasselbe auf Venus 2. Micha atmet aus. Er klickt „Aktivieren". Neun Minuten nach Install zeigt das Dashboard: **0 W Einspeisung · Venus-Pool lädt mit 1.400 W · +0,08 € in der ersten Minute**.
 
-**Resolution:** Am nächsten Abend schaut er beim Dashboard-Öffnen auf seine Euro-Zahl: „Heute gesteuert: 2,40 €". Keine Benachrichtigung, kein Pieksen, kein Support-Ticket. Er postet in seinem Forum-Thread: „Bin raus, Marstek läuft endlich." Am Sonntag darauf öffnet er Solarbot einmal kurz — Zahl sieht gut aus — schließt wieder. Das ist der Punkt, an dem er weiß: das Ding macht seinen Job.
+**Resolution:** Am nächsten Abend schaut er beim Dashboard-Öffnen auf seine Euro-Zahl: „Heute gesteuert: 2,40 €". Keine Benachrichtigung, kein Pieksen, kein Support-Ticket. Er postet in seinem Forum-Thread: „Bin raus, Marstek läuft endlich." Am Sonntag darauf öffnet er Solalex einmal kurz — Zahl sieht gut aus — schließt wieder. Das ist der Punkt, an dem er weiß: das Ding macht seinen Job.
 
 **Offenbarte Capabilities:** Auto-Detection Marstek Venus 3E/D (lokale API), Akku-Pool-Abstraktion für ≥ 2 Venus, Closed-Loop-Readback als Funktionstest, LemonSqueezy-Flow im Wizard, Dashboard-Euro-Zahl als 2-Sekunden-Kernaussage, „keine Pieks"-Default.
 
 ### Journey 2: Beta-Björn — Migration vom Blueprint, Happy Path
 
-**Opening Scene:** Björn, 44, Bestandskunde seit 14 Monaten. Der Nulleinspeisungs-Blueprint läuft stabil, aber er hat drei selbst-gebaute Automationen für Anker Solix E1600 Nacht-Entladung dazu-gebastelt. Donnerstagmorgen kommt die Newsletter-Mail von Alex: „Blueprint-Kunde? Solarbot ist live. Dein Rabatt-Code liegt bei."
+**Opening Scene:** Björn, 44, Bestandskunde seit 14 Monaten. Der Nulleinspeisungs-Blueprint läuft stabil, aber er hat drei selbst-gebaute Automationen für Anker Solix E1600 Nacht-Entladung dazu-gebastelt. Donnerstagmorgen kommt die Newsletter-Mail von Alex: „Blueprint-Kunde? Solalex ist live. Dein Rabatt-Code liegt bei."
 
-**Rising Action:** Björn installiert das Solarbot-Add-on über die Repository-URL. Beim ersten Start fragt der Wizard: „Wir haben 1 aktive Nulleinspeisungs-Blueprint-Automation erkannt. Importieren?" Er klickt Ja. Solarbot liest die Input-Number-Helfer, übernimmt die Zielwerte, erkennt, dass die Entity `number.opendtu_limit_nonpersistent_absolute` bereits im Blueprint verwendet wurde und schlägt eben die als WR-Limit-Entity vor. Björn bestätigt. Schritt 2 Akku: Min-SoC 15 %, Max-SoC 95 %, Nacht-Entladung ab 20:00 Uhr — alles als Default-Vorschlag aus seiner bisherigen Konfiguration.
+**Rising Action:** Björn installiert das Solalex-Add-on über die Repository-URL. Beim ersten Start fragt der Wizard: „Wir haben 1 aktive Nulleinspeisungs-Blueprint-Automation erkannt. Importieren?" Er klickt Ja. Solalex liest die Input-Number-Helfer, übernimmt die Zielwerte, erkennt, dass die Entity `number.opendtu_limit_nonpersistent_absolute` bereits im Blueprint verwendet wurde und schlägt eben die als WR-Limit-Entity vor. Björn bestätigt. Schritt 2 Akku: Min-SoC 15 %, Max-SoC 95 %, Nacht-Entladung ab 20:00 Uhr — alles als Default-Vorschlag aus seiner bisherigen Konfiguration.
 
-**Climax:** Der Wizard stellt den Wechsel explizit dar: „Blueprint-Automation wird deaktiviert. Solarbot übernimmt ab Aktivierung die Regelung." Björn liest zweimal — das ist die Stelle, an der er misstrauisch war. Funktionstest läuft, Solarbot setzt das WR-Limit testweise, Readback ok. Er klickt „Aktivieren". Parallel deaktiviert Solarbot die Blueprint-Automation sauber.
+**Climax:** Der Wizard stellt den Wechsel explizit dar: „Blueprint-Automation wird deaktiviert. Solalex übernimmt ab Aktivierung die Regelung." Björn liest zweimal — das ist die Stelle, an der er misstrauisch war. Funktionstest läuft, Solalex setzt das WR-Limit testweise, Readback ok. Er klickt „Aktivieren". Parallel deaktiviert Solalex die Blueprint-Automation sauber.
 
 **Resolution:** 48 Stunden später postet Björn im ALKLY-Discord #beta-pioneers: „Kürzeste Migration meines Lebens. Eigenbau-Automationen darf ich jetzt auch wegräumen." Für Björn heißt Erfolg: sein Setup ist schlanker als vorher. Er bewirbt sich zwei Wochen später für das Installateurs-Programm.
 
-**Offenbarte Capabilities:** Blueprint-Import-Wizard mit Auto-Erkennung der Helfer und Entities, sanfter Cut (Blueprint-Deaktivierung durch Solarbot), Default-Übernahme bestehender SoC-/Zeit-Werte, Rabatt-Code-Flow über LemonSqueezy, zweistufiger „bist du sicher"-Moment bei der Umschaltung.
+**Offenbarte Capabilities:** Blueprint-Import-Wizard mit Auto-Erkennung der Helfer und Entities, sanfter Cut (Blueprint-Deaktivierung durch Solalex), Default-Übernahme bestehender SoC-/Zeit-Werte, Rabatt-Code-Flow über LemonSqueezy, zweistufiger „bist du sicher"-Moment bei der Umschaltung.
 
 ### Journey 3: Neugier-Nils — Einsteiger, Happy Path
 
-**Opening Scene:** Nils, 31, hat letzte Woche sein erstes Balkonkraftwerk mit Hoymiles HMS-800 aufgehängt. HA läuft auf einem Raspberry Pi 4, den er nach einem YouTube-Tutorial eingerichtet hat. Automationen? Nichts. YAML? Zweimal geöffnet, zweimal zugeklappt. Er entdeckt die Solarbot-Landingpage über die Wartelisten-Mail. Oben steht gleich: „Benötigt Home Assistant OS oder Supervised." Er prüft HA → Einstellungen → „Raspberry Pi 4, HA OS". Passt.
+**Opening Scene:** Nils, 31, hat letzte Woche sein erstes Balkonkraftwerk mit Hoymiles HMS-800 aufgehängt. HA läuft auf einem Raspberry Pi 4, den er nach einem YouTube-Tutorial eingerichtet hat. Automationen? Nichts. YAML? Zweimal geöffnet, zweimal zugeklappt. Er entdeckt die Solalex-Landingpage über die Wartelisten-Mail. Oben steht gleich: „Benötigt Home Assistant OS oder Supervised." Er prüft HA → Einstellungen → „Raspberry Pi 4, HA OS". Passt.
 
 **Rising Action:** Installation Schritt für Schritt nach Landingpage-Anleitung. Repository hinzufügen — Screenshots helfen. Add-on installieren → starten → Klick in die Sidebar. Wizard begrüßt ihn. Schritt 1 Hardware-Auswahl, drei Pfade. Er klickt Hoymiles. Auto-Detection findet OpenDTU + Entities. Live-Werte rechts: „AC-Leistung: 412 W" — die Zahl, die er vorher nur in der OpenDTU-UI gesehen hat. Er nickt: ja, das ist mein System.
 
-**Climax:** Er hat keinen Akku — Wizard erkennt das und überspringt den Akku-Schritt lautlos. Schritt Smart Meter: Shelly 3EM wird gefunden. Funktionstest: Solarbot setzt kurz das WR-Limit auf 50 W — er sieht die Einspeisung live fallen und wieder steigen. In diesem Moment passiert das Wichtigste der Journey: **er versteht zum ersten Mal, was da eigentlich passiert**. Nicht, weil jemand es erklärt hat, sondern weil er den Effekt seiner Hardware selbst gesehen hat.
+**Climax:** Er hat keinen Akku — Wizard erkennt das und überspringt den Akku-Schritt lautlos. Schritt Smart Meter: Shelly 3EM wird gefunden. Funktionstest: Solalex setzt kurz das WR-Limit auf 50 W — er sieht die Einspeisung live fallen und wieder steigen. In diesem Moment passiert das Wichtigste der Journey: **er versteht zum ersten Mal, was da eigentlich passiert**. Nicht, weil jemand es erklärt hat, sondern weil er den Effekt seiner Hardware selbst gesehen hat.
 
-**Resolution:** Nach 12 Minuten (Nils ist langsam, liest alles zweimal) läuft Solarbot. Das Dashboard zeigt „0 W Einspeisung · Heute gesteuert: 0,14 €". Die Zahl ist klein — halbe Sonne am Nachmittag, kein Akku. Aber sie ist da. Er postet seinen ersten Community-Beitrag im ALKLY-Discord: „Bin Einsteiger, hat funktioniert." Eine Woche später bestellt er sich einen 3-kWh-Akku — weil er jetzt versteht, was der bringt.
+**Resolution:** Nach 12 Minuten (Nils ist langsam, liest alles zweimal) läuft Solalex. Das Dashboard zeigt „0 W Einspeisung · Heute gesteuert: 0,14 €". Die Zahl ist klein — halbe Sonne am Nachmittag, kein Akku. Aber sie ist da. Er postet seinen ersten Community-Beitrag im ALKLY-Discord: „Bin Einsteiger, hat funktioniert." Eine Woche später bestellt er sich einen 3-kWh-Akku — weil er jetzt versteht, was der bringt.
 
 **Offenbarte Capabilities:** Drei-Pfade-Wizard mit klarer Hardware-Wahl, Live-Werte neben jedem Sensor im Wizard, „kein Akku"-Pfad ohne tote Schritte, Funktionstest als sichtbarer Lern-Moment, Landing-Page-Check für HA-Installationstyp, Discord als niedrigschwelliger Einstieg.
 
 ### Journey 4: Alex Kly — Hersteller-Support, Beta-Phase
 
-**Opening Scene:** Freitag, 09:15 Uhr. Alex öffnet Discord. In #solarbot-beta: Björn hat gepostet: „Mein Solarbot hängt seit gestern 22 Uhr. Akku lädt nicht mehr. Log sagt nichts." Zwei andere Tester haben mit „+1, gleiches Problem" reagiert. Alex schluckt, öffnet GitHub Issues — noch nichts gemeldet.
+**Opening Scene:** Freitag, 09:15 Uhr. Alex öffnet Discord. In #solalex-beta: Björn hat gepostet: „Mein Solalex hängt seit gestern 22 Uhr. Akku lädt nicht mehr. Log sagt nichts." Zwei andere Tester haben mit „+1, gleiches Problem" reagiert. Alex schluckt, öffnet GitHub Issues — noch nichts gemeldet.
 
-**Rising Action:** Alex schreibt in Discord: „Ich brauche bitte einen Diagnose-Export von allen drei — Solarbot → Diagnose → Exportieren. Und den Add-on-Log aus HA → Settings → Add-ons → Solarbot → Logs." Innerhalb einer Stunde hat er drei JSON-Exports und drei Log-Dumps. Gemeinsamer Nenner: alle drei laufen Marstek Venus 3E mit Firmware 1.14.8 — gestern Abend automatisch auf 1.15.0 upgedated. Seitdem antwortet die lokale API mit einem leicht geänderten JSON-Key.
+**Rising Action:** Alex schreibt in Discord: „Ich brauche bitte einen Diagnose-Export von allen drei — Solalex → Diagnose → Exportieren. Und den Add-on-Log aus HA → Settings → Add-ons → Solalex → Logs." Innerhalb einer Stunde hat er drei JSON-Exports und drei Log-Dumps. Gemeinsamer Nenner: alle drei laufen Marstek Venus 3E mit Firmware 1.14.8 — gestern Abend automatisch auf 1.15.0 upgedated. Seitdem antwortet die lokale API mit einem leicht geänderten JSON-Key.
 
-**Climax:** Alex pusht in zwei Stunden einen Hotfix-Branch auf `alkly/solarbot`. GitHub Actions baut, zehn Minuten später. Er postet in Discord: „Update ist im Store. Automatisch in 10 Minuten bei euch. Bitte bestätigen." Eine Stunde später: drei grüne Haken. Er öffnet die GitHub-Roadmap und ergänzt „Firmware-Version-Pinning + versionstolerante Adapter" als P1 für v1.1.
+**Climax:** Alex pusht in zwei Stunden einen Hotfix-Branch auf `alkly/solalex`. GitHub Actions baut, zehn Minuten später. Er postet in Discord: „Update ist im Store. Automatisch in 10 Minuten bei euch. Bitte bestätigen." Eine Stunde später: drei grüne Haken. Er öffnet die GitHub-Roadmap und ergänzt „Firmware-Version-Pinning + versionstolerante Adapter" als P1 für v1.1.
 
-**Resolution:** Björn dankt öffentlich im Channel, Alex postet den Fix-Commit als Link, alle drei Tester schreiben einen kurzen Absatz fürs Launch-Video. Alex Kly bleibt das Gesicht von Solarbot — kein anonymer Support, kein Ticket-System, keine Automated-Response. Für die Community ist das der Moment, an dem sie wissen: da sitzt ein Mensch dran, und der macht seinen Job.
+**Resolution:** Björn dankt öffentlich im Channel, Alex postet den Fix-Commit als Link, alle drei Tester schreiben einen kurzen Absatz fürs Launch-Video. Alex Kly bleibt das Gesicht von Solalex — kein anonymer Support, kein Ticket-System, keine Automated-Response. Für die Community ist das der Moment, an dem sie wissen: da sitzt ein Mensch dran, und der macht seinen Job.
 
 **Offenbarte Capabilities:** Diagnose-Export-Funktion als Pflicht im MVP, Discord + GitHub Issues als getrennte Support-Kanäle mit klaren Rollen, Add-on-Store-Autoupdate als Fast-Hotfix-Pfad, strukturiertes Bug-Report-Template mit HW-/Firmware-Angaben, öffentliche Roadmap als Vertrauenssignal, Alex Kly als sichtbare Person hinter der Marke.
 
@@ -295,39 +295,39 @@ Aus den vier Journeys ergeben sich die Kern-Capabilities, die im PRD verbindlich
 - **Regelung & Akku-Pool:** Multi-Venus als interner Pool (≥ 2 Einheiten ohne UX-Komplikation) · reaktive Nulleinspeisung · Akku-Schutz mit Min/Max-SoC · Nacht-Entladung in Zeitfenstern · „kein Akku"-Pfad ohne tote Wizard-Schritte
 - **Dashboard & Kommunikation:** Euro-Zahl als 2-Sekunden-Kernaussage · sichtbarer Selbstverbrauch + selbst gesteuert als Beleg · Stille-statt-Pieks-Default
 - **Diagnose & Support:** Diagnose-Tab mit letzten 100 Zyklen + Export-Funktion · Add-on-Logs als zweiter Datenpunkt · strukturiertes Bug-Report-Template
-- **Community & Marke:** Discord #beta-pioneers + #solarbot-support getrennt · GitHub Issues + öffentliche Roadmap · Alex Kly namentlich als Hersteller
+- **Community & Marke:** Discord #beta-pioneers + #solalex-support getrennt · GitHub Issues + öffentliche Roadmap · Alex Kly namentlich als Hersteller
 - **Vertrieb & Lizenz:** LemonSqueezy-Flow innerhalb des Wizards · Rabatt-Code-Pfad für Blueprint-Kunden · Funktionstest vor Lizenzaktivierung · sanfter Blueprint-Cut (Deaktivierung + Werte-Übernahme als Default)
 
 ## Domain-Specific Requirements
 
-Solarbot operiert im DACH-Consumer-PV-Segment als Edge-Software auf Home Assistant. Domain-Constraints kommen aus drei Richtungen: **Regulatorik** (DACH-Energierecht, DSGVO, EU CRA), **Hardware-Safety** (kein Netz-Exportverlust, keine Hardware-Beschädigung) und **HA-Ökosystem** (Add-on-Architektur, Entity-Layer als alleiniger Integrationspunkt).
+Solalex operiert im DACH-Consumer-PV-Segment als Edge-Software auf Home Assistant. Domain-Constraints kommen aus drei Richtungen: **Regulatorik** (DACH-Energierecht, DSGVO, EU CRA), **Hardware-Safety** (kein Netz-Exportverlust, keine Hardware-Beschädigung) und **HA-Ökosystem** (Add-on-Architektur, Entity-Layer als alleiniger Integrationspunkt).
 
 ### Compliance & Regulatorik
 
-- **Einspeise-Begrenzung:** Solarbot respektiert die WR-/Netz-Limits, die in den HA-Entities vorgegeben sind — keine Überschreibung gesetzlicher oder technischer Caps. Für Balkonkraftwerke (DE/AT 800 W, CH abhängig) bleibt die Durchsetzung des Limits beim Wechselrichter; Solarbot steuert nur innerhalb.
+- **Einspeise-Begrenzung:** Solalex respektiert die WR-/Netz-Limits, die in den HA-Entities vorgegeben sind — keine Überschreibung gesetzlicher oder technischer Caps. Für Balkonkraftwerke (DE/AT 800 W, CH abhängig) bleibt die Durchsetzung des Limits beim Wechselrichter; Solalex steuert nur innerhalb.
 - **DSGVO:** Durch 100 %-lokal-Betrieb im MVP weitgehend entschärft. Einzige Drittland-/Online-Datenübertragung: Lizenzprüfung (Zahlungsanbieter TBD, LemonSqueezy als Merchant-of-Record-Favorit). Privacy-Policy-Passage in Launch-Dokumentation verbindlich.
-- **EU Cyber Resilience Act (CRA, scharf ab 2027):** Solarbot fällt als kommerzielles Software-Produkt mit digitalen Elementen unter den CRA. Ab 2027 vor-Inverkehrbringen-Anforderungen: Software-Bill-of-Materials (SBOM), Vulnerability-Handling-Prozess, CE-Konformität. Als **Future-Requirement** ab v2-Zeitraum einzuplanen.
+- **EU Cyber Resilience Act (CRA, scharf ab 2027):** Solalex fällt als kommerzielles Software-Produkt mit digitalen Elementen unter den CRA. Ab 2027 vor-Inverkehrbringen-Anforderungen: Software-Bill-of-Materials (SBOM), Vulnerability-Handling-Prozess, CE-Konformität. Als **Future-Requirement** ab v2-Zeitraum einzuplanen.
 - **Installations-Disclaimer:** Vor Lizenzaktivierung im Setup-Wizard muss der Nutzer explizit bestätigen: „Keine Garantien für Hardware-Schäden oder Stromausfälle." Als sichtbare Checkbox im Wizard (nicht versteckt in AGB).
 
 ### Safety & Hardware-Schutz
 
-- **EEPROM-/Schreibzyklen-Schutz:** Wechselrichter und Akku-BMS haben herstellerspezifische Schreibzyklus-Limits (z. B. Hoymiles ~1 Mio., undokumentiert bei Marstek). Solarbot implementiert **hardware-spezifisches Rate-Limiting** (Default ≤ 1 Schreibbefehl pro Device/Minute, per Adapter-Modul überschreibbar, persistent über Restart hinweg) um Hardware-Verschleiß zu vermeiden.
+- **EEPROM-/Schreibzyklen-Schutz:** Wechselrichter und Akku-BMS haben herstellerspezifische Schreibzyklus-Limits (z. B. Hoymiles ~1 Mio., undokumentiert bei Marstek). Solalex implementiert **hardware-spezifisches Rate-Limiting** (Default ≤ 1 Schreibbefehl pro Device/Minute, per Adapter-Modul überschreibbar, persistent über Restart hinweg) um Hardware-Verschleiß zu vermeiden.
 - **Closed-Loop-Readback:** Jeder Steuerbefehl wird per Readback auf Erfolgsquittung geprüft. Bei ausbleibender Antwort → Fail-Safe-Modus (deterministischer Safe-State, kein blindes Weiter-Steuern).
 - **Kein unkontrollierter Netz-Export:** Rate Limiting und Deadband verhindern Aussteuerung über das Limit hinaus. Safe-State bei Kommunikations-Ausfall = letztes bekanntes WR-Limit halten, nicht freigeben.
-- **Nutzer-Leitplanken:** Min/Max-SoC, Zeitfenster, Hardware-spezifische Defaults verhindern, dass Nutzer Solarbot in schädliche Konfigurationen bringen (z. B. Tiefentladung unter Akku-Spezifikation).
+- **Nutzer-Leitplanken:** Min/Max-SoC, Zeitfenster, Hardware-spezifische Defaults verhindern, dass Nutzer Solalex in schädliche Konfigurationen bringen (z. B. Tiefentladung unter Akku-Spezifikation).
 
 ### Technical Constraints
 
-- **Home Assistant als alleiniger Entity-Layer:** Keine Direkt-Hardware-Kommunikation in v1 (kein Modbus, kein MQTT-Direkt, kein Cloud-API-Call zu Herstellern). Solarbot liest und schreibt ausschließlich über HA-WebSocket-API. Dieser Constraint ist Moat und Architektur-Disziplin zugleich.
-- **HA-Versions-Kompatibilität:** Solarbot supportet die **aktuelle Home-Assistant-Version**. Supported-Range und Upgrade-Lag-Tolerance werden in der Release-Dokumentation festgelegt; Add-on-Isolation schirmt vor WebSocket-API-Breaks ab.
-- **End-to-End-Regelungs-Latenz als Messgröße:** Sekunden-Regelung ist technisch machbar, aber die Latenz zwischen Solarbot-Befehl und messbarem Effekt am Smart Meter variiert stark nach Hardware-Stack (Hoymiles/OpenDTU: 5–15 s; Anker Cloud: 30–90 s; Marstek lokale API: noch zu messen). **Solarbot misst diese E2E-Latenz pro Device automatisch und loggt sie in SQLite.** Sie ist essenzielle Eingabe für hardware-spezifische Regelungs-Parameter (Deadband, Rate Limit, Reaktionsschwellen) und im Diagnose-Tab sichtbar.
-- **Add-on-Isolation:** Crash-Resistenz gegenüber HA durch Container-Architektur. Solarbot-Absturz beeinflusst HA nicht.
+- **Home Assistant als alleiniger Entity-Layer:** Keine Direkt-Hardware-Kommunikation in v1 (kein Modbus, kein MQTT-Direkt, kein Cloud-API-Call zu Herstellern). Solalex liest und schreibt ausschließlich über HA-WebSocket-API. Dieser Constraint ist Moat und Architektur-Disziplin zugleich.
+- **HA-Versions-Kompatibilität:** Solalex supportet die **aktuelle Home-Assistant-Version**. Supported-Range und Upgrade-Lag-Tolerance werden in der Release-Dokumentation festgelegt; Add-on-Isolation schirmt vor WebSocket-API-Breaks ab.
+- **End-to-End-Regelungs-Latenz als Messgröße:** Sekunden-Regelung ist technisch machbar, aber die Latenz zwischen Solalex-Befehl und messbarem Effekt am Smart Meter variiert stark nach Hardware-Stack (Hoymiles/OpenDTU: 5–15 s; Anker Cloud: 30–90 s; Marstek lokale API: noch zu messen). **Solalex misst diese E2E-Latenz pro Device automatisch und loggt sie in SQLite.** Sie ist essenzielle Eingabe für hardware-spezifische Regelungs-Parameter (Deadband, Rate Limit, Reaktionsschwellen) und im Diagnose-Tab sichtbar.
+- **Add-on-Isolation:** Crash-Resistenz gegenüber HA durch Container-Architektur. Solalex-Absturz beeinflusst HA nicht.
 
 ### Integration Requirements
 
-- **Distribution:** Custom Add-on Repository auf GitHub (`alkly/solarbot`), Auto-Updates via HA Add-on Store.
+- **Distribution:** Custom Add-on Repository auf GitHub (`alkly/solalex`), Auto-Updates via HA Add-on Store.
 - **Lizenz-/Zahlungsflow:** Zahlungsanbieter TBD — LemonSqueezy als Favorit für EU-USt.-Merchant-of-Record. Lizenzprüfung einmalig online bei Aktivierung, danach monatlich mit Graceful Degradation offline-fähig.
-- **MQTT Discovery (v1.5 oder v2):** Optionaler Upgrade-Pfad für native HA-Entities — Voraussetzung ist Mosquitto-Add-on beim Nutzer. Solarbot publisht dann Topics, HA erstellt automatisch Sensoren/Schalter.
+- **MQTT Discovery (v1.5 oder v2):** Optionaler Upgrade-Pfad für native HA-Entities — Voraussetzung ist Mosquitto-Add-on beim Nutzer. Solalex publisht dann Topics, HA erstellt automatisch Sensoren/Schalter.
 
 ### Domain-Spezifische Risiken
 
@@ -347,24 +347,24 @@ Solarbot operiert im DACH-Consumer-PV-Segment als Edge-Software auf Home Assista
 
 **1. Akku-Pool als Architektur-Abstraktion.** Beliebige Anzahl Speicher werden intern als logischer Pool gesteuert (Gesamt-SoC, -Leistung). v1 mit Gleichverteilung, v2 mit SoC-Balance. Kein anderes Consumer-PV-Tool abstrahiert Speicher in dieser Form — Speicher sind heute entweder einzeln, via Hersteller-App autark, oder manuell orchestriert.
 
-**2. HA als alleiniger Entity-Layer + Moat.** Solarbot baut bewusst keine eigenen Hardware-Treiber. Stattdessen Konsum von ≥ 2.000 HA-Integrationen als alleinige Quelle. Strategische Disziplin, nicht Workaround: solange HA eine Hardware kennt, kennt Solarbot sie auch. Skaliert mit dem HA-Ökosystem, nicht mit eigener Treiber-Arbeit.
+**2. HA als alleiniger Entity-Layer + Moat.** Solalex baut bewusst keine eigenen Hardware-Treiber. Stattdessen Konsum von ≥ 2.000 HA-Integrationen als alleinige Quelle. Strategische Disziplin, nicht Workaround: solange HA eine Hardware kennt, kennt Solalex sie auch. Skaliert mit dem HA-Ökosystem, nicht mit eigener Treiber-Arbeit.
 
 **3. Closed-Loop-Readback + Fail-Safe als durchgängiges Pattern.** Jeder Steuerbefehl wird per Readback auf Erfolgsquittung geprüft, deterministischer Safe-State bei Ausfall. Standard-Pattern aus Industrial-Control, in Consumer-PV-Tools bisher nur partiell oder gar nicht implementiert.
 
-**4. End-to-End-Latenz-Messung als Regel-Parameter-Input.** Solarbot misst pro Device die E2E-Latenz zwischen Befehl und messbarem Zähler-Effekt und nutzt diese empirische Messgröße für hardware-spezifische Deadband- und Rate-Limit-Parameter. Adaptive Regelung aus realem Verhalten statt hardcoded Defaults.
+**4. End-to-End-Latenz-Messung als Regel-Parameter-Input.** Solalex misst pro Device die E2E-Latenz zwischen Befehl und messbarem Zähler-Effekt und nutzt diese empirische Messgröße für hardware-spezifische Deadband- und Rate-Limit-Parameter. Adaptive Regelung aus realem Verhalten statt hardcoded Defaults.
 
 **5. SetpointProvider-Interface als Forecast-Naht.** v1 ist bewusst reaktiv ohne Forecast, aber die Interface-Naht für Forecast-Quellen ist ab Tag 1 architektonisch vorhanden. v2-Upgrade ohne Refactor.
 
-**6. Attribution-Regel mit Event-Source-Flag.** Jeder Steuerbefehl wird mit `source: solarbot | manual | ha_automation` getaggt. Erlaubt die saubere KPI-Attribution für „selbst gesteuert" statt kontrafaktischer Schätzungen. Ermöglicht den Hero-KPI Euro-Wert als ehrliche, prüfbare Zahl.
+**6. Attribution-Regel mit Event-Source-Flag.** Jeder Steuerbefehl wird mit `source: solalex | manual | ha_automation` getaggt. Erlaubt die saubere KPI-Attribution für „selbst gesteuert" statt kontrafaktischer Schätzungen. Ermöglicht den Hero-KPI Euro-Wert als ehrliche, prüfbare Zahl.
 
 **7. Charakter/Persönlichkeit über Templates statt LLM.** Markenstimme im Dashboard (Charakter bei eigenem Tun, Fakten bei Zahlen) ohne Cloud-LLM. 100 %-lokal-Versprechen bleibt gewahrt.
 
-**8. Adaptive Regelungs-Strategie je Setup-Typ.** Solarbot erkennt im Setup-Wizard das Hardware-Regime und wählt die passende Regelungs-Logik automatisch — kein Config-Item, sondern Ergebnis der Erkennung:
+**8. Adaptive Regelungs-Strategie je Setup-Typ.** Solalex erkennt im Setup-Wizard das Hardware-Regime und wählt die passende Regelungs-Logik automatisch — kein Config-Item, sondern Ergebnis der Erkennung:
 - **Drossel-Modus** (reiner WR): WR-Limit regelt auf aktuellen Hausverbrauch, verlust-minimierend durch schnelle Abregelung, respektiert EEPROM-Schreib-Limits mit Deadband
 - **Speicher-Modus** (WR + Akku): Akku-Pool nimmt Überschuss auf, WR-Limit bleibt auf Max; nur bei Akku-Voll → Übergang zu Drossel
 - **Multi-Modus** (WR + Multi-Akku): Akku-Pool zuerst, dann WR-Drossel; v2 mit Verbraucher-Kaskade
 - **Modus-Wechsel zur Laufzeit** deterministisch mit Hysterese: Akku-Voll → Drossel greift, Akku-knapp-voll keine Oszillation; Akku-leer nachts → kein Drossel-Anstieg
-- Drossel und Speicher sind **zwei eigenständige Regelungs-Regime** mit unterschiedlicher Dynamik (WR 5–15 s, Akku 30–90 s) und unterschiedlicher Energie-Logik (Verlust vs. Verschiebung). Nutzer wählt Hardware, Solarbot wählt Strategie.
+- Drossel und Speicher sind **zwei eigenständige Regelungs-Regime** mit unterschiedlicher Dynamik (WR 5–15 s, Akku 30–90 s) und unterschiedlicher Energie-Logik (Verlust vs. Verschiebung). Nutzer wählt Hardware, Solalex wählt Strategie.
 
 ### Market Context & Competitive Landscape
 
@@ -376,7 +376,7 @@ Der DACH-Consumer-PV-Markt ist fragmentiert in vier Cluster:
 - **Cloud-SaaS-Optimizer** (Abo-Modell, Cloud-Pflicht)
 - **DIY-Node-RED / Blueprint** (Bastler-Ebene, Flickenteppich)
 
-Keine der Lösungen kombiniert: **lokal + Akku-first + Multi-Hardware über HA-Entities + Einmalkauf + Sekunden-Regelung mit Safety-Layer**. Die HA-Entity-Layer-Strategie ist der strukturelle Unterschied — nicht Feature-Inflation, sondern Architektur-Disziplin. Nach außen wird diese Innovation aus eigener Stärke kommuniziert („Du integrierst. Solarbot regelt."), nicht als Vergleich.
+Keine der Lösungen kombiniert: **lokal + Akku-first + Multi-Hardware über HA-Entities + Einmalkauf + Sekunden-Regelung mit Safety-Layer**. Die HA-Entity-Layer-Strategie ist der strukturelle Unterschied — nicht Feature-Inflation, sondern Architektur-Disziplin. Nach außen wird diese Innovation aus eigener Stärke kommuniziert („Du integrierst. Solalex regelt."), nicht als Vergleich.
 
 ### Validation Approach
 
@@ -405,13 +405,13 @@ Keine der Lösungen kombiniert: **lokal + Akku-first + Multi-Hardware über HA-E
 
 ### Project-Type Overview
 
-Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-Device. Die präzisere Kategorie ist **Edge Orchestrator**: Software, die auf vorhandener Edge-Infrastruktur (Home Assistant auf Raspberry Pi 4 / NUC) läuft und dort vorhandene IoT-Geräte orchestriert — ohne eigene Firmware, eigene Hardware oder Direkt-Kommunikation. Dieser Charakter prägt alle technischen Entscheidungen: kein Geräte-Provisioning, kein Power-Profile, kein OTA-für-Firmware. Stattdessen: Container-Runtime-Disziplin, Entity-basiertes Steuerungsmodell und Add-on-Store-Update-Pfad.
+Solalex wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-Device. Die präzisere Kategorie ist **Edge Orchestrator**: Software, die auf vorhandener Edge-Infrastruktur (Home Assistant auf Raspberry Pi 4 / NUC) läuft und dort vorhandene IoT-Geräte orchestriert — ohne eigene Firmware, eigene Hardware oder Direkt-Kommunikation. Dieser Charakter prägt alle technischen Entscheidungen: kein Geräte-Provisioning, kein Power-Profile, kein OTA-für-Firmware. Stattdessen: Container-Runtime-Disziplin, Entity-basiertes Steuerungsmodell und Add-on-Store-Update-Pfad.
 
 ### Hardware Compatibility & Abstraction
 
 - **Unterstützte Hardware nur via HA-Entities.** Ein Gerät ist kompatibel, sobald es in HA eine passende Entity-Signatur aufweist (z. B. `number.opendtu_limit_nonpersistent_absolute` für WR-Limits, `sensor.solarbank_e1600_soc` für Akku-SoC).
-- **Adapter-Modul-Pattern (Amendment 2026-04-22).** Pro Hersteller/Modell ein Python-Modul in `backend/src/solarbot/adapters/<vendor>.py` mit hardcoded Entity-Pattern-Liste, Steuerung-Semantik (WR-Limit / Akku-Setpoint / Charge-Discharge-Toggle), Default-Regelungs-Parameter (Deadband, Rate Limit, EEPROM-Schutz-Intervall) und Readback-Timing-Semantik (Timeout, Async-Readback-Support). Abstract-Interface in `adapters/base.py`. **Kein externer JSON-Template-Layer** in v1; Erweiterung = neues Python-Modul.
-- **Auto-Detection pro Wizard-Durchlauf:** Solarbot scannt `get_states`-Response gegen alle bekannten Templates, ordnet Matches den Geräten zu, zeigt Live-Werte zur Bestätigung.
+- **Adapter-Modul-Pattern (Amendment 2026-04-22).** Pro Hersteller/Modell ein Python-Modul in `backend/src/solalex/adapters/<vendor>.py` mit hardcoded Entity-Pattern-Liste, Steuerung-Semantik (WR-Limit / Akku-Setpoint / Charge-Discharge-Toggle), Default-Regelungs-Parameter (Deadband, Rate Limit, EEPROM-Schutz-Intervall) und Readback-Timing-Semantik (Timeout, Async-Readback-Support). Abstract-Interface in `adapters/base.py`. **Kein externer JSON-Template-Layer** in v1; Erweiterung = neues Python-Modul.
+- **Auto-Detection pro Wizard-Durchlauf:** Solalex scannt `get_states`-Response gegen alle bekannten Templates, ordnet Matches den Geräten zu, zeigt Live-Werte zur Bestätigung.
 - **Supported Day-1:** Hoymiles/OpenDTU, Marstek Venus 3E/D, Shelly 3EM. Nach Beta-Week-6 / v1.5: Anker Solix, Generic HA Entity (manueller Pfad). Reduktion beschlossen im Amendment 2026-04-22 (Solo-Dev-Scope, Waitlist-Signal Marstek = 44 % Kern-Segment).
 
 ### Connectivity & Integration Protocol
@@ -420,7 +420,7 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
 - **Subscription-Pattern:** `subscribe_trigger` auf `state_changed`-Events der konfigurierten Entities (Echtzeit, kein Polling).
 - **Call-Pattern:** `call_service` für Steuerbefehle (`number.set_value`, `switch.turn_on/off`, `button.press`).
 - **Reconnect-Logik:** Exponentielles Backoff bei WebSocket-Abbruch (1 s → 2 s → 4 s → max. 30 s), persistente Subscription-Liste, Re-Subscribe nach Reconnect.
-- **MQTT Discovery in v1.5** als optionaler Nebenkanal zur Entity-Bereitstellung (Solarbot publisht Topics auf Mosquitto-Add-on, HA erstellt Sensoren/Schalter).
+- **MQTT Discovery in v1.5** als optionaler Nebenkanal zur Entity-Bereitstellung (Solalex publisht Topics auf Mosquitto-Add-on, HA erstellt Sensoren/Schalter).
 
 ### Security Model
 
@@ -429,15 +429,15 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
 - **Keine ausgehende Cloud-Kommunikation im Betrieb.** Einzige Online-Kommunikation: LemonSqueezy-Lizenzprüfung (einmalig bei Aktivierung, monatlich Re-Validierung mit Graceful Degradation). Kein Telemetry, kein Analytics-Ping, kein Crash-Report ohne explizites User-Opt-in.
 - **Lizenz-Validierung:** Lizenz-Key in `/data/license.json`, LemonSqueezy-Online-Check bei Aktivierung und monatlich (14-Tage-Grace bei Offline). **Keine kryptografische Signatur in v1** — gestrichen im Amendment 2026-04-22 (die 14-Tage-Grace macht Offline-Crack ohnehin trivial; Anti-Tamper-Signatur als v1.5-Option dokumentiert, wenn Bedarf klar wird).
 - **Installations-Disclaimer** (siehe Domain-Requirements) als sichtbare Checkbox vor Aktivierung.
-- **Keine Admin-Funktionen außerhalb HA.** Solarbot nutzt HA-Nutzer-Kontext, macht keine eigene Nutzer-Verwaltung.
+- **Keine Admin-Funktionen außerhalb HA.** Solalex nutzt HA-Nutzer-Kontext, macht keine eigene Nutzer-Verwaltung.
 
 ### Update Mechanism
 
-- **HA Add-on Store als alleiniger Update-Kanal.** GitHub Actions baut Docker-Images multi-arch (amd64, aarch64), GitHub Container Registry hostet. Custom Add-on Repository `alkly/solarbot` als Quelle.
+- **HA Add-on Store als alleiniger Update-Kanal.** GitHub Actions baut Docker-Images multi-arch (amd64, aarch64), GitHub Container Registry hostet. Custom Add-on Repository `alkly/solalex` als Quelle.
 - **Auto-Update durch Nutzer aktivierbar** (Standard: manuell, um Kontrolle zu behalten; Empfehlung in Doku: auto aktivieren).
-- **Backup vor Update:** SQLite `/data/solarbot.db` + `/data/license.json` + `/data/templates/` werden vor jedem Update in `/data/.backup/vX.Y.Z/` gespiegelt (letzte 5 Stände).
+- **Backup vor Update:** SQLite `/data/solalex.db` + `/data/license.json` + `/data/templates/` werden vor jedem Update in `/data/.backup/vX.Y.Z/` gespiegelt (letzte 5 Stände).
 - **Rollback-Pfad:** Bei fehlgeschlagenem Start nach Update → Add-on bleibt in Halt-Status, Nutzer kann manuell via Add-on-Store eine ältere Version zurückinstallieren; `/data/.backup/` wird beim Start der älteren Version automatisch gespiegelt.
-- **Version-Compatibility-Matrix:** `addon.yaml` deklariert supported HA-Version-Range. Bei inkompatibler HA-Version zeigt Add-on-Store Install-Warnung.
+- **Version-Compatibility-Matrix:** `addon/config.yaml` deklariert supported HA-Version-Range. Bei inkompatibler HA-Version zeigt Add-on-Store Install-Warnung.
 
 ### Container Runtime
 
@@ -447,7 +447,7 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
   - Memory (Peak beim Setup-Wizard mit Live-Werten): ≤ 300 MB RSS
   - CPU (idle): ≤ 2 % auf Raspberry Pi 4
   - CPU (Regelungs-Burst): ≤ 15 % auf Raspberry Pi 4
-- **Persistenz:** `/data/` (Add-on-Standard-Volume, überlebt Updates und Restart), enthält `solarbot.db`, `license.json`, `templates/`, `.backup/`, `logs/` (rotiert auf 10 MB / 5 Dateien).
+- **Persistenz:** `/data/` (Add-on-Standard-Volume, überlebt Updates und Restart), enthält `solalex.db`, `license.json`, `templates/`, `.backup/`, `logs/` (rotiert auf 10 MB / 5 Dateien).
 - **Ingress:** HA-Ingress-URL rendert Svelte-UI im HA-Frame. Sidebar-Eintrag mit Icon. Kein direkter Port-Expose nach außen.
 
 ### Implementation Considerations
@@ -464,7 +464,7 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
 **MVP-Typ: Problem-Solving MVP.** Nicht Experience-, Platform- oder Revenue-MVP. Der MVP muss drei Probleme lösen:
 1. **Marstek-Micha's Kern-Schmerz** — stabile Multi-Venus-Regelung ohne Cloud
 2. **Balkon-Benni's Fundament** — zuverlässige Nulleinspeisung mit Hoymiles/OpenDTU (Anker folgt v1.5)
-3. **Solarbot's Glaubwürdigkeit als kommerzielles Produkt** — Funktionstest, Lizenz, Disclaimer, 24h-Test
+3. **Solalex's Glaubwürdigkeit als kommerzielles Produkt** — Funktionstest, Lizenz, Disclaimer, 24h-Test
 
 **Philosophie: Stability over Features.** Jede Feature-Entscheidung prüft sich gegen: „Beschädigt das die Stabilität des Kerns?" Wenn ja, raus. Ein stabiles kleines MVP schlägt ein fragiles großes.
 
@@ -499,8 +499,8 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
 - Deutsch only
 
 **Must-Have Infrastructure (nicht Code, aber Launch-Voraussetzung):**
-- GitHub `alkly/solarbot` (privat → public zum Launch)
-- Discord #solarbot-beta + #solarbot-support (getrennt)
+- GitHub `alkly/solalex` (privat → public zum Launch)
+- Discord #solalex-beta + #solalex-support (getrennt)
 - GitHub Issues + öffentliche Roadmap
 - Landing-Page mit HA-OS/Supervised-Check
 - YouTube-Launch-Video
@@ -531,7 +531,7 @@ Solarbot wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-De
 - NL-Internationalisierung (0 ct Einspeisung ab 2027)
 - Community Template Store
 - Installateur-Programm (B2B2C)
-- Solarbot Lite (optionale Custom Integration für HA Container/Core)
+- Solalex Lite (optionale Custom Integration für HA Container/Core)
 - CRA-Compliance-Framework (SBOM, Vulnerability-Process)
 
 ### Kipp-Reihenfolge bei Zeitnot (Wochen 5–7)
@@ -574,69 +574,69 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 
 ### Installation & Lizenz
 
-- **FR1:** Nutzer kann Solarbot als HA Add-on über das Custom Repository `alkly/solarbot` installieren.
+- **FR1:** Nutzer kann Solalex als HA Add-on über das Custom Repository `alkly/solalex` installieren.
 - **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „HA OS oder Supervised" vor dem Download-Schritt.
 - **FR3:** Nutzer erwirbt die Lizenz aus dem Setup-Wizard heraus (Weiterleitung zu LemonSqueezy, Rückkehr in den Wizard).
 - **FR4:** Nutzer bestätigt vor Lizenz-Aktivierung den Installations-Disclaimer als sichtbare Checkbox.
-- **FR5:** Solarbot verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status.
+- **FR5:** Solalex verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status.
 - **FR6:** Bestandskunden können einen Rabatt-Code (Blueprint-Migration) im Kaufflow einlösen.
 
 ### Setup & Onboarding
 
 - **FR7:** Nutzer wählt im Setup-Wizard zwischen zwei Hardware-Pfaden: Hoymiles/OpenDTU, Marstek Venus. Anker + Generic-Pfad folgen v1.5.
-- **FR8:** Solarbot erkennt kompatible HA-Entities automatisch für die Day-1-Hardware (OpenDTU, Marstek Venus 3E/D, Shelly 3EM). Anker Solix + Generic-Pfad nach Beta-Week-6 / v1.5.
+- **FR8:** Solalex erkennt kompatible HA-Entities automatisch für die Day-1-Hardware (OpenDTU, Marstek Venus 3E/D, Shelly 3EM). Anker Solix + Generic-Pfad nach Beta-Week-6 / v1.5.
 - **FR9:** Nutzer sieht Live-Werte neben jedem erkannten Sensor im Wizard zur Bestätigung.
-- **FR10:** Solarbot überspringt den Akku-Schritt lautlos, wenn kein Akku erkannt wird.
-- **FR11:** Solarbot führt vor Aktivierung einen Funktionstest durch (testweises Setzen von WR-Limit oder Akku-Setpoint, Readback-Prüfung).
-- **FR12:** Solarbot erkennt und importiert bestehende Nulleinspeisungs-Blueprint-Automationen inklusive Helfer-Werte (mit expliziter Deaktivierung des alten Blueprints bei Aktivierung). *Kippbar → Fallback manueller JSON-Import.*
+- **FR10:** Solalex überspringt den Akku-Schritt lautlos, wenn kein Akku erkannt wird.
+- **FR11:** Solalex führt vor Aktivierung einen Funktionstest durch (testweises Setzen von WR-Limit oder Akku-Setpoint, Readback-Prüfung).
+- **FR12:** Solalex erkennt und importiert bestehende Nulleinspeisungs-Blueprint-Automationen inklusive Helfer-Werte (mit expliziter Deaktivierung des alten Blueprints bei Aktivierung). *Kippbar → Fallback manueller JSON-Import.*
 
 ### Regelung & Steuerung
 
-- **FR13:** Solarbot wählt die Regelungs-Strategie je erkanntem Hardware-Setup automatisch (Drossel / Speicher / Multi-Modus).
-- **FR14:** Solarbot regelt im Drossel-Modus reaktiv auf Nulleinspeisung per WR-Limit.
-- **FR15:** Solarbot lädt im Speicher-Modus Akkus bei PV-Überschuss und entlädt zur Grundlast-Deckung innerhalb der konfigurierten SoC-Grenzen.
-- **FR16:** Solarbot wechselt zur Laufzeit deterministisch zwischen Modi mit Hysterese (z. B. Drossel aktiv ab SoC ≥ 97 %, deaktiv erst bei SoC ≤ 93 %).
-- **FR17:** Solarbot verifiziert jeden Steuerbefehl per Closed-Loop-Readback.
-- **FR18:** Solarbot geht bei Kommunikations-Ausfall in einen deterministischen Fail-Safe-Zustand (letztes bekanntes Limit halten, nicht freigeben).
-- **FR19:** Solarbot respektiert hardware-spezifische Rate-Limits zur EEPROM-Schonung (Default ≤ 1 Schreibbefehl pro Device/Minute, per Adapter-Modul überschreibbar, persistent über Restart).
+- **FR13:** Solalex wählt die Regelungs-Strategie je erkanntem Hardware-Setup automatisch (Drossel / Speicher / Multi-Modus).
+- **FR14:** Solalex regelt im Drossel-Modus reaktiv auf Nulleinspeisung per WR-Limit.
+- **FR15:** Solalex lädt im Speicher-Modus Akkus bei PV-Überschuss und entlädt zur Grundlast-Deckung innerhalb der konfigurierten SoC-Grenzen.
+- **FR16:** Solalex wechselt zur Laufzeit deterministisch zwischen Modi mit Hysterese (z. B. Drossel aktiv ab SoC ≥ 97 %, deaktiv erst bei SoC ≤ 93 %).
+- **FR17:** Solalex verifiziert jeden Steuerbefehl per Closed-Loop-Readback.
+- **FR18:** Solalex geht bei Kommunikations-Ausfall in einen deterministischen Fail-Safe-Zustand (letztes bekanntes Limit halten, nicht freigeben).
+- **FR19:** Solalex respektiert hardware-spezifische Rate-Limits zur EEPROM-Schonung (Default ≤ 1 Schreibbefehl pro Device/Minute, per Adapter-Modul überschreibbar, persistent über Restart).
 - **FR20:** Nutzer kann Nacht-Entlade-Zeitfenster konfigurieren.
 
 ### Akku-Management
 
-- **FR21:** Solarbot abstrahiert mehrere Akkus als internen Pool mit Gleichverteilung in v1 (Marstek Venus Multi). Anker Solix + Generic-Pool-Support nach Beta-Week-6 / v1.5.
+- **FR21:** Solalex abstrahiert mehrere Akkus als internen Pool mit Gleichverteilung in v1 (Marstek Venus Multi). Anker Solix + Generic-Pool-Support nach Beta-Week-6 / v1.5.
 - **FR22:** Nutzer konfiguriert Min-SoC und Max-SoC pro Akku-Setup.
-- **FR23:** Solarbot zeigt SoC pro Einzel-Akku und aggregiert für den Pool.
+- **FR23:** Solalex zeigt SoC pro Einzel-Akku und aggregiert für den Pool.
 
 ### Monitoring & Dashboard
 
 - **FR24:** Nutzer sieht im Dashboard den aktuellen Euro-Wert der gesteuerten Ersparnis als 2-Sekunden-Kernaussage.
 - **FR25:** Nutzer sieht die Beleg-KPIs (kWh selbst verbraucht + kWh selbst gesteuert) getrennt ausgewiesen, nicht aggregiert.
 - **FR26:** Nutzer kann den Bezugspreis (Default 30 ct/kWh) im Dashboard jederzeit anpassen.
-- **FR27:** Solarbot attribuiert Steuerbefehle mit Event-Source-Flag (`solarbot` / `manual` / `ha_automation`) und nutzt dies als Basis der KPI-Berechnung.
+- **FR27:** Solalex attribuiert Steuerbefehle mit Event-Source-Flag (`solalex` / `manual` / `ha_automation`) und nutzt dies als Basis der KPI-Berechnung.
 - **FR28:** Nutzer sieht den aktuellen Regelungs-Modus (Drossel / Speicher / Multi) im Dashboard.
-- **FR29:** Solarbot zeigt einen sichtbaren „aktiver Idle-State"-Zustand, wenn keine Steuerung nötig ist („Alles im Ziel. Überwache weiter.").
-- **FR30:** Solarbot zeigt Charakter-Zeilen bei eigenem Tun und Fakten bei Zahlen (strikt getrennt). *Kippbar → Fallback Neutral-Mode.*
+- **FR29:** Solalex zeigt einen sichtbaren „aktiver Idle-State"-Zustand, wenn keine Steuerung nötig ist („Alles im Ziel. Überwache weiter.").
+- **FR30:** Solalex zeigt Charakter-Zeilen bei eigenem Tun und Fakten bei Zahlen (strikt getrennt). *Kippbar → Fallback Neutral-Mode.*
 
 ### Diagnose & Support
 
-- **FR31:** Solarbot protokolliert die letzten 100 Regelzyklen (Zeitstempel, Sensorwert, gesetztes Limit, Latenz, Modus).
-- **FR32:** Solarbot zeigt die letzten 20 Fehler/Warnungen mit Klartext-Beschreibung.
-- **FR33:** Solarbot zeigt die aktuellen Verbindungs-Stati (HA WebSocket, konfigurierte Entities, Lizenz-Status).
-- **FR34:** Solarbot misst die End-to-End-Regelungs-Latenz pro Device automatisch (Befehl-Auslösung → messbarer Effekt am Smart Meter) und loggt sie in SQLite.
+- **FR31:** Solalex protokolliert die letzten 100 Regelzyklen (Zeitstempel, Sensorwert, gesetztes Limit, Latenz, Modus).
+- **FR32:** Solalex zeigt die letzten 20 Fehler/Warnungen mit Klartext-Beschreibung.
+- **FR33:** Solalex zeigt die aktuellen Verbindungs-Stati (HA WebSocket, konfigurierte Entities, Lizenz-Status).
+- **FR34:** Solalex misst die End-to-End-Regelungs-Latenz pro Device automatisch (Befehl-Auslösung → messbarer Effekt am Smart Meter) und loggt sie in SQLite.
 - **FR35:** Nutzer kann Diagnose-Daten als strukturierten Bug-Report exportieren. *Kippbar → Fallback HA-Panel-Log-Download.*
-- **FR36:** Solarbot stellt ein strukturiertes Bug-Report-Template in GitHub Issues bereit (Hardware-/Firmware-Felder, Log-/Diagnose-Export-Platzhalter).
+- **FR36:** Solalex stellt ein strukturiertes Bug-Report-Template in GitHub Issues bereit (Hardware-/Firmware-Felder, Log-/Diagnose-Export-Platzhalter).
 
 ### Updates & Administration
 
-- **FR37:** Solarbot wird über den HA Add-on Store aktualisiert (manueller oder Nutzer-aktivierter Auto-Update).
-- **FR38:** Solarbot sichert vor jedem Update `solarbot.db`, `license.json` und `templates/` in `/data/.backup/vX.Y.Z/` (letzte 5 Stände).
-- **FR39:** Nutzer kann bei fehlgeschlagenem Update manuell auf eine ältere Version zurückrollen; Solarbot stellt `.backup/` automatisch wieder her.
-- **FR40:** Solarbot unterstützt die aktuelle Home-Assistant-Version und deklariert die supported Range in `addon.yaml`.
+- **FR37:** Solalex wird über den HA Add-on Store aktualisiert (manueller oder Nutzer-aktivierter Auto-Update).
+- **FR38:** Solalex sichert vor jedem Update `solalex.db`, `license.json` und `templates/` in `/data/.backup/vX.Y.Z/` (letzte 5 Stände).
+- **FR39:** Nutzer kann bei fehlgeschlagenem Update manuell auf eine ältere Version zurückrollen; Solalex stellt `.backup/` automatisch wieder her.
+- **FR40:** Solalex unterstützt die aktuelle Home-Assistant-Version und deklariert die supported Range in `addon/config.yaml`.
 
 ### Branding & UI-Identität
 
-- **FR41:** Solarbot nutzt in allen UI-Flächen (Dashboard, Setup-Wizard, Diagnose-Tab, Config) durchgängig das ALKLY-Design-System: ALKLY-Farben als Primär-/Sekundär-/Akzent-Palette, DM Sans als Schrift, einheitliche Spacing-/Radius-/Elevation-Tokens.
-- **FR42:** Solarbot erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solarbot by ALKLY").
+- **FR41:** Solalex nutzt in allen UI-Flächen (Dashboard, Setup-Wizard, Diagnose-Tab, Config) durchgängig das ALKLY-Design-System: ALKLY-Farben als Primär-/Sekundär-/Akzent-Palette, DM Sans als Schrift, einheitliche Spacing-/Radius-/Elevation-Tokens.
+- **FR42:** Solalex erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solalex by ALKLY").
 - **FR43:** UI ist im HA-Ingress-Frame eingebettet und adaptiert HA-Theme-Modi (Dark/Light-Mode-Umschaltung ohne Bruch der ALKLY-Farbidentität).
 
 ## Non-Functional Requirements
@@ -649,7 +649,7 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 - **Funktionstest-Durchführung:** ≤ 15 s (inkl. Readback).
 - **Memory Footprint:** ≤ 150 MB RSS im Idle, ≤ 300 MB RSS im Setup-Wizard-Peak.
 - **CPU Footprint (Raspberry Pi 4):** ≤ 2 % im Idle, ≤ 15 % im Regelungs-Burst.
-- **E2E-Regelungs-Latenz:** hardware-abhängig (5–90 s je Device-Stack), kein Zusagen-Wert — aber **Messung ist Pflicht** (FR34). Solarbot garantiert nicht Latenz, Solarbot garantiert Transparenz über Latenz.
+- **E2E-Regelungs-Latenz:** hardware-abhängig (5–90 s je Device-Stack), kein Zusagen-Wert — aber **Messung ist Pflicht** (FR34). Solalex garantiert nicht Latenz, Solalex garantiert Transparenz über Latenz.
 
 ### Reliability & Availability
 
@@ -693,7 +693,7 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 ### Integration Reliability
 
 - **HA WebSocket Reconnect:** Exponentielles Backoff (1 s → 2 s → 4 s → max. 30 s), persistente Subscription-Liste, automatisches Re-Subscribe.
-- **HA-Version-Kompatibilitäts-Matrix** in `addon.yaml` deklariert; Install-Warning bei inkompatibler HA-Version.
+- **HA-Version-Kompatibilitäts-Matrix** in `addon/config.yaml` deklariert; Install-Warning bei inkompatibler HA-Version.
 - **Adapter-Modul-Versionierung** mit Firmware-Pinning bei Marstek (v1) und Anker (ab v1.5); versionstolerante Key-Behandlung im Adapter-Code.
 - **MQTT (v1.5):** mindestens QoS 1, Retained Messages für Discovery, Mosquitto-Add-on als Voraussetzung.
 - **GitHub Actions Build-Pipeline:** Multi-Arch (amd64, aarch64), automatisierte Release-Builds bei Tag-Push.
@@ -710,9 +710,9 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 
 - **Strukturiertes Logging** in `/data/logs/` (JSON, rotiert 10 MB / 5 Dateien).
 - **Add-on-Logs** zusätzlich im HA-Log-Panel sichtbar (Standard-Add-on-Verhalten).
-- **Diagnose-Export** als versioniertes JSON-Schema (`solarbot-diag-v1.json`).
+- **Diagnose-Export** als versioniertes JSON-Schema (`solalex-diag-v1.json`).
 - **E2E-Latenz-Messung** automatisch pro Device, persistent in SQLite (`latency_measurements`-Tabelle).
-- **Regelungs-Zyklen mit Source-Flag** (`solarbot / manual / ha_automation`) für saubere KPI-Attribution (FR27).
+- **Regelungs-Zyklen mit Source-Flag** (`solalex / manual / ha_automation`) für saubere KPI-Attribution (FR27).
 - **Health-Status** pro konfigurierter HA-Entity (letzte erfolgreiche Kommunikation, Readback-Erfolgsquote).
 
 ### Scalability (selektiv)
@@ -720,7 +720,7 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 - **Hardware-Abdeckung:** Adapter-Modul-Pattern muss ≥ 10 weitere Hersteller (Huawei, SMA, Growatt, Fronius, Zendure, …) in v2–v3 erlauben ohne Core-Refactor — ein Python-Modul pro Hersteller in `adapters/`, Core-Controller hardware-agnostisch. (Umformuliert im Amendment 2026-04-22 — vorher: „Device-Template-System als JSON-Schema".)
 - **Kundenwachstum:** LemonSqueezy-Lizenz-API trägt skalierungs-unproblematisch (Merchant-of-Record-Infrastruktur).
 - **Community-Skalierung:** Discord + GitHub Issues als selbsttragende Peer-Support-Kanäle — Alex skaliert nicht linear mit Kundenzahl.
-- **Bewusst nicht skaliert:** Server-Infrastruktur, Multi-Tenancy, Datenbank-Sharding — Solarbot ist und bleibt single-user-local.
+- **Bewusst nicht skaliert:** Server-Infrastruktur, Multi-Tenancy, Datenbank-Sharding — Solalex ist und bleibt single-user-local.
 
 ### Accessibility (selektiv, nicht Launch-Gate)
 

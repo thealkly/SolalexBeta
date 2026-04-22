@@ -1,5 +1,5 @@
 # Wettbewerber-Profil 3: OpenDTU + DIY-Skripte
-**Tiefen-Analyse mit Original-Nutzerstimmen, Begeisterungs-Features, regulatorischen Risiken und Solarbot-Differenzierung**
+**Tiefen-Analyse mit Original-Nutzerstimmen, Begeisterungs-Features, regulatorischen Risiken und Solalex-Differenzierung**
 
 Stand: April 2026 · Quellen: GitHub (`tbnobody/OpenDTU`, `hoylabs/OpenDTU-OnBattery`, `Selbstbau-PV/*`, GitLab `p3605/hoymiles-tarnkappe`), Photovoltaikforum, Akkudoktor-Forum, ioBroker-Forum, HomeMatic-Forum, Shelly-Forum, BornCity-Blog, panelretter.de, blinkyparts.com, selbstbau-pv.de
 
@@ -9,9 +9,9 @@ Stand: April 2026 · Quellen: GitHub (`tbnobody/OpenDTU`, `hoylabs/OpenDTU-OnBat
 
 EVCC und EOS sind **Produkte** mit einem Maintainer-Team, einer Roadmap und einer Marke. OpenDTU + DIY ist etwas anderes: **eine Bewegung, ein Ökosystem, eine Bastler-Kultur.** Es gibt nicht "die" DIY-Lösung — es gibt OpenDTU als Hardware-Brücke, OpenDTU-OnBattery als Fork mit Dynamic Power Limiter, ein Dutzend Python-Skript-Forks (alle abstammend von einem Ur-Projekt namens "hoymiles-tarnkappe" auf GitLab), Node-RED-Flows, ioBroker-Adapter, IP-Symcon-Module und unzählige individuelle Bastel-Setups.
 
-Diese Welt zu analysieren bedeutet: **Wir analysieren die Pioniere, von denen Solarbot lernen und deren Wissen Solarbot in Software gießen muss — ohne ihre Komplexität zu erben.** Die DIY-Bastler werden nie zu Solarbot-Kunden, aber sie sind die wichtigsten **Multiplikatoren** für die Mainstream-Zielgruppe, die Solarbot bedient. Wenn die DIY-Community Solarbot respektiert ("ja, das ist ehrlich gemacht und nimmt unsere Erkenntnisse auf"), wird sie es ihren Eltern, Geschwistern und Nachbarn empfehlen. Das ist ein riesiger Hebel.
+Diese Welt zu analysieren bedeutet: **Wir analysieren die Pioniere, von denen Solalex lernen und deren Wissen Solalex in Software gießen muss — ohne ihre Komplexität zu erben.** Die DIY-Bastler werden nie zu Solalex-Kunden, aber sie sind die wichtigsten **Multiplikatoren** für die Mainstream-Zielgruppe, die Solalex bedient. Wenn die DIY-Community Solalex respektiert ("ja, das ist ehrlich gemacht und nimmt unsere Erkenntnisse auf"), wird sie es ihren Eltern, Geschwistern und Nachbarn empfehlen. Das ist ein riesiger Hebel.
 
-Diese Analyse ist daher länger und tiefer als die vorherigen — weil sie nicht nur einen Wettbewerber beschreibt, sondern ein gesamtes Ökosystem, das Solarbot teilweise kannibalisieren und teilweise rekrutieren kann.
+Diese Analyse ist daher länger und tiefer als die vorherigen — weil sie nicht nur einen Wettbewerber beschreibt, sondern ein gesamtes Ökosystem, das Solalex teilweise kannibalisieren und teilweise rekrutieren kann.
 
 ---
 
@@ -69,7 +69,7 @@ Die größte emotionale Energie kommt von Nutzern, die der Hoymiles-Cloud (DTU-P
 
 Aus borncity.com: *"Ich verwende ausschließlich Hoymiles WR des Typ2, also mit Sub 1GHz Funk und in Verbindung mit einer OpenSource DTU (OpenDTU)."* Der User will Hoymiles-Hardware, aber nicht Hoymiles-Software. OpenDTU ist die einzige Lösung.
 
-**Lehre für Solarbot:** Das ist die gleiche emotionale Strömung, die wir auch bei Anker-Solix-Frust sehen. **Lokale Datensouveränität ist das wichtigste emotionale Verkaufsargument im DACH-Markt.** Solarbot muss diese Botschaft konsequent bedienen — und kann gleichzeitig auch OpenDTU als "lokalen Partner" anerkennen, ohne sich abzugrenzen.
+**Lehre für Solalex:** Das ist die gleiche emotionale Strömung, die wir auch bei Anker-Solix-Frust sehen. **Lokale Datensouveränität ist das wichtigste emotionale Verkaufsargument im DACH-Markt.** Solalex muss diese Botschaft konsequent bedienen — und kann gleichzeitig auch OpenDTU als "lokalen Partner" anerkennen, ohne sich abzugrenzen.
 
 ### 3.2 Die "Ich habe es selbst gebaut"-Genugtuung
 
@@ -77,7 +77,7 @@ Aus dem panelretter.de-Blog: *"Mit der entsprechenden Software lässt sich so bi
 
 Aus dem blinkyparts.com-Shop (Bewertung des OpenDTU-Bausatzes): *"Hatte ja schon länger keinen Lötkolben mehr in der Hand, aber mit der sehr ausführlichen Beschreibung und dem perfekt zusammengestellten Bausatz war die Steuerung im Handumdrehen gelötet und zusammengebaut. Super auch, dass schon eine Firmware geflasht war und somit einfach ein OTA-Update auf die neueste Firmware gemacht werden konnte. Damit hat alles problemlos funktioniert, ich bin begeistert!"*
 
-**Lehre für Solarbot:** Wir können diese Genugtuung **nicht** liefern und sollten es auch nicht versuchen. Bastler werden nie zu Solarbot-Kunden, weil ihnen genau dieses Erfolgserlebnis fehlt. Aber wir können einen analogen Moment schaffen: **das "Es funktioniert sofort"-Erfolgserlebnis** mit einer schönen Erst-Aktivierung, einer Live-Bestätigung "Solarbot regelt jetzt — schau, wie der Netzbezug auf null fällt" und einer Statistik nach 24 Stunden ("Solarbot hat heute X kWh Netzbezug verhindert"). Andere Emotion, gleicher Effekt.
+**Lehre für Solalex:** Wir können diese Genugtuung **nicht** liefern und sollten es auch nicht versuchen. Bastler werden nie zu Solalex-Kunden, weil ihnen genau dieses Erfolgserlebnis fehlt. Aber wir können einen analogen Moment schaffen: **das "Es funktioniert sofort"-Erfolgserlebnis** mit einer schönen Erst-Aktivierung, einer Live-Bestätigung "Solalex regelt jetzt — schau, wie der Netzbezug auf null fällt" und einer Statistik nach 24 Stunden ("Solalex hat heute X kWh Netzbezug verhindert"). Andere Emotion, gleicher Effekt.
 
 ### 3.3 Open Source als Kultur, nicht nur als Lizenz
 
@@ -89,7 +89,7 @@ Aus Issue #551 (`tbnobody/OpenDTU`): *"Hi, besten Dank für das tolle Projekt. I
 
 Die Open-Source-Kultur ist hier **identitätsstiftend**, nicht nur funktional. Nutzer fühlen sich Teil einer Bewegung, die "es den großen Herstellern zeigt".
 
-**Lehre für Solarbot:** Solarbot ist closed-source, aber er kann **Open-Source-Werte** leben: öffentliche Roadmap, transparente Issues, ehrliche Kommunikation, Anerkennung der DIY-Vorgänger im eigenen Marketing. Eine Zeile wie *"Solarbot wäre ohne die Pionierarbeit von OpenDTU, OpenDTU-OnBattery und der Selbstbau-PV-Community niemals möglich gewesen — wir verneigen uns"* ist Gold wert. Das ist nicht nur höflich, das ist strategisch klug.
+**Lehre für Solalex:** Solalex ist closed-source, aber er kann **Open-Source-Werte** leben: öffentliche Roadmap, transparente Issues, ehrliche Kommunikation, Anerkennung der DIY-Vorgänger im eigenen Marketing. Eine Zeile wie *"Solalex wäre ohne die Pionierarbeit von OpenDTU, OpenDTU-OnBattery und der Selbstbau-PV-Community niemals möglich gewesen — wir verneigen uns"* ist Gold wert. Das ist nicht nur höflich, das ist strategisch klug.
 
 ### 3.4 Dynamic Power Limiter in OpenDTU-OnBattery
 
@@ -97,15 +97,15 @@ Aus Discussion #2086: *"Was du konkret meinst, ist Dynamische Leistungsanpassung
 
 Der DPL ist das Herzstück von OpenDTU-OnBattery und beweist, dass **eine echte Nulleinspeisung allein auf dem ESP32 möglich ist**. Das ist technisch beeindruckend.
 
-Aus dem Wiki: *"Then you can expect your inverter to react in the range of 2 to 3 seconds."* — das ist eine Reaktionszeit, die Solarbot kennen und einordnen muss.
+Aus dem Wiki: *"Then you can expect your inverter to react in the range of 2 to 3 seconds."* — das ist eine Reaktionszeit, die Solalex kennen und einordnen muss.
 
-**Lehre für Solarbot:** Die 2–3 Sekunden Reaktionszeit von OpenDTU-OnBattery sind die **Latte, gegen die wir gemessen werden**. Solarbot muss das gleiche oder besser liefern — und gleichzeitig die EEPROM-Schonung dazu, die DPL nicht hat.
+**Lehre für Solalex:** Die 2–3 Sekunden Reaktionszeit von OpenDTU-OnBattery sind die **Latte, gegen die wir gemessen werden**. Solalex muss das gleiche oder besser liefern — und gleichzeitig die EEPROM-Schonung dazu, die DPL nicht hat.
 
 ### 3.5 Hardware-Bausätze als Eintrittskarte
 
 Anbieter wie blinkyparts.com, panelretter.de und selbstbau-pv.de verkaufen fertige Bausätze für 30–50 €. Das senkt die Hürde erheblich — der Nutzer muss nicht selbst Hardware aussuchen, sondern bekommt ein Komplettpaket.
 
-**Lehre für Solarbot:** Das ist eine Vertriebs-Idee, die wir adaptieren können. Eine Partnerschaft mit einem deutschen Solar-Shop, der "Solarbot Starter Kit" (Shelly Pro 3EM + Lizenz + Anleitung) als Bundle verkauft, wäre ein massiver Distribution-Hebel für die Mainstream-Zielgruppe.
+**Lehre für Solalex:** Das ist eine Vertriebs-Idee, die wir adaptieren können. Eine Partnerschaft mit einem deutschen Solar-Shop, der "Solalex Starter Kit" (Shelly Pro 3EM + Lizenz + Anleitung) als Bundle verkauft, wäre ein massiver Distribution-Hebel für die Mainstream-Zielgruppe.
 
 ### 3.6 Die "Hardware ist ehrlich"-Mentalität
 
@@ -113,7 +113,7 @@ Aus borncity.com: *"OpenDTU, AhoyDTU verwendet werden, welche im Notfall auch ei
 
 Der User schätzt OpenDTU, weil es **physisch kontrollierbar** ist — wenn die Hoymiles-Cloud ausfällt, ist die OpenDTU davon nicht betroffen. Wenn der ESP32 stirbt, kostet ein neuer 5 €. Das ist Resilienz durch Trivialität.
 
-**Lehre für Solarbot:** Solarbot ist Software, kein physisches Stück Hardware. Aber wir können die gleiche Resilienz-Idee leben: **Solarbot funktioniert auch dann, wenn unsere Server alle abbrennen**, weil die Lizenz nach Aktivierung lokal validiert wird, weil keine Cloud-Pflicht besteht, und weil im Worst Case der Code einfach weiterläuft. Diese Resilienz muss in der Lizenz-Architektur verankert sein und in der Marketing-Botschaft sichtbar werden.
+**Lehre für Solalex:** Solalex ist Software, kein physisches Stück Hardware. Aber wir können die gleiche Resilienz-Idee leben: **Solalex funktioniert auch dann, wenn unsere Server alle abbrennen**, weil die Lizenz nach Aktivierung lokal validiert wird, weil keine Cloud-Pflicht besteht, und weil im Worst Case der Code einfach weiterläuft. Diese Resilienz muss in der Lizenz-Architektur verankert sein und in der Marketing-Botschaft sichtbar werden.
 
 ---
 
@@ -133,7 +133,7 @@ Der User hat also: das Modul gewechselt, Antennen verlängert, Position experime
 
 **Aus dem Photovoltaikforum (Juli 2025):** *"Innerhalb kürzester Zeit musste ich jetzt schon zum zweiten mal die CMT2300A Frequenz um 0,25 MHz erhöhen, da die Verbindung zwischen WR und OpenDTU nicht mehr vorhanden war. Angefangen habe ich bei 865,00 MHz und nun stehe ich bei 865,50 MHz um eine Verbindung hinzubekommen."* — der User muss manuell die Funk-Frequenz nachjustieren, wie ein Funkamateur.
 
-**Solarbot-Differenzierung:** Solarbot kommuniziert nie direkt über Funk mit dem Wechselrichter. Solarbot liest HA-Entitäten — und die HA-Integration kümmert sich um die Funk-Probleme (oder nicht). Wenn die Funk-Verbindung instabil ist, ist das ein **Hardware-/Integrations-Problem**, nicht ein Solarbot-Problem. Solarbot kann das im Diagnose-Tab transparent machen ("Letzte Aktualisierung der Wechselrichter-Entität vor 47 Sekunden — möglicherweise Funk-Problem"), aber Solarbot muss es nicht lösen. Das ist ein **massives Komplexitäts-Outsourcing**, das wir konsequent kommunizieren müssen.
+**Solalex-Differenzierung:** Solalex kommuniziert nie direkt über Funk mit dem Wechselrichter. Solalex liest HA-Entitäten — und die HA-Integration kümmert sich um die Funk-Probleme (oder nicht). Wenn die Funk-Verbindung instabil ist, ist das ein **Hardware-/Integrations-Problem**, nicht ein Solalex-Problem. Solalex kann das im Diagnose-Tab transparent machen ("Letzte Aktualisierung der Wechselrichter-Entität vor 47 Sekunden — möglicherweise Funk-Problem"), aber Solalex muss es nicht lösen. Das ist ein **massives Komplexitäts-Outsourcing**, das wir konsequent kommunizieren müssen.
 
 ### 4.2 EEPROM-Verschleiß — die unsichtbare Hardware-Zerstörung
 
@@ -145,9 +145,9 @@ Diesen Punkt haben wir bereits im PRD-Patch verankert, aber er gehört in dieser
 
 Der User, der das Problem identifiziert hat, hat als Workaround einen "SDM-Emulator" gebaut — ein virtueller Stromzähler, der dem Wechselrichter über Modbus-ID 2 Zähler-Daten schickt, statt Wirkleistungs-Grenzen ins Holding-Register zu schreiben. Damit landen die Werte nur im RAM und nicht im EEPROM.
 
-Das ist eine **brillante DIY-Lösung** — und sie zeigt, dass die Bastler-Welt Workarounds für ihre eigenen architektonischen Probleme bauen muss. Solarbots Architektur eliminiert dieses Problem strukturell.
+Das ist eine **brillante DIY-Lösung** — und sie zeigt, dass die Bastler-Welt Workarounds für ihre eigenen architektonischen Probleme bauen muss. Solalexs Architektur eliminiert dieses Problem strukturell.
 
-**Solarbot-Differenzierung:** Wir haben das im PRD bereits geregelt (siehe Kapitel "Hardware-schonende Regelung" im PRD-Patch). Aber für die Außenkommunikation gegenüber DIY-Bastlern müssen wir es noch deutlicher machen: **"Solarbot übernimmt die EEPROM-Schonung für dich, ohne dass du einen SDM-Emulator bauen musst."** Das ist eine Aussage, die die DIY-Community nicht beleidigt, sondern anerkennt — und gleichzeitig zeigt, warum Mainstream-Nutzer Solarbot brauchen.
+**Solalex-Differenzierung:** Wir haben das im PRD bereits geregelt (siehe Kapitel "Hardware-schonende Regelung" im PRD-Patch). Aber für die Außenkommunikation gegenüber DIY-Bastlern müssen wir es noch deutlicher machen: **"Solalex übernimmt die EEPROM-Schonung für dich, ohne dass du einen SDM-Emulator bauen musst."** Das ist eine Aussage, die die DIY-Community nicht beleidigt, sondern anerkennt — und gleichzeitig zeigt, warum Mainstream-Nutzer Solalex brauchen.
 
 ### 4.3 Multi-Wechselrichter-Setups sind ein Murks
 
@@ -159,7 +159,7 @@ Das ist eine **brillante DIY-Lösung** — und sie zeigt, dass die Bastler-Welt 
 
 **Aus Discussion #1946 (`tbnobody/OpenDTU`):** *"Ja, die OpenDTU braucht ca. 2 Minuten um die MQTT-Steuerungsbefehle von der Nulleinspeisung des HA an den WR 2 zu senden."* — bei zwei Wechselrichtern hat ein User 2 Minuten Latenz.
 
-**Solarbot-Differenzierung:** Multi-WR ist im MVP bewusst ausgeschlossen. Aber wenn Solarbot V1.x oder V2 Multi-WR unterstützt, dann **sauber, dokumentiert, mit eigener Verteilungs-Logik pro WR-Modell**. Wir können aus dem OpenDTU-OnBattery-"umstrittenen Skalierungsmechanismus" lernen und gleich sauber bauen.
+**Solalex-Differenzierung:** Multi-WR ist im MVP bewusst ausgeschlossen. Aber wenn Solalex V1.x oder V2 Multi-WR unterstützt, dann **sauber, dokumentiert, mit eigener Verteilungs-Logik pro WR-Modell**. Wir können aus dem OpenDTU-OnBattery-"umstrittenen Skalierungsmechanismus" lernen und gleich sauber bauen.
 
 ### 4.4 OpenDTU-OnBattery hat Bugs, die monatelang die Regelung killen
 
@@ -171,7 +171,7 @@ Der Maintainer warnt selbst öffentlich davor, eine bestimmte Hoymiles-Firmware-
 
 Das ist ein erstaunlicher Workflow: Nutzer müssen Hoymiles per E-Mail bitten, ihre Firmware downzugraden, damit OpenDTU-OnBattery wieder funktioniert.
 
-**Solarbot-Differenzierung:** Solarbot ist nie auf eine bestimmte Wechselrichter-Firmware-Version angewiesen, weil Solarbot keine direkte Hardware-Kommunikation hat. Wenn die HA-Integration mit einer Firmware-Version ein Problem hat, ist das **das Problem der HA-Integration**, nicht von Solarbot. Diese Trennung ist ein massives Stabilitäts-Argument.
+**Solalex-Differenzierung:** Solalex ist nie auf eine bestimmte Wechselrichter-Firmware-Version angewiesen, weil Solalex keine direkte Hardware-Kommunikation hat. Wenn die HA-Integration mit einer Firmware-Version ein Problem hat, ist das **das Problem der HA-Integration**, nicht von Solalex. Diese Trennung ist ein massives Stabilitäts-Argument.
 
 ### 4.5 Die "MQTT cmd vs status"-Falle
 
@@ -185,7 +185,7 @@ Diese Pain ist exemplarisch für die DIY-Komplexität. Mehrere Discussions zeige
 
 Die Falle: Die OpenDTU veröffentlicht Werte unter `status/...` (read-only) und akzeptiert Befehle unter `cmd/...` (write). Wenn ein Nutzer (verständlicherweise) versucht, den `status`-Wert zu ändern, denkt er, es funktioniert — der MQTT-Explorer zeigt den neuen Wert — aber der Wechselrichter bekommt nichts. Das ist ein klassisches "Pit of failure"-Design.
 
-**Solarbot-Differenzierung:** Solarbot lässt den Nutzer nie in solche Fallen tappen. Auto-Discovery der HA-Entitäten, sinnvolle Defaults, schreib-fähige Entitäten werden **automatisch** ausgewählt, nicht-schreibfähige werden **explizit ausgeschlossen** mit einer klaren Fehlermeldung. Diese Unterscheidung machen wir transparent und nehmen sie dem Nutzer ab.
+**Solalex-Differenzierung:** Solalex lässt den Nutzer nie in solche Fallen tappen. Auto-Discovery der HA-Entitäten, sinnvolle Defaults, schreib-fähige Entitäten werden **automatisch** ausgewählt, nicht-schreibfähige werden **explizit ausgeschlossen** mit einer klaren Fehlermeldung. Diese Unterscheidung machen wir transparent und nehmen sie dem Nutzer ab.
 
 ### 4.6 Selbstbau-PV-Skripte: kein Support, kein Update-Pfad
 
@@ -205,9 +205,9 @@ Der Anbieter, der das Skript verbreitet, hilft bei Problemen nicht. Der Nutzer s
 
 Das Repo hat über 30 offene Issues. Maintainer-Aktivität ist sporadisch.
 
-**Solarbot-Differenzierung:** Solarbot ist **unterstützt**. Es gibt einen Lizenz-Holder, der für Bugfixes verantwortlich ist. Es gibt einen Discord, in dem geantwortet wird. Es gibt regelmäßige Updates über den HA Add-on Store. Das ist der fundamentale Unterschied zwischen einem **Produkt** und einem **DIY-Projekt** — und es ist genau das, wofür Mainstream-Nutzer bezahlen.
+**Solalex-Differenzierung:** Solalex ist **unterstützt**. Es gibt einen Lizenz-Holder, der für Bugfixes verantwortlich ist. Es gibt einen Discord, in dem geantwortet wird. Es gibt regelmäßige Updates über den HA Add-on Store. Das ist der fundamentale Unterschied zwischen einem **Produkt** und einem **DIY-Projekt** — und es ist genau das, wofür Mainstream-Nutzer bezahlen.
 
-Marketing-Botschaft: **"Solarbot ist nicht kostenlos. Aber wenn du ein Problem hast, antworten wir."**
+Marketing-Botschaft: **"Solalex ist nicht kostenlos. Aber wenn du ein Problem hast, antworten wir."**
 
 ### 4.7 Acht Komponenten für ein Setup, das funktionieren soll
 
@@ -225,7 +225,7 @@ Wenn der Nutzer einen Akku hat, kommen noch dazu: Akku-Hardware mit BMS, Akku-sp
 
 **Aus Discussion #294 (Akkudoktor-EOS, der mit OpenDTU vergleichbar ist):** Bereits 8 bewegliche Teile, jedes davon eine potenzielle Fehlerquelle.
 
-**Solarbot-Differenzierung:** Solarbot ist 1 Add-on. Über dem HA, das sowieso schon läuft. Keine zusätzlichen Container, keine Python-Versionen, keine MQTT-Topics, kein Cron. Marketing-Botschaft: **"Bei OpenDTU baust du. Bei Solarbot startest du."**
+**Solalex-Differenzierung:** Solalex ist 1 Add-on. Über dem HA, das sowieso schon läuft. Keine zusätzlichen Container, keine Python-Versionen, keine MQTT-Topics, kein Cron. Marketing-Botschaft: **"Bei OpenDTU baust du. Bei Solalex startest du."**
 
 ### 4.8 Die "Es lief, dann kam ein Update, dann lief es nicht mehr"-Falle
 
@@ -235,7 +235,7 @@ Wenn der Nutzer einen Akku hat, kommen noch dazu: Akku-Hardware mit BMS, Akku-sp
 
 Updates lösen ein Problem und schaffen das nächste. Es gibt keine "stable"-Linie — Nutzer testen und hoffen.
 
-**Solarbot-Differenzierung:** Solarbot hat einen klaren Update-Pfad über den HA Add-on Store, mit automatischen Backups vor dem Update und Rollback-Möglichkeit. Das ist im PRD bereits angedacht und sollte hier nochmal als prominentes Differenzierungs-Merkmal markiert werden.
+**Solalex-Differenzierung:** Solalex hat einen klaren Update-Pfad über den HA Add-on Store, mit automatischen Backups vor dem Update und Rollback-Möglichkeit. Das ist im PRD bereits angedacht und sollte hier nochmal als prominentes Differenzierungs-Merkmal markiert werden.
 
 ### 4.9 Hardware kann zerstört werden — und wird zerstört
 
@@ -247,7 +247,7 @@ Der Wechselrichter hängt sich auf und muss regelmäßig neu gestartet werden. W
 
 Die Bastler haben gelernt, dass ihre Setups nur mit prophylaktischen Reboots stabil laufen. Das ist akzeptiert — aber für Mainstream-User wäre das ein Albtraum.
 
-**Solarbot-Differenzierung:** Solarbot regelt mit EEPROM-Schonung (siehe PRD-Patch) und hektiert nie. Das ist ein implizites Versprechen, dass Solarbot Hardware nicht beschädigt — und es ist messbar (siehe Akzeptanzkriterium <500 Schreibvorgänge/Tag).
+**Solalex-Differenzierung:** Solalex regelt mit EEPROM-Schonung (siehe PRD-Patch) und hektiert nie. Das ist ein implizites Versprechen, dass Solalex Hardware nicht beschädigt — und es ist messbar (siehe Akzeptanzkriterium <500 Schreibvorgänge/Tag).
 
 ### 4.10 Programmier-Wissen wird vorausgesetzt — und fehlt oft
 
@@ -259,7 +259,7 @@ Aus Issue #817 (`tbnobody/OpenDTU`, neuer User): *"What happened? I was on AHOY 
 
 Die Lernkurve ist nicht steil — sie ist eine Klippe. Neue Nutzer scheitern oft schon am ersten Schritt.
 
-**Solarbot-Differenzierung:** Solarbot setzt **null Programmier-Wissen** voraus. Keine Kompilierung, keine ESP-Flash-Tools, keine NRF24-Pinouts, keine MQTT-Topic-Namen. Das ist im PRD bereits zentral verankert.
+**Solalex-Differenzierung:** Solalex setzt **null Programmier-Wissen** voraus. Keine Kompilierung, keine ESP-Flash-Tools, keine NRF24-Pinouts, keine MQTT-Topic-Namen. Das ist im PRD bereits zentral verankert.
 
 ### 4.11 Der regulatorische Schock — die Bundesnetzagentur und die Hoymiles-Funkstörung
 
@@ -279,7 +279,7 @@ Die Aussage relativiert die Schuld auf die offiziellen Hoymiles-DTUs (DTU-Pro, D
 - Im Worst Case könnten Hoymiles-Geräte regulatorisch eingeschränkt oder zurückgerufen werden
 - Selbst wenn das nicht passiert: Das Vertrauen in die Hardware ist beschädigt
 
-**Solarbot-Differenzierung:** Solarbot ist **regulatorisch unauffällig** — wir senden nichts, wir hören keine Funkfrequenzen ab, wir bauen keine Hardware. Falls die DIY-Welt durch Bundesnetzagentur-Eingriffe Schaden nimmt, ist Solarbot das natürliche "Refugium": **lokale Kontrolle, ohne die regulatorische Last der Funk-Hardware.**
+**Solalex-Differenzierung:** Solalex ist **regulatorisch unauffällig** — wir senden nichts, wir hören keine Funkfrequenzen ab, wir bauen keine Hardware. Falls die DIY-Welt durch Bundesnetzagentur-Eingriffe Schaden nimmt, ist Solalex das natürliche "Refugium": **lokale Kontrolle, ohne die regulatorische Last der Funk-Hardware.**
 
 Diese Erkenntnis sollte in der Marketing-Botschaft nicht offensiv ausgespielt werden (das wäre respektlos gegenüber der DIY-Community), aber sie sollte als **stilles Vertrauenssignal** im Hintergrund stehen.
 
@@ -303,9 +303,9 @@ Diese Erkenntnis sollte in der Marketing-Botschaft nicht offensiv ausgespielt we
 
 ---
 
-## 6. Solarbot-Differenzierung — wo wir konkret anders sind
+## 6. Solalex-Differenzierung — wo wir konkret anders sind
 
-| Dimension | OpenDTU + DIY | Solarbot |
+| Dimension | OpenDTU + DIY | Solalex |
 |---|---|---|
 | Hardware-Anbindung | Direkt über Funk (NRF24/CMT2300A) | Über HA-Entitäten |
 | Setup-Aufwand | Tage bis Wochen, Löt-Wissen + Programmier-Wissen nötig | 10 Minuten, geführter Flow |
@@ -324,41 +324,41 @@ Diese Erkenntnis sollte in der Marketing-Botschaft nicht offensiv ausgespielt we
 
 ## 7. Co-Existenz-Strategie: Respekt und Anerkennung statt Frontalangriff
 
-Die DIY-Community ist **nicht** die Zielgruppe. Aber sie ist eine extrem wichtige **Multiplikator-Gruppe**. Jeder Bastler ist gleichzeitig der "PV-Experte" in seiner Familie und seinem Freundeskreis — und wenn er Solarbot empfiehlt, weil er weiß "das ist die richtige Lösung für meine Schwester, die nicht so viel basteln will", ist das mehr wert als jede bezahlte Anzeige.
+Die DIY-Community ist **nicht** die Zielgruppe. Aber sie ist eine extrem wichtige **Multiplikator-Gruppe**. Jeder Bastler ist gleichzeitig der "PV-Experte" in seiner Familie und seinem Freundeskreis — und wenn er Solalex empfiehlt, weil er weiß "das ist die richtige Lösung für meine Schwester, die nicht so viel basteln will", ist das mehr wert als jede bezahlte Anzeige.
 
 **Strategische Empfehlung:**
 
-**1. Anerkennung in der eigenen Doku.** Ein Abschnitt in der Solarbot-Doku oder auf alkly.de mit dem Titel **"Wir verneigen uns vor den Pionieren"**, in dem OpenDTU, OpenDTU-OnBattery, hoymiles-tarnkappe und die Selbstbau-PV-Initiative explizit gewürdigt werden. Eine Zeile wie *"Solarbot wäre ohne die Pionierarbeit dieser Projekte niemals möglich gewesen. Wir haben aus euren Schmerzen gelernt, und wir hoffen, das was wir bauen, macht den Weg für die nächste Million Nutzer einfacher."* ist Gold wert.
+**1. Anerkennung in der eigenen Doku.** Ein Abschnitt in der Solalex-Doku oder auf alkly.de mit dem Titel **"Wir verneigen uns vor den Pionieren"**, in dem OpenDTU, OpenDTU-OnBattery, hoymiles-tarnkappe und die Selbstbau-PV-Initiative explizit gewürdigt werden. Eine Zeile wie *"Solalex wäre ohne die Pionierarbeit dieser Projekte niemals möglich gewesen. Wir haben aus euren Schmerzen gelernt, und wir hoffen, das was wir bauen, macht den Weg für die nächste Million Nutzer einfacher."* ist Gold wert.
 
-**2. Klare Positions-Trennung.** Wir sagen nicht *"Solarbot ist besser als OpenDTU"*. Wir sagen *"Solarbot ist für Leute, die nicht löten und nicht programmieren wollen — also für 95 % der Balkonkraftwerk-Käufer."* Das beleidigt niemanden in der DIY-Welt, weil es nicht ihre Identität in Frage stellt.
+**2. Klare Positions-Trennung.** Wir sagen nicht *"Solalex ist besser als OpenDTU"*. Wir sagen *"Solalex ist für Leute, die nicht löten und nicht programmieren wollen — also für 95 % der Balkonkraftwerk-Käufer."* Das beleidigt niemanden in der DIY-Welt, weil es nicht ihre Identität in Frage stellt.
 
-**3. Aktive Wertschätzung in den Foren.** Wenn Alex selbst (oder das Solarbot-Team) im OpenDTU-Discord, im Akkudoktor-Forum, im Photovoltaikforum auftaucht, dann mit einer dienenden Haltung: Fragen beantworten, Workarounds teilen, Wissen geben. Solarbot wird nicht "verkauft", sondern **organisch erwähnt**, wenn es passt: *"Hey, wenn du nicht selbst basteln willst, schau mal Solarbot an — das ist die Mainstream-Antwort auf den Ansatz, den ihr hier macht."*
+**3. Aktive Wertschätzung in den Foren.** Wenn Alex selbst (oder das Solalex-Team) im OpenDTU-Discord, im Akkudoktor-Forum, im Photovoltaikforum auftaucht, dann mit einer dienenden Haltung: Fragen beantworten, Workarounds teilen, Wissen geben. Solalex wird nicht "verkauft", sondern **organisch erwähnt**, wenn es passt: *"Hey, wenn du nicht selbst basteln willst, schau mal Solalex an — das ist die Mainstream-Antwort auf den Ansatz, den ihr hier macht."*
 
-**4. Eine Brücke für "müde" Bastler.** Es gibt eine wachsende Gruppe von Nutzern, die mal angefangen haben zu basteln — und nach 2 Jahren Setup-Pflege die Lust verlieren. Diese Gruppe ist die wertvollste Zielgruppe für Solarbot überhaupt. Eine Migration-Anleitung "Von OpenDTU + Selbstbau-PV-Skript zu Solarbot in 30 Minuten" sollte ein V1-Doku-Asset sein.
+**4. Eine Brücke für "müde" Bastler.** Es gibt eine wachsende Gruppe von Nutzern, die mal angefangen haben zu basteln — und nach 2 Jahren Setup-Pflege die Lust verlieren. Diese Gruppe ist die wertvollste Zielgruppe für Solalex überhaupt. Eine Migration-Anleitung "Von OpenDTU + Selbstbau-PV-Skript zu Solalex in 30 Minuten" sollte ein V1-Doku-Asset sein.
 
-**5. Tooling-Brücke (V2-Idee).** Solarbot könnte langfristig die Daten von OpenDTU-OnBattery's Dynamic Power Limiter direkt einlesen und ergänzen — z. B. die Hardware-Funk-Statistiken im Diagnose-Tab anzeigen. Das wäre eine echte technische Anerkennung der DIY-Vorgänger.
+**5. Tooling-Brücke (V2-Idee).** Solalex könnte langfristig die Daten von OpenDTU-OnBattery's Dynamic Power Limiter direkt einlesen und ergänzen — z. B. die Hardware-Funk-Statistiken im Diagnose-Tab anzeigen. Das wäre eine echte technische Anerkennung der DIY-Vorgänger.
 
 ---
 
-## 8. Was Solarbot von OpenDTU + DIY lernen muss
+## 8. Was Solalex von OpenDTU + DIY lernen muss
 
-**1. EEPROM-Schonung als Default, nicht als Option.** Die DIY-Welt hat das Problem identifiziert und Workarounds gebaut. Solarbot muss diese Workarounds als **eingebaute Defaults** liefern. Der PRD-Patch ist die richtige Antwort.
+**1. EEPROM-Schonung als Default, nicht als Option.** Die DIY-Welt hat das Problem identifiziert und Workarounds gebaut. Solalex muss diese Workarounds als **eingebaute Defaults** liefern. Der PRD-Patch ist die richtige Antwort.
 
-**2. Hysterese, Mittelwerte, Glättung.** Die DIY-Foren sind voll von "lieber 3-5 Minuten Mittelwert statt Echtzeit"-Empfehlungen. Solarbot muss das von Tag eins richtig machen.
+**2. Hysterese, Mittelwerte, Glättung.** Die DIY-Foren sind voll von "lieber 3-5 Minuten Mittelwert statt Echtzeit"-Empfehlungen. Solalex muss das von Tag eins richtig machen.
 
-**3. Dynamic Power Limiter als Konzept.** OpenDTU-OnBattery hat den DPL erfunden. Solarbot muss eine analoge Engine haben, nur eine Schicht höher: **Dynamic Entity Limiter**, der HA-Entitäten regelt statt direkter Hardware.
+**3. Dynamic Power Limiter als Konzept.** OpenDTU-OnBattery hat den DPL erfunden. Solalex muss eine analoge Engine haben, nur eine Schicht höher: **Dynamic Entity Limiter**, der HA-Entitäten regelt statt direkter Hardware.
 
-**4. Hardware-Wissen pro WR-Modell.** OpenDTU-OnBattery hat den "umstrittenen Skalierungsmechanismus" für 4-MPPT-WR mit teilweise belegten Eingängen. Solarbot muss ähnliches Wissen pro WR-Modell hinterlegen — und im Profile-Marketplace (V1.x) crowdsourcen.
+**4. Hardware-Wissen pro WR-Modell.** OpenDTU-OnBattery hat den "umstrittenen Skalierungsmechanismus" für 4-MPPT-WR mit teilweise belegten Eingängen. Solalex muss ähnliches Wissen pro WR-Modell hinterlegen — und im Profile-Marketplace (V1.x) crowdsourcen.
 
 **5. Snap-to-Step-Werte.** Die DIY-Skripte runden oft auf 10-W-Schritte, weil das die Wechselrichter-Reaktion stabilisiert. Im PRD-Patch ist das bereits als X.2.5 verankert.
 
-**6. Diagnose-Statistik mit echten Werten.** OpenDTU zeigt eine Funkstatistik (Empfang erfolgreich %, Empfang Fehler %). Solarbot muss eine analoge Statistik zeigen: "Schreibvorgänge heute: 142, davon erfolgreich: 142". Das ist Vertrauen durch Zahlen.
+**6. Diagnose-Statistik mit echten Werten.** OpenDTU zeigt eine Funkstatistik (Empfang erfolgreich %, Empfang Fehler %). Solalex muss eine analoge Statistik zeigen: "Schreibvorgänge heute: 142, davon erfolgreich: 142". Das ist Vertrauen durch Zahlen.
 
-**7. Nachts NRF inaktiv schalten.** Aus Issue #551: *"Allerdings fehlt mir eine Möglichkeit die Kommunikation vom NRF zum Inverter anzuhalten, da ich das sinnlose polling über 10-12h einfach unnötig finde."* Solarbot kann das Analog: **Nachts schreibt Solarbot nichts**, weil es nichts zu regeln gibt. Das ist Energieersparnis und Hardware-Schonung gleichzeitig.
+**7. Nachts NRF inaktiv schalten.** Aus Issue #551: *"Allerdings fehlt mir eine Möglichkeit die Kommunikation vom NRF zum Inverter anzuhalten, da ich das sinnlose polling über 10-12h einfach unnötig finde."* Solalex kann das Analog: **Nachts schreibt Solalex nichts**, weil es nichts zu regeln gibt. Das ist Energieersparnis und Hardware-Schonung gleichzeitig.
 
 ---
 
-## 9. Was Solarbot konkret besser machen muss als die DIY-Welt — die fünf Prioritäten
+## 9. Was Solalex konkret besser machen muss als die DIY-Welt — die fünf Prioritäten
 
 **Priorität 1: Null Bastelei.**
 Kein Lötkolben, kein ESP32, kein NRF24, keine Funk-Antennen, keine Frequenz-Justierung, keine MQTT-Topics, keine `cmd/status`-Verwirrung. Die direkte Antwort auf 10+ Forenstimmen.
@@ -370,7 +370,7 @@ EEPROM-Schonung, Hysterese, Glättung, Snap-to-Step — alles als **strukturelle
 Wenn ein Nutzer ein Problem hat, gibt es eine Antwort. Nicht "wir leisten keinen Support für das Skript", sondern aktives Discord, dokumentierte Fehler-Codes, Eskalations-Pfad. Die direkte Antwort auf den Selbstbau-PV-Support-Frust.
 
 **Priorität 4: Hardware-Agnostik.**
-Solarbot funktioniert mit jedem Wechselrichter, der eine HA-Integration hat — nicht nur Hoymiles. Damit ist Solarbot resilient gegen Hoymiles-spezifische Risiken (Bundesnetzagentur, Firmware-Probleme, Hardware-EOL).
+Solalex funktioniert mit jedem Wechselrichter, der eine HA-Integration hat — nicht nur Hoymiles. Damit ist Solalex resilient gegen Hoymiles-spezifische Risiken (Bundesnetzagentur, Firmware-Probleme, Hardware-EOL).
 
 **Priorität 5: Update-Sicherheit.**
 Updates über den HA Add-on Store, mit automatischen Backups und Rollback. Die direkte Antwort auf "Update kam, Setup ist kaputt"-Geschichten.
@@ -381,27 +381,27 @@ Updates über den HA Add-on Store, mit automatischen Backups und Rollback. Die d
 
 Drei fertige Sätze für Landing Page, Pitch und Outreach:
 
-> **"Bei OpenDTU baust du. Bei Solarbot startest du."**
+> **"Bei OpenDTU baust du. Bei Solalex startest du."**
 
 > **"Wir verneigen uns vor den DIY-Pionieren — und übersetzen ihre Erkenntnisse für die nächste Million Nutzer."**
 
-> **"Wenn du nicht löten und nicht programmieren willst, aber trotzdem die volle Kontrolle über deinen Solarstrom haben willst — Solarbot ist die Antwort."**
+> **"Wenn du nicht löten und nicht programmieren willst, aber trotzdem die volle Kontrolle über deinen Solarstrom haben willst — Solalex ist die Antwort."**
 
 Und eine vierte, etwas mutigere Botschaft, die nur dann benutzt werden sollte, wenn die Funkstörungs-Geschichte weiter eskaliert:
 
-> **"Solarbot funkt nicht. Solarbot stört nicht. Solarbot regelt einfach — über die HA-Entitäten, die du sowieso schon hast."**
+> **"Solalex funkt nicht. Solalex stört nicht. Solalex regelt einfach — über die HA-Entitäten, die du sowieso schon hast."**
 
 ---
 
 ## 11. Risiken und blinde Flecken
 
-**Risiko 1: Die DIY-Community sieht Solarbot als Trittbrettfahrer.** Sehr real. **Mitigation:** Anerkennung der Pioniere in der eigenen Doku, dienende Haltung in den Foren, niemals abwertende Sprache.
+**Risiko 1: Die DIY-Community sieht Solalex als Trittbrettfahrer.** Sehr real. **Mitigation:** Anerkennung der Pioniere in der eigenen Doku, dienende Haltung in den Foren, niemals abwertende Sprache.
 
-**Risiko 2: Hoymiles oder die Bundesnetzagentur greift hart durch.** Wenn die HMS/HMT-Serie zurückgerufen oder eingeschränkt wird, ist die DIY-Welt im Chaos. Solarbot muss **darauf vorbereitet sein**, sowohl technisch (Multi-Hersteller-Support) als auch kommunikativ (kein Schadenfreude-Marketing).
+**Risiko 2: Hoymiles oder die Bundesnetzagentur greift hart durch.** Wenn die HMS/HMT-Serie zurückgerufen oder eingeschränkt wird, ist die DIY-Welt im Chaos. Solalex muss **darauf vorbereitet sein**, sowohl technisch (Multi-Hersteller-Support) als auch kommunikativ (kein Schadenfreude-Marketing).
 
 **Risiko 3: OpenDTU-OnBattery wird so gut, dass auch Mainstream-Nutzer es schaffen.** Möglich, aber unwahrscheinlich, weil die Funk-Brücke und die Hardware-Bastelei strukturelle Hürden bleiben.
 
-**Risiko 4: Solarbot wirkt im Vergleich zur DIY-Welt teuer.** Bastler werden sagen "Aber OpenDTU + Skript ist kostenlos!" Das ist ein Argument, das wir aufnehmen müssen — mit der Antwort "Kostenlos im Geld, teuer in der Zeit". Eine Zeile wie *"Solarbot kostet [X] € einmalig. Die durchschnittliche DIY-Lösung kostet 0 € — aber 30 Stunden deiner Zeit. Was ist deine Stunde wert?"* könnte direkt auf die Landing Page.
+**Risiko 4: Solalex wirkt im Vergleich zur DIY-Welt teuer.** Bastler werden sagen "Aber OpenDTU + Skript ist kostenlos!" Das ist ein Argument, das wir aufnehmen müssen — mit der Antwort "Kostenlos im Geld, teuer in der Zeit". Eine Zeile wie *"Solalex kostet [X] € einmalig. Die durchschnittliche DIY-Lösung kostet 0 € — aber 30 Stunden deiner Zeit. Was ist deine Stunde wert?"* könnte direkt auf die Landing Page.
 
 **Risiko 5: Wir unterschätzen die Bedeutung der DIY-Community als Multiplikator.** Wenn Alex sich zu offensiv positioniert und die Bastler beleidigt, verlieren wir den wichtigsten organischen Marketing-Kanal. Diese Gruppe muss respektiert werden, immer.
 
@@ -414,25 +414,25 @@ Und eine vierte, etwas mutigere Botschaft, die nur dann benutzt werden sollte, w
 - Den Abschnitt "Wir verneigen uns vor den Pionieren" als Doku-Asset planen — nicht erst zum Launch, sondern schon für die Pre-Launch-Kommunikation.
 
 **Vor Beta:**
-- Migration-Anleitung schreiben: *"Von OpenDTU + Python-Skript zu Solarbot in 30 Minuten"*. Das ist ein konkretes Asset, das in den DIY-Foren organisch geteilt wird.
-- 2–3 prominente DIY-Bastler als Beta-Tester gewinnen, die parallel ihr OpenDTU-Setup behalten und Solarbot vergleichen können. Ihre Erfahrungs-Berichte sind unbezahlbar.
+- Migration-Anleitung schreiben: *"Von OpenDTU + Python-Skript zu Solalex in 30 Minuten"*. Das ist ein konkretes Asset, das in den DIY-Foren organisch geteilt wird.
+- 2–3 prominente DIY-Bastler als Beta-Tester gewinnen, die parallel ihr OpenDTU-Setup behalten und Solalex vergleichen können. Ihre Erfahrungs-Berichte sind unbezahlbar.
 
 **Beta-Phase:**
 - Aktive, freundliche Präsenz im OpenDTU-Discord, OpenDTU-OnBattery-Discussions, Akkudoktor-Forum (Sektion DIY), Photovoltaikforum (Sektion Balkonkraftwerk). Keine Werbung — nur Hilfe und Wissen.
-- Eine Live-Demo von Alex auf YouTube: "Solarbot vs. mein OpenDTU-OnBattery-Setup im direkten Vergleich". Ehrlich, mit allen Vor- und Nachteilen.
+- Eine Live-Demo von Alex auf YouTube: "Solalex vs. mein OpenDTU-OnBattery-Setup im direkten Vergleich". Ehrlich, mit allen Vor- und Nachteilen.
 
 **Post-Launch:**
-- Einen "Profi-Tier" für DIY-Nutzer einführen, die Solarbot zusätzlich zu ihrem OpenDTU-Setup nutzen wollen — z. B. mit erweiterten Diagnose-Features, API-Zugriff, oder Multi-WR-Support. Damit fängt Solarbot auch die "müden Bastler" ein, die ihre Grundinfrastruktur behalten wollen.
+- Einen "Profi-Tier" für DIY-Nutzer einführen, die Solalex zusätzlich zu ihrem OpenDTU-Setup nutzen wollen — z. B. mit erweiterten Diagnose-Features, API-Zugriff, oder Multi-WR-Support. Damit fängt Solalex auch die "müden Bastler" ein, die ihre Grundinfrastruktur behalten wollen.
 
 ---
 
 ## 13. Die wichtigste Erkenntnis dieser Analyse
 
-Die DIY-Welt ist **nicht** Solarbots Konkurrenz. Sie ist Solarbots Vorgeschichte, Solarbots Lehrer und Solarbots wichtigster Multiplikator. Wenn wir das richtig spielen, machen die Bastler mehr Marketing für uns als jede bezahlte Kampagne — weil sie genau wissen, wie schwer das alles ist, und sie erkennen, wenn jemand eine ehrliche Lösung baut.
+Die DIY-Welt ist **nicht** Solalexs Konkurrenz. Sie ist Solalexs Vorgeschichte, Solalexs Lehrer und Solalexs wichtigster Multiplikator. Wenn wir das richtig spielen, machen die Bastler mehr Marketing für uns als jede bezahlte Kampagne — weil sie genau wissen, wie schwer das alles ist, und sie erkennen, wenn jemand eine ehrliche Lösung baut.
 
-Die strategische Position ist klar: **Solarbot ist die DIY-Erfahrung, in Software gegossen, für die nächste Million Nutzer.** Wir verkaufen nicht die Magie — wir verkaufen die Komplexitäts-Ersparnis. Wir zerstören keine Bastelfreude — wir machen Solar-Optimierung für Menschen zugänglich, die nie basteln werden.
+Die strategische Position ist klar: **Solalex ist die DIY-Erfahrung, in Software gegossen, für die nächste Million Nutzer.** Wir verkaufen nicht die Magie — wir verkaufen die Komplexitäts-Ersparnis. Wir zerstören keine Bastelfreude — wir machen Solar-Optimierung für Menschen zugänglich, die nie basteln werden.
 
-Wenn das gelingt, ist Solarbot nicht nur ein Produkt — Solarbot ist die Brücke zwischen zwei Welten: der frühen, idealistischen, technisch tiefen DIY-Welt und der kommenden, breiten Mainstream-Bewegung der Energiewende. Diese Brücke zu bauen, ist eine Mission, die größer ist als jeder einzelne Verkaufs-Call. Und sie ist es, die Solarbot von einem Produkt zu einem Bewegungs-Treiber macht.
+Wenn das gelingt, ist Solalex nicht nur ein Produkt — Solalex ist die Brücke zwischen zwei Welten: der frühen, idealistischen, technisch tiefen DIY-Welt und der kommenden, breiten Mainstream-Bewegung der Energiewende. Diese Brücke zu bauen, ist eine Mission, die größer ist als jeder einzelne Verkaufs-Call. Und sie ist es, die Solalex von einem Produkt zu einem Bewegungs-Treiber macht.
 
 ---
 

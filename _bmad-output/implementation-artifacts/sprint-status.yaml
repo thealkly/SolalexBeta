@@ -1,6 +1,6 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-22 (Story 1.2 → ready-for-dev)
-# project: SolarBotDevelopment
+# last_updated: 2026-04-22 (Story 1.1 → review)
+# project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
 # story_location: {project-root}/_bmad-output/implementation-artifacts
@@ -36,7 +36,8 @@
 
 generated: 2026-04-21
 last_updated: 2026-04-22
-project: SolarBotDevelopment
+
+project: SolalexDevelopment
 project_key: NOKEY
 tracking_system: file-system
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
@@ -44,9 +45,9 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 development_status:
   # Epic 1: Add-on Foundation & Branding
   epic-1: in-progress
-  1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: ready-for-dev
+  1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: review
   1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: ready-for-dev
-  1-3-ha-websocket-foundation-mit-reconnect-logik: backlog
+  1-3-ha-websocket-foundation-mit-reconnect-logik: ready-for-dev
   1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: backlog
   1-5-ha-sidebar-registrierung-mit-alkly-branding: backlog
   1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: backlog

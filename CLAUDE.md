@@ -1,4 +1,4 @@
-# CLAUDE.md — Solarbot
+# CLAUDE.md — Solalex
 
 Projekt-spezifische Instruktionen für AI-Agents (Claude Code und andere). Gilt für jede Implementierungs-Session in diesem Repo.
 
@@ -8,7 +8,7 @@ Projekt-spezifische Instruktionen für AI-Agents (Claude Code und andere). Gilt 
 
 ## Projekt in einem Absatz
 
-Solarbot ist ein kommerzielles Home-Assistant-Add-on (Python 3.13 + FastAPI + Svelte 5 + SQLite), das Wechselrichter und Akkus sekundengenau via HA-WebSocket-API steuert. Solo-Dev-Projekt, Beta-Launch in 9 Wochen geplant, v1 mit 3 Hardware-Adaptern (Hoymiles/OpenDTU, Marstek Venus, Shelly 3EM). 100 % lokal, monatlicher LemonSqueezy-Lizenz-Check, keine Telemetry.
+Solalex ist ein kommerzielles Home-Assistant-Add-on (Python 3.13 + FastAPI + Svelte 5 + SQLite), das Wechselrichter und Akkus sekundengenau via HA-WebSocket-API steuert. Solo-Dev-Projekt, Beta-Launch in 9 Wochen geplant, v1 mit 3 Hardware-Adaptern (Hoymiles/OpenDTU, Marstek Venus, Shelly 3EM). 100 % lokal, monatlicher LemonSqueezy-Lizenz-Check, keine Telemetry.
 
 ---
 
@@ -29,7 +29,7 @@ Ausnahmen (dürfen, weil Sprach-Konvention):
 
 ### 2. Ein Python-Modul pro Adapter
 
-Jeder Hardware-Hersteller bekommt exakt ein Modul unter `backend/src/solarbot/adapters/<vendor>.py`. Day-1-Adapter in v1: `hoymiles.py`, `marstek_venus.py`, `shelly_3em.py`.
+Jeder Hardware-Hersteller bekommt exakt ein Modul unter `backend/src/solalex/adapters/<vendor>.py`. Day-1-Adapter in v1: `hoymiles.py`, `marstek_venus.py`, `shelly_3em.py`.
 
 Im Modul **hardcoded** Entity-Pattern-Listen (Python-Dicts/Listen). **Kein JSON-Template-Loader, kein JSON-Schema-Validator, kein `/data/templates/`-Verzeichnis** — gestrichen im Amendment 2026-04-22.
 
@@ -95,7 +95,7 @@ Kein `print()`. Kein `logging.getLogger()` direkt. Kein `logging.info()` ohne Wr
 - **Controller:** Ein Mono-Modul `controller.py` mit Enum-Dispatch (`Mode.DROSSEL | SPEICHER | MULTI`) + Hysterese-Helper + Fail-Safe-Wrapper
 - **Scheduler:** `asyncio.create_task` + `sleep_until` (kein APScheduler)
 - **Lizenz:** LemonSqueezy-Online-Check, Plain-JSON in `/data/license.json`, **keine kryptografische Signatur** in v1
-- **Backup:** 1 Slot in `/data/.backup/solarbot.db`, atomisch via `VACUUM INTO .tmp → fsync → rename → fsync(dir)`
+- **Backup:** 1 Slot in `/data/.backup/solalex.db`, atomisch via `VACUUM INTO .tmp → fsync → rename → fsync(dir)`
 - **Rollback:** Backup-File-Replace beim Start der vorherigen Add-on-Version (kein Alembic-Downgrade)
 - **Frontend-Tokens:** CSS Custom Properties in `app.css` als Single-Source (kein `lib/tokens/*.ts`)
 - **TS-Types:** handgeschrieben neben `client.ts` (kein `openapi-typescript`-Generator)
@@ -134,11 +134,11 @@ Kein `print()`. Kein `logging.getLogger()` direkt. Kein `logging.info()` ohne Wr
 ## Directory Layout (Ausschnitt)
 
 ```
-solarbot/
+solalex/
 ├── addon/                        # HA Add-on Definition
 ├── backend/                      # eigenständig, kein Workspace-Root
 │   ├── pyproject.toml            # uv-managed
-│   └── src/solarbot/
+│   └── src/solalex/
 │       ├── main.py               # FastAPI + Lifespan-Tasks
 │       ├── controller.py         # Mono-Modul mit Enum-Dispatch
 │       ├── executor/
@@ -219,7 +219,7 @@ solarbot/
 
 ## CI-Gates
 
-Solarbot hat 4 Hard-CI-Gates, mehr nicht:
+Solalex hat 4 Hard-CI-Gates, mehr nicht:
 
 1. **Ruff + MyPy strict + Pytest** (Backend)
 2. **ESLint + svelte-check + Prettier + Vitest** (Frontend)

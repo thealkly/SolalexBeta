@@ -12,9 +12,9 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
 ## Acceptance Criteria
 
-1. **Voraussetzungs-Zeile über jedem CTA (Landing-Page):** `Given` die Solarbot-Landing-Page auf alkly.de, `When` der Besucher die Seite öffnet, `Then` oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile **„Benötigt Home Assistant OS oder Supervised"** sichtbar (keine Tooltips, keine Modals — direkt im Flow, siehe CLAUDE.md Stil-Leitplanken).
+1. **Voraussetzungs-Zeile über jedem CTA (Landing-Page):** `Given` die Solalex-Landing-Page auf alkly.de, `When` der Besucher die Seite öffnet, `Then` oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile **„Benötigt Home Assistant OS oder Supervised"** sichtbar (keine Tooltips, keine Modals — direkt im Flow, siehe CLAUDE.md Stil-Leitplanken).
 2. **HA-Container/Core explizit als nicht supported markiert (Landing-Page):** `Given` der Check-Block auf der Landing-Page, `When` er gelesen wird, `Then` HA Container **und** HA Core sind explizit als **„nicht supported, best-effort ohne Support"** markiert. Formulierung wörtlich aus Epics/FR2.
-3. **Install-Warning via `addon/config.yaml`-Deklaration:** `Given` ein Nutzer versucht Solarbot auf einer nicht-unterstützten HA-Version zu installieren, `When` der Add-on-Store die Installation prüft, `Then` eine Install-Warning wird gezeigt **And** die supported HA-Version-Range ist in `addon/config.yaml` via `homeassistant:`-Feld deklariert (Mindest-Version-Pin).
+3. **Install-Warning via `addon/config.yaml`-Deklaration:** `Given` ein Nutzer versucht Solalex auf einer nicht-unterstützten HA-Version zu installieren, `When` der Add-on-Store die Installation prüft, `Then` eine Install-Warning wird gezeigt **And** die supported HA-Version-Range ist in `addon/config.yaml` via `homeassistant:`-Feld deklariert (Mindest-Version-Pin).
 
 ## Tasks / Subtasks
 
@@ -33,7 +33,7 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
     - Supported Installation-Types: **HA OS, HA Supervised**. HA Container und HA Core werden als **nicht supported, best-effort ohne Support** gekennzeichnet.
   - [ ] In `addon/CHANGELOG.md` Eintrag für die Version hinzufügen: `- Minimum HA Core: 2026.4.0 deklariert.`
 - [ ] **Task 3: Landing-Page-Content für alkly.de erstellen** (AC: 1, 2)
-  - [ ] **Scope-Hinweis für Dev-Agent:** Die Landing-Page lebt **außerhalb dieses Repos** (alkly.de-Marketing-Site). In diesem Repo wird nur der **Content-Baustein als Markdown-Snippet** unter `docs/landing/voraussetzungen.md` abgelegt — damit die Copy-Quelle versioniert ist und per `git mv` beim „Solarbot"-Rename mitwandert.
+  - [ ] **Scope-Hinweis für Dev-Agent:** Die Landing-Page lebt **außerhalb dieses Repos** (alkly.de-Marketing-Site). In diesem Repo wird nur der **Content-Baustein als Markdown-Snippet** unter `docs/landing/voraussetzungen.md` abgelegt — damit die Copy-Quelle versioniert ist und per `git mv` beim „Solalex"-Rename mitwandert.
   - [ ] Datei `docs/landing/voraussetzungen.md` neu anlegen mit folgender Struktur (Frontmatter + Markdown-Body):
     ```markdown
     ---
@@ -113,13 +113,13 @@ Diese Story hat **keine Code-Änderungen in `backend/` oder `frontend/`**. Sie b
 - **KEIN Tooltip, KEIN Modal, KEIN Accordion** für die Voraussetzungs-Information. CLAUDE.md Stil-Leitplanken (UX-DR30): Anti-Patterns explizit verboten. Direkt im Flow über dem CTA.
 - **KEIN Tracking-Pixel / Google-Analytics / Facebook-Pixel** auf der Landing-Page (NFR28 „100 % lokal" erstreckt sich auf die Marketing-Identität; keine Pflicht, aber strategisch kongruent).
 - **KEIN i18n-Framework** für das Markdown-Snippet (CLAUDE.md: keine i18n-Infrastruktur in v1). Deutsch hardcoded.
-- **KEIN Rename** des Add-ons in dieser Story (auto-memory: „Solarbot" steht unter Markenrechts-Vorbehalt). `config.yaml` behält den aktuellen Slug aus Story 1.1. Rename-Risiko außerhalb dieser Story-Scope.
+- **KEIN Rename** des Add-ons in dieser Story (auto-memory: „Solalex" steht unter Markenrechts-Vorbehalt). `config.yaml` behält den aktuellen Slug aus Story 1.1. Rename-Risiko außerhalb dieser Story-Scope.
 - **Story-Abhängigkeit:** Story 1.1 (Add-on Skeleton) muss implementiert sein, bevor diese Story gestartet wird — sonst existiert `addon/config.yaml` nicht. Sprint-Status: 1.1 ist aktuell `ready-for-dev`, nicht `done`. Falls 1.1 noch nicht implementiert ist, **erst 1.1 dev-storyen**.
 
 ### Source Tree — zu ändernde/neue Dateien (Zielzustand nach Story)
 
 ```
-solarbot/ (= Repo-Root)
+solalex/ (= Repo-Root)
 ├── README.md                                           [MOD — Verweis-Zeile auf voraussetzungen.md]
 ├── addon/
 │   ├── config.yaml                                     [MOD — + homeassistant: "2026.4.0"]
@@ -141,9 +141,9 @@ solarbot/ (= Repo-Root)
 Bestehende `addon/config.yaml` aus Story 1.1 (Beispielstruktur):
 
 ```yaml
-name: "Solarbot"
+name: "Solalex"
 version: "0.1.0"
-slug: "solarbot"
+slug: "solalex"
 description: "Reaktive Nulleinspeisung und Akku-Regelung für Home Assistant."
 arch:
   - amd64
@@ -151,12 +151,12 @@ arch:
 ingress: true
 ingress_port: 8099
 panel_icon: "mdi:solar-power"
-panel_title: "Solarbot by ALKLY"
+panel_title: "Solalex by ALKLY"
 init: false
 hassio_api: true
 hassio_role: "default"
 ports: {}
-image: "ghcr.io/alkly/solarbot-{arch}"
+image: "ghcr.io/alkly/solalex-{arch}"
 ```
 
 **Nach Story 1.2 ergänzt um:**

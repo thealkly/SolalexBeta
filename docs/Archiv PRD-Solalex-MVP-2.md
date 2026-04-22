@@ -1,4 +1,4 @@
-# Product Requirements Document: Solarbot MVP
+# Product Requirements Document: Solalex MVP
 
 ## by ALKLY
 
@@ -18,7 +18,7 @@
 | **Wechselrichter (WR)** | Bei Erstnennung ausgeschrieben, danach WR |
 | **Smart Meter** | Zähler/Messgerät am Hausanschluss |
 | **Setup-Wizard** | Die geführte Erstkonfiguration |
-| **Solarbot** | Produktname (immer kapitalisiert) |
+| **Solalex** | Produktname (immer kapitalisiert) |
 | **Add-on** | HA Add-on (= "App" seit HA 2026.2) — eigenständiger Docker-Container neben HA |
 | **Kaskade** | Das V2-Priorisierungsmodell |
 
@@ -26,7 +26,7 @@
 
 ## Product Overview
 
-**App Name:** Solarbot
+**App Name:** Solalex
 **Brand:** ALKLY (alkly.de)
 **Tagline:** Steuert deinen PV-Überschuss lokal und sekundengenau über Home Assistant. Ohne Cloud, ohne YAML.
 **Launch Goal:** 100 aktive Nutzer + NPS > 8 innerhalb von 30 Tagen nach Launch
@@ -38,14 +38,14 @@
 |-------|---------|-------|----------|
 | 1 | YouTube / Newsletter / Quiz | Kostenlos | Reichweite, Vertrauen |
 | 2 | Nulleinspeisungs-Blueprint | 19,99 EUR | Einstieg, Problemlösung |
-| 3 | **Solarbot** | **TBD** | **Upgrade vom Blueprint, volle Steuerung** |
+| 3 | **Solalex** | **TBD** | **Upgrade vom Blueprint, volle Steuerung** |
 | 4 | Setup-Booster (Zoom 1:1) | 99 EUR | Premium-Support |
 | 5 | ESPHome Meisterkurs | 149 EUR | Weiterbildung |
 | 6 | Macherwerkstatt Live | 29 EUR/Monat | Community, Live-Calls |
 
 ### ALKLY Produkt-Test (Drei Hürden)
 
-| Hürde | Solarbot | Status |
+| Hürde | Solalex | Status |
 |-------|----------|--------|
 | Lokaler Betrieb | Läuft komplett im HA Add-on Container, kein Internet nötig | Bestanden |
 | Datenhoheit | Keine Daten verlassen das lokale Netzwerk (außer Lizenz-Aktivierung) | Bestanden |
@@ -55,13 +55,13 @@
 
 ## Architektur-Entscheidung: Home Assistant Add-on
 
-Solarbot wird als **Home Assistant Add-on** gebaut, nicht als Custom Integration. Diese Entscheidung wurde am 10. April 2026 getroffen (siehe Solarbot-Architecture-Spike.md für die Hintergründe).
+Solalex wird als **Home Assistant Add-on** gebaut, nicht als Custom Integration. Diese Entscheidung wurde am 10. April 2026 getroffen (siehe Solalex-Architecture-Spike.md für die Hintergründe).
 
 ### Warum Add-on
 
-| Vorteil | Bedeutung für Solarbot |
+| Vorteil | Bedeutung für Solalex |
 |---------|------------------------|
-| **Crash-Isolation** | Wenn Anker Cloud-API hängt oder Solarbot crasht, läuft HA weiter. Kritisch für ein kommerzielles Produkt. |
+| **Crash-Isolation** | Wenn Anker Cloud-API hängt oder Solalex crasht, läuft HA weiter. Kritisch für ein kommerzielles Produkt. |
 | **Lizenzierung** | Container-Isolation macht kommerzielle Modelle praktikabler. Community akzeptiert kommerzielle Add-ons besser als kommerzielle Integrationen. |
 | **Saubere Updates** | Add-on-Updates ohne HA-Neustart in 10 Sekunden, statt 1-2 Min HA-Reboot. |
 | **Volle Python-Umgebung** | Beliebige Libraries und Versionen, eigene C-Extensions möglich, unabhängig von HA-Core-Versionen. |
@@ -72,9 +72,9 @@ Solarbot wird als **Home Assistant Add-on** gebaut, nicht als Custom Integration
 ### Nachteile und wie wir damit umgehen
 
 **1. Nur HA OS und HA Supervised**
-Add-ons brauchen den HA Supervisor. Nutzer mit HA Container oder HA Core (geschätzt 10-15% der Gesamtbasis) können Solarbot nicht installieren.
+Add-ons brauchen den HA Supervisor. Nutzer mit HA Container oder HA Core (geschätzt 10-15% der Gesamtbasis) können Solalex nicht installieren.
 
-*Mitigation:* Auf der Landing Page klar kommunizieren. In V2 evaluieren ob eine reduzierte "Solarbot Lite" Custom Integration für diese Gruppe Sinn ergibt.
+*Mitigation:* Auf der Landing Page klar kommunizieren. In V2 evaluieren ob eine reduzierte "Solalex Lite" Custom Integration für diese Gruppe Sinn ergibt.
 
 **2. Installation hat einen Schritt mehr als HACS**
 Nutzer müssen das Custom Repository im Add-on Store hinzufügen, statt in HACS.
@@ -82,9 +82,9 @@ Nutzer müssen das Custom Repository im Add-on Store hinzufügen, statt in HACS.
 *Mitigation:* 90-Sekunden YouTube-Anleitung, Screenshots in der README, Discord-Support für die ersten Wochen.
 
 **3. Keine nativen HA-Entities im MVP**
-Solarbot stellt im MVP keine HA-Sensoren bereit. Nutzer können Solarbot-Daten nicht direkt in Lovelace-Karten oder Automationen verwenden.
+Solalex stellt im MVP keine HA-Sensoren bereit. Nutzer können Solalex-Daten nicht direkt in Lovelace-Karten oder Automationen verwenden.
 
-*Mitigation:* Alle wichtigen Daten und Steuerungen sind in der Solarbot-eigenen UI sichtbar. **In V1.5 wird MQTT Discovery evaluiert**, sodass Solarbot optional HA-Entities bereitstellt — wenn der Nutzer einen MQTT-Broker hat (Mosquitto Add-on).
+*Mitigation:* Alle wichtigen Daten und Steuerungen sind in der Solalex-eigenen UI sichtbar. **In V1.5 wird MQTT Discovery evaluiert**, sodass Solalex optional HA-Entities bereitstellt — wenn der Nutzer einen MQTT-Broker hat (Mosquitto Add-on).
 
 ### Technologie-Stack
 
@@ -93,14 +93,14 @@ Solarbot stellt im MVP keine HA-Sensoren bereit. Nutzer können Solarbot-Daten n
 - **Kommunikation mit HA:** WebSocket API (`ws://supervisor/core/websocket`)
 - **Auth:** SUPERVISOR_TOKEN (automatisch verfügbar im Add-on Container)
 - **Frontend:** Svelte + Tailwind CSS, DM Sans Schrift, ALKLY Farben
-- **UI-Einbettung:** HA Ingress (zeigt Solarbot-UI im HA-Frame, eigener Sidebar-Eintrag)
+- **UI-Einbettung:** HA Ingress (zeigt Solalex-UI im HA-Frame, eigener Sidebar-Eintrag)
 - **Persistenz:** SQLite-Datenbank im `/data`-Ordner für Diagnose-Logs und Konfiguration
-- **Verteilung:** Custom Add-on Repository auf GitHub (`alkly/solarbot`)
+- **Verteilung:** Custom Add-on Repository auf GitHub (`alkly/solalex`)
 - **Updates:** Automatisch über HA Add-on Store System
 
 ---
 
-## Für wen ist Solarbot?
+## Für wen ist Solalex?
 
 ### Primärer Nutzer: Der Balkonkraftwerk-Macher
 
@@ -133,11 +133,11 @@ Hat eine größere PV-Anlage (3-10+ kWp) mit Speicher (SMA, Huawei, Growatt). Wi
 
 ### Voraussetzung beim Nutzer
 
-**Hard Requirement:** Solarbot läuft nur auf Home Assistant OS oder Home Assistant Supervised. Nutzer mit HA Container oder HA Core werden auf der Landing Page klar darauf hingewiesen.
+**Hard Requirement:** Solalex läuft nur auf Home Assistant OS oder Home Assistant Supervised. Nutzer mit HA Container oder HA Core werden auf der Landing Page klar darauf hingewiesen.
 
 ### Beispiel User Story
 
-"Markus, 38, Ingenieur aus Stuttgart. Hat ein Balkonkraftwerk mit Hoymiles HMS-800 und einem Anker Solix E1600. HA läuft auf einem Raspberry Pi 4 mit HA OS. Er sieht im YouTube-Video von ALKLY: Solarbot ist da. Er deaktiviert seinen Blueprint, geht in den HA Add-on Store, fügt das Solarbot-Repository hinzu, installiert das Add-on, klickt auf 'Show in sidebar' und 'Start on boot', startet es. Solarbot erscheint in der Sidebar. Klick drauf, Setup-Wizard läuft, Auto-Detection findet Shelly 3EM und OpenDTU. Nach 8 Minuten läuft die Nulleinspeisung. Am nächsten Tag: 0W Einspeisung, Akku voll bis 14 Uhr."
+"Markus, 38, Ingenieur aus Stuttgart. Hat ein Balkonkraftwerk mit Hoymiles HMS-800 und einem Anker Solix E1600. HA läuft auf einem Raspberry Pi 4 mit HA OS. Er sieht im YouTube-Video von ALKLY: Solalex ist da. Er deaktiviert seinen Blueprint, geht in den HA Add-on Store, fügt das Solalex-Repository hinzu, installiert das Add-on, klickt auf 'Show in sidebar' und 'Start on boot', startet es. Solalex erscheint in der Sidebar. Klick drauf, Setup-Wizard läuft, Auto-Detection findet Shelly 3EM und OpenDTU. Nach 8 Minuten läuft die Nulleinspeisung. Am nächsten Tag: 0W Einspeisung, Akku voll bis 14 Uhr."
 
 ---
 
@@ -156,22 +156,22 @@ PV-Besitzer mit Home Assistant verschenken Strom, weil es keine einfache, lokale
 | **Hersteller-Apps** | Cloud-Zwang, träge (30-90s Latenz) |
 | **Node-RED / DIY** | Flickenteppich, nicht wartbar |
 
-Detaillierte Konkurrenzanalyse siehe Solarbot-Deep-Research.md.
+Detaillierte Konkurrenzanalyse siehe Solalex-Deep-Research.md.
 
 ---
 
-## Migrationspfad: Vom Blueprint zu Solarbot
+## Migrationspfad: Vom Blueprint zu Solalex
 
-Der Wechsel vom Nulleinspeisungs-Blueprint zu Solarbot ist ein **sauberer Cut**, kein Parallelbetrieb:
+Der Wechsel vom Nulleinspeisungs-Blueprint zu Solalex ist ein **sauberer Cut**, kein Parallelbetrieb:
 
-1. **Vor der Solarbot-Installation:** Nutzer deaktiviert die Blueprint-Automation in HA
+1. **Vor der Solalex-Installation:** Nutzer deaktiviert die Blueprint-Automation in HA
 2. **Nutzer löscht die zugehörigen Input-Number-Helfer** (optional)
-3. **Solarbot Add-on installieren** und Setup-Wizard durchlaufen
-4. **Solarbot übernimmt die Steuerung** der gleichen WR-Entity
+3. **Solalex Add-on installieren** und Setup-Wizard durchlaufen
+4. **Solalex übernimmt die Steuerung** der gleichen WR-Entity
 
 **Warum sauberer Cut?** Zwei Systeme die parallel das gleiche WR-Limit setzen führen zu Konflikten und Schwingungen. Im Setup-Wizard wird Schritt 0 prüfen, ob noch eine aktive Blueprint-Automation auf der gewählten WR-Entity existiert.
 
-**Upgrade-Anreiz:** Bestehende Blueprint-Käufer bekommen einen Rabatt-Code für Solarbot.
+**Upgrade-Anreiz:** Bestehende Blueprint-Käufer bekommen einen Rabatt-Code für Solalex.
 
 ---
 
@@ -213,7 +213,7 @@ Der Wechsel vom Nulleinspeisungs-Blueprint zu Solarbot ist ein **sauberer Cut**,
 
 #### 4. Diagnose-Tab
 
-- **Was:** Tab in der Solarbot Add-on UI mit den letzten 100 Regelzyklen, aktuellen Werten und Fehlerlogs. Speicherung in SQLite im `/data`-Ordner.
+- **Was:** Tab in der Solalex Add-on UI mit den letzten 100 Regelzyklen, aktuellen Werten und Fehlerlogs. Speicherung in SQLite im `/data`-Ordner.
 - **Erfolgskriterien:**
   - [ ] Letzte 100 Regelzyklen sichtbar (Zeitstempel, Sensorwert, gesetztes Limit, Latenz)
   - [ ] Letzte 20 Fehler/Warnungen mit Klartext-Beschreibung
@@ -236,9 +236,9 @@ Multi-Device ist V2.
 
 ### HA-Entities
 
-**Im MVP stellt Solarbot keine nativen HA-Entities bereit.** Alle Daten und Steuerungen sind in der Solarbot Add-on UI verfügbar.
+**Im MVP stellt Solalex keine nativen HA-Entities bereit.** Alle Daten und Steuerungen sind in der Solalex Add-on UI verfügbar.
 
-**In V1.5 (Monat 2):** Optionale MQTT Discovery Integration. Wenn der Nutzer den Mosquitto Add-on installiert hat, kann Solarbot seine Daten als MQTT-Topics publishen, woraus HA automatisch Entities erstellt. Damit können Nutzer dann Solarbot-Daten in Lovelace-Karten und Automationen verwenden.
+**In V1.5 (Monat 2):** Optionale MQTT Discovery Integration. Wenn der Nutzer den Mosquitto Add-on installiert hat, kann Solalex seine Daten als MQTT-Topics publishen, woraus HA automatisch Entities erstellt. Damit können Nutzer dann Solalex-Daten in Lovelace-Karten und Automationen verwenden.
 
 ### NICHT im MVP
 
@@ -253,27 +253,27 @@ Multi-Device ist V2.
 | Englische UI | V2 |
 | Solarprognose | V3 |
 | Wallbox als Verbraucher | V3+ |
-| **Solarbot Lite** (Custom Integration für HA Container/Core) | V2 (nach Bedarf) |
+| **Solalex Lite** (Custom Integration für HA Container/Core) | V2 (nach Bedarf) |
 
 ---
 
 ## V1.5: MQTT Discovery und dynamische Tarife
 
-Nach dem MVP kommen zwei Features als V1.5 (Monat 2 nach Launch), die Solarbot deutlich aufwerten ohne grundlegend etwas zu ändern:
+Nach dem MVP kommen zwei Features als V1.5 (Monat 2 nach Launch), die Solalex deutlich aufwerten ohne grundlegend etwas zu ändern:
 
 ### MQTT Discovery für HA-Entities
 
-Solarbot publisht seine wichtigsten Daten als MQTT-Topics:
-- `solarbot/grid_power` (Netzbezug)
-- `solarbot/inverter_power` (WR-Leistung)
-- `solarbot/battery_soc` (Akkustand)
-- `solarbot/regulation_active` (Regelung an/aus)
+Solalex publisht seine wichtigsten Daten als MQTT-Topics:
+- `solalex/grid_power` (Netzbezug)
+- `solalex/inverter_power` (WR-Leistung)
+- `solalex/battery_soc` (Akkustand)
+- `solalex/regulation_active` (Regelung an/aus)
 
 Mit Discovery-Metadaten erstellt HA daraus automatisch Sensoren und Schalter. Voraussetzung: Mosquitto Add-on läuft (haben die meisten HA-Nutzer eh).
 
 ### Dynamische Stromtarife
 
-Solarbot liest einen Strompreis-Sensor aus HA (Tibber, aWATTar, EPEX Spot, Nordpool — alle als HACS-Integrationen verfügbar). Die Regelung berücksichtigt dann:
+Solalex liest einen Strompreis-Sensor aus HA (Tibber, aWATTar, EPEX Spot, Nordpool — alle als HACS-Integrationen verfügbar). Die Regelung berücksichtigt dann:
 - Akku **aus dem Netz** laden wenn Strom billig ist
 - Akku entladen wenn Strom teuer ist
 - Bewusst einspeisen wenn Preise negativ sind
@@ -365,10 +365,10 @@ Nutzer ziehen Geräte in die gewünschte Reihenfolge. Pro Gerät: Gate-Bedingung
 **Frontend:** Svelte + Tailwind CSS, DM Sans, ALKLY Farben
 **HA-Kommunikation:** WebSocket API (`ws://supervisor/core/websocket`), kein direktes MQTT (außer V1.5 Discovery)
 **Auth:** SUPERVISOR_TOKEN
-**Persistenz:** SQLite in `/data/solarbot.db`
+**Persistenz:** SQLite in `/data/solalex.db`
 **Lizenzierung:** LemonSqueezy (einmalige Aktivierung nach Funktionstest, danach offline-fähig)
 **Update-Mechanismus:** Automatisch über HA Add-on Store System
-**Verteilung:** Custom Add-on Repository auf GitHub (`alkly/solarbot`)
+**Verteilung:** Custom Add-on Repository auf GitHub (`alkly/solalex`)
 **Preismodell:** TBD (Optionen: 29 EUR einmalig, 1 EUR/Monat, Staffelung)
 **Installations-Voraussetzung:** Home Assistant OS oder HA Supervised (kein HA Container, kein HA Core)
 
@@ -402,7 +402,7 @@ Nutzer ziehen Geräte in die gewünschte Reihenfolge. Pro Gerät: Gate-Bedingung
 |--------|-------------------|--------|------------|
 | Anker Cloud-API ändert sich | Hoch | Hoch | Generic HA Adapter als Fallback |
 | Regelung schwingt bei bestimmter Hardware | Hoch | Mittel | Auto-Tuning-Defaults, Deadband |
-| **HA Container/Core Nutzer ausgeschlossen** | Mittel | Mittel | **Klar kommunizieren, V2 evaluieren ob Solarbot Lite** |
+| **HA Container/Core Nutzer ausgeschlossen** | Mittel | Mittel | **Klar kommunizieren, V2 evaluieren ob Solalex Lite** |
 | **Add-on Installation zu komplex für Einsteiger** | Mittel | Mittel | **YouTube-Anleitung, Discord-Support, Beta-Test mit Einsteigern** |
 | Weniger als 50 Nutzer im ersten Monat | Mittel | Mittel | Early-Bird-Preis, YouTube Launch-Video |
 | HA Update bricht WebSocket API | Niedrig | Hoch | Eigener Container = isoliert |
@@ -414,7 +414,7 @@ Nutzer ziehen Geräte in die gewünschte Reihenfolge. Pro Gerät: Gate-Bedingung
 
 Das MVP ist launch-bereit wenn:
 
-- [ ] Solarbot läuft als HA Add-on auf Raspberry Pi 4 mit HA OS
+- [ ] Solalex läuft als HA Add-on auf Raspberry Pi 4 mit HA OS
 - [ ] Nulleinspeisung läuft stabil auf Hoymiles (±5W) und Anker (±30W)
 - [ ] Akku-Steuerung (Laden/Entladen mit SoC-Grenzen) funktioniert
 - [ ] Setup-Wizard mit Auto-Detection und Funktionstest läuft in der Add-on Web-UI
@@ -452,8 +452,8 @@ Das MVP ist launch-bereit wenn:
 ## Nächste Schritte
 
 1. **Jetzt:** PRD v1.3 reviewen und freigeben
-2. **Woche 0:** Add-on Spike durchführen (siehe Solarbot-Architecture-Spike.md)
-3. **Woche 0:** Beta-Tester aus Warteliste auswählen (siehe Solarbot-Beta-Plan.md)
+2. **Woche 0:** Add-on Spike durchführen (siehe Solalex-Architecture-Spike.md)
+3. **Woche 0:** Beta-Tester aus Warteliste auswählen (siehe Solalex-Beta-Plan.md)
 4. **Wochen 1-6:** MVP bauen mit AI-Unterstützung
 5. **Wochen 7-8:** Launch
 

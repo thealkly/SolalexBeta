@@ -1,4 +1,4 @@
-# Deep Research Report: Solarbot — Home Assistant Add-on
+# Deep Research Report: Solalex — Home Assistant Add-on
 
 **Version:** 1.3
 **Erstellt:** 25. März 2026
@@ -26,7 +26,7 @@
 
 ### Warum Add-on und nicht Custom Integration
 
-Beide Optionen wurden evaluiert. Das Ergebnis: **Add-on gewinnt für Solarbot's Anforderungen**, primär aus geschäftlichen und betrieblichen Gründen.
+Beide Optionen wurden evaluiert. Das Ergebnis: **Add-on gewinnt für Solalex's Anforderungen**, primär aus geschäftlichen und betrieblichen Gründen.
 
 | Kriterium | Add-on | Custom Integration |
 |---|---|---|
@@ -58,7 +58,7 @@ Beide Optionen wurden evaluiert. Das Ergebnis: **Add-on gewinnt für Solarbot's 
 
 **Add-on (seit HA 2026.2 offiziell als "App" bezeichnet):** Eigenständiger Docker-Container neben HA. Eigene Weboberfläche über Ingress, eigene Prozesse, kommuniziert mit HA über WebSocket API.
 
-Solarbot läuft in einem isolierten Container mit:
+Solalex läuft in einem isolierten Container mit:
 - Eigenem Python 3.13 + FastAPI
 - Persistenz in `/data` (überlebt Updates)
 - Ingress-eingebettete UI im HA-Frame
@@ -71,7 +71,7 @@ Solarbot läuft in einem isolierten Container mit:
 
 ### Im MVP: Reine WebSocket API
 
-Solarbot greift nie direkt auf Hardware zu. Alle Geräte sind bereits als HA-Entities vorhanden. Solarbot nutzt:
+Solalex greift nie direkt auf Hardware zu. Alle Geräte sind bereits als HA-Entities vorhanden. Solalex nutzt:
 
 **Sensoren lesen:** `subscribe_trigger` auf state_changed Events (Echtzeit, kein Polling)
 ```json
@@ -88,9 +88,9 @@ Solarbot greift nie direkt auf Hardware zu. Alle Geräte sind bereits als HA-Ent
 
 ### In V1.5: MQTT Discovery für HA-Entities
 
-Damit Nutzer Solarbot-Daten in Lovelace-Karten und Automationen verwenden können, kommt in V1.5 (Monat 2 nach Launch) eine optionale MQTT-Schnittstelle:
+Damit Nutzer Solalex-Daten in Lovelace-Karten und Automationen verwenden können, kommt in V1.5 (Monat 2 nach Launch) eine optionale MQTT-Schnittstelle:
 
-- Solarbot publisht Daten als MQTT-Topics auf den HA-eigenen Mosquitto-Broker
+- Solalex publisht Daten als MQTT-Topics auf den HA-eigenen Mosquitto-Broker
 - HA Discovery erstellt automatisch Sensoren und Schalter daraus
 - Voraussetzung: Mosquitto Add-on läuft (haben die meisten HA-Nutzer)
 
@@ -128,7 +128,7 @@ So bleibt das MVP fokussiert auf die Add-on-eigene UI, und die HA-Entity-Integra
 
 ### Entwicklung
 
-- **Repository:** `alkly/solarbot` auf GitHub (privat während Entwicklung, public beim Launch)
+- **Repository:** `alkly/solalex` auf GitHub (privat während Entwicklung, public beim Launch)
 - **Lokale Entwicklung:** HA Dev Container für VS Code, oder direktes lokales Mounten in HA `/addons/local/`
 - **Testing:** Auf echtem Raspberry Pi 4 mit HA OS
 
@@ -143,10 +143,10 @@ So bleibt das MVP fokussiert auf die Add-on-eigene UI, und die HA-Entity-Integra
 ```
 1. HA → Settings → Add-ons → Add-on Store
 2. Drei-Punkte-Menü → Repositories
-3. URL hinzufügen: https://github.com/alkly/solarbot
-4. Solarbot-Add-on installieren
+3. URL hinzufügen: https://github.com/alkly/solalex
+4. Solalex-Add-on installieren
 5. "Show in sidebar" und "Start on boot" aktivieren
-6. Solarbot starten → erscheint in der Sidebar
+6. Solalex starten → erscheint in der Sidebar
 7. Setup-Wizard läuft beim ersten Öffnen
 ```
 
@@ -158,7 +158,7 @@ Ein Schritt mehr als HACS-Integration, aber sauberer Standard-Weg in HA.
 
 ### 6.1 Feature-Matrix
 
-| Feature | **Solarbot** (geplant) | **EVCC** | **Clever-PV** | **OpenDTU on Battery** |
+| Feature | **Solalex** (geplant) | **EVCC** | **Clever-PV** | **OpenDTU on Battery** |
 |---|---|---|---|---|
 | **Architektur** | HA Add-on | Standalone Go-App + HA Add-on | Cloud-Service | ESP-Firmware |
 | **Zielgruppe** | BKW + kleine PV mit HA | E-Auto-Fahrer | Alle PV-Besitzer | Hoymiles + DIY-Akku |
@@ -172,7 +172,7 @@ Ein Schritt mehr als HACS-Integration, aber sauberer Standard-Weg in HA.
 
 ### 6.2 EVCC
 
-In Go geschrieben, fokussiert auf E-Auto-Überschussladen. Über 80 Wallboxen unterstützt. **Wird auch als HA Add-on angeboten** — also denselben Distributionsweg den wir für Solarbot wählen. Lizenzmodell: Sponsoring-Token über Creem.io (2 EUR/Monat oder 100 EUR Lifetime). Bestimmte Wallboxen erfordern Sponsor-Token.
+In Go geschrieben, fokussiert auf E-Auto-Überschussladen. Über 80 Wallboxen unterstützt. **Wird auch als HA Add-on angeboten** — also denselben Distributionsweg den wir für Solalex wählen. Lizenzmodell: Sponsoring-Token über Creem.io (2 EUR/Monat oder 100 EUR Lifetime). Bestimmte Wallboxen erfordern Sponsor-Token.
 
 **Wichtig für uns:** EVCC zeigt, dass kommerzielle HA Add-ons funktionieren. Die Community akzeptiert das Modell, auch wenn es kontrovers diskutiert wird.
 
@@ -232,7 +232,7 @@ Nicht direkt Konkurrenz, aber lehrreich: **Zigbee2MQTT** ist eines der erfolgrei
 5. Danach: Nur noch lokale Datei prüfen, kein Internet nötig
 6. Optional: Alle 90 Tage Re-Validierung mit Graceful Degradation
 
-So bleibt Solarbot 100% lokal im Betrieb — nur die einmalige Aktivierung braucht Internet.
+So bleibt Solalex 100% lokal im Betrieb — nur die einmalige Aktivierung braucht Internet.
 
 ### 7.2 Warum Add-on hier ein Vorteil ist
 
@@ -283,7 +283,7 @@ Steuerung über Anker Cloud API via HA Integration (thomluther/ha-anker-solix). 
 
 ### 8.4 Abstraktionsschicht
 
-Solarbot arbeitet ausschließlich mit HA-Entities. Solange ein Gerät als Entity in HA existiert, kann Solarbot es nutzen. Kein herstellerspezifischer Code nötig — nur Entity-IDs in der Konfiguration. Auto-Detection im Wizard findet bekannte Entity-Muster.
+Solalex arbeitet ausschließlich mit HA-Entities. Solange ein Gerät als Entity in HA existiert, kann Solalex es nutzen. Kein herstellerspezifischer Code nötig — nur Entity-IDs in der Konfiguration. Auto-Detection im Wizard findet bekannte Entity-Muster.
 
 ### 8.5 Smart Meter
 
@@ -304,9 +304,9 @@ Solarbot arbeitet ausschließlich mit HA-Entities. Solange ein Gerät als Entity
 
 Nach dem MVP kommen zwei Features als V1.5 (Monat 2 nach Launch):
 
-**MQTT Discovery für HA-Entities:** Solarbot publisht seine wichtigsten Daten als MQTT-Topics auf den HA-eigenen Mosquitto-Broker. HA erstellt daraus automatisch native Sensoren und Schalter. So kann der Nutzer Solarbot-Daten in Lovelace-Karten und Automationen verwenden.
+**MQTT Discovery für HA-Entities:** Solalex publisht seine wichtigsten Daten als MQTT-Topics auf den HA-eigenen Mosquitto-Broker. HA erstellt daraus automatisch native Sensoren und Schalter. So kann der Nutzer Solalex-Daten in Lovelace-Karten und Automationen verwenden.
 
-**Dynamische Stromtarife:** Solarbot liest einen Strompreis-Sensor aus HA (Tibber, aWATTar, EPEX Spot, Nordpool — alle als HACS-Integrationen verfügbar). Die Regelung berücksichtigt dann Preis-Optimierung: Akku aus dem Netz laden wenn Strom billig ist, bewusst einspeisen wenn Preise negativ sind.
+**Dynamische Stromtarife:** Solalex liest einen Strompreis-Sensor aus HA (Tibber, aWATTar, EPEX Spot, Nordpool — alle als HACS-Integrationen verfügbar). Die Regelung berücksichtigt dann Preis-Optimierung: Akku aus dem Netz laden wenn Strom billig ist, bewusst einspeisen wenn Preise negativ sind.
 
 Beides sind starke Verkaufsargumente gegen EVCC und Clever-PV.
 
@@ -316,7 +316,7 @@ Beides sind starke Verkaufsargumente gegen EVCC und Clever-PV.
 
 Das Kaskaden-Modell verteilt PV-Überschuss tagsüber durch eine Prioritätsliste von Geräten und zieht nachts Energie aus mehreren Akkus in definierter Reihenfolge. Jeder Listeneintrag hat ein Gate (Aktivierungsbedingung, inklusive Strompreis-Bedingungen) und ein Ziel.
 
-**Vollständige Beschreibung mit Beispielen, Datenmodell und UI-Mockups: siehe PRD-Solarbot-MVP.md (Abschnitt "V2-Konzept") und Solarbot-Onboarding-UX.md.**
+**Vollständige Beschreibung mit Beispielen, Datenmodell und UI-Mockups: siehe PRD-Solalex-MVP.md (Abschnitt "V2-Konzept") und Solalex-Onboarding-UX.md.**
 
 ---
 
@@ -324,7 +324,7 @@ Das Kaskaden-Modell verteilt PV-Überschuss tagsüber durch eine Prioritätslist
 
 ### Phase 0: Add-on Validierungs-Spike (Woche 0)
 
-Validierung der Add-on-Architektur durch einen minimalen aber realistischen PoC. Hypothesen testen: Latenz, Ressourcen, Persistenz, Lizenz-Aktivierung. Detaillierter Plan: siehe Solarbot-Architecture-Spike.md
+Validierung der Add-on-Architektur durch einen minimalen aber realistischen PoC. Hypothesen testen: Latenz, Ressourcen, Persistenz, Lizenz-Aktivierung. Detaillierter Plan: siehe Solalex-Architecture-Spike.md
 
 ### Phase 1: Build (Wochen 1-6)
 
@@ -345,7 +345,7 @@ Validierung der Add-on-Architektur durch einen minimalen aber realistischen PoC.
 - Custom Repository auf public stellen
 - Early-Bird-Preis für erste 50 Käufer
 
-Beta-Plan im Detail: siehe Solarbot-Beta-Plan.md
+Beta-Plan im Detail: siehe Solalex-Beta-Plan.md
 
 ### Phase 3: V1.5 (Monat 2 nach Launch)
 
@@ -360,9 +360,9 @@ Beta-Plan im Detail: siehe Solarbot-Beta-Plan.md
 - Englische UI
 - Energiefluss-Dashboard
 
-### Optional: Solarbot Lite (V2+)
+### Optional: Solalex Lite (V2+)
 
-Falls die Beta zeigt, dass viele Interessenten HA Container oder HA Core nutzen und nicht migrieren wollen: Eine reduzierte Custom Integration als "Solarbot Lite" mit Basis-Funktionalität (Nulleinspeisung) ohne UI. Wird nach Beta-Daten entschieden.
+Falls die Beta zeigt, dass viele Interessenten HA Container oder HA Core nutzen und nicht migrieren wollen: Eine reduzierte Custom Integration als "Solalex Lite" mit Basis-Funktionalität (Nulleinspeisung) ohne UI. Wird nach Beta-Daten entschieden.
 
 ### Risiken
 
@@ -396,10 +396,10 @@ Falls die Beta zeigt, dass viele Interessenten HA Container oder HA Core nutzen 
 
 ## Verwandte Dokumente
 
-- **PRD-Solarbot-MVP.md** — Was wir bauen, MVP Features, V1.5/V2-Roadmap, Kaskaden-Modell ausführlich
-- **Solarbot-Architecture-Spike.md** — Add-on Validierungs-Spike in Woche 0
-- **Solarbot-Onboarding-UX.md** — Add-on Installation und Setup-Wizard im Detail
-- **Solarbot-Beta-Plan.md** — Auswahl, Onboarding und Management der 20 Beta-Tester
+- **PRD-Solalex-MVP.md** — Was wir bauen, MVP Features, V1.5/V2-Roadmap, Kaskaden-Modell ausführlich
+- **Solalex-Architecture-Spike.md** — Add-on Validierungs-Spike in Woche 0
+- **Solalex-Onboarding-UX.md** — Add-on Installation und Setup-Wizard im Detail
+- **Solalex-Beta-Plan.md** — Auswahl, Onboarding und Management der 20 Beta-Tester
 
 ---
 

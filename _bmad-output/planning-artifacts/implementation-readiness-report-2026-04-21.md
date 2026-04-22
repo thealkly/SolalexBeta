@@ -12,7 +12,7 @@ filesUnderReview:
 # Implementation Readiness Assessment Report
 
 **Date:** 2026-04-21
-**Project:** SolarBotDevelopment
+**Project:** SolalexDevelopment
 
 ## Document Inventory (Step 1)
 
@@ -36,62 +36,62 @@ Quelle: `_bmad-output/planning-artifacts/prd.md` (vollständig gelesen, 736 Zeil
 ### Functional Requirements
 
 **Installation & Lizenz**
-- **FR1:** Nutzer kann Solarbot als HA Add-on über das Custom Repository `alkly/solarbot` installieren.
+- **FR1:** Nutzer kann Solalex als HA Add-on über das Custom Repository `alkly/solalex` installieren.
 - **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „HA OS oder Supervised" vor dem Download-Schritt.
 - **FR3:** Nutzer erwirbt die Lizenz aus dem Setup-Wizard heraus (Weiterleitung zu LemonSqueezy, Rückkehr in den Wizard).
 - **FR4:** Nutzer bestätigt vor Lizenz-Aktivierung den Installations-Disclaimer als sichtbare Checkbox.
-- **FR5:** Solarbot verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status.
+- **FR5:** Solalex verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status.
 - **FR6:** Bestandskunden können einen Rabatt-Code (Blueprint-Migration) im Kaufflow einlösen.
 
 **Setup & Onboarding**
 - **FR7:** Nutzer wählt im Setup-Wizard zwischen drei Hardware-Pfaden: Hoymiles, Anker, Manuell.
-- **FR8:** Solarbot erkennt kompatible HA-Entities automatisch (OpenDTU, Shelly 3EM, Anker Solix, Marstek Venus 3E/D).
+- **FR8:** Solalex erkennt kompatible HA-Entities automatisch (OpenDTU, Shelly 3EM, Anker Solix, Marstek Venus 3E/D).
 - **FR9:** Nutzer sieht Live-Werte neben jedem erkannten Sensor im Wizard zur Bestätigung.
-- **FR10:** Solarbot überspringt den Akku-Schritt lautlos, wenn kein Akku erkannt wird.
-- **FR11:** Solarbot führt vor Aktivierung einen Funktionstest durch (testweises Setzen von WR-Limit oder Akku-Setpoint, Readback-Prüfung).
-- **FR12:** Solarbot erkennt und importiert bestehende Nulleinspeisungs-Blueprint-Automationen inkl. Helfer-Werte (mit expliziter Deaktivierung des alten Blueprints bei Aktivierung). *Kippbar → Fallback manueller JSON-Import.*
+- **FR10:** Solalex überspringt den Akku-Schritt lautlos, wenn kein Akku erkannt wird.
+- **FR11:** Solalex führt vor Aktivierung einen Funktionstest durch (testweises Setzen von WR-Limit oder Akku-Setpoint, Readback-Prüfung).
+- **FR12:** Solalex erkennt und importiert bestehende Nulleinspeisungs-Blueprint-Automationen inkl. Helfer-Werte (mit expliziter Deaktivierung des alten Blueprints bei Aktivierung). *Kippbar → Fallback manueller JSON-Import.*
 
 **Regelung & Steuerung**
-- **FR13:** Solarbot wählt die Regelungs-Strategie je erkanntem Hardware-Setup automatisch (Drossel / Speicher / Multi-Modus).
-- **FR14:** Solarbot regelt im Drossel-Modus reaktiv auf Nulleinspeisung per WR-Limit.
-- **FR15:** Solarbot lädt im Speicher-Modus Akkus bei PV-Überschuss und entlädt zur Grundlast-Deckung innerhalb der konfigurierten SoC-Grenzen.
-- **FR16:** Solarbot wechselt zur Laufzeit deterministisch zwischen Modi mit Hysterese (z. B. Drossel aktiv ab SoC ≥ 97 %, deaktiv erst bei SoC ≤ 93 %).
-- **FR17:** Solarbot verifiziert jeden Steuerbefehl per Closed-Loop-Readback.
-- **FR18:** Solarbot geht bei Kommunikations-Ausfall in einen deterministischen Fail-Safe-Zustand (letztes bekanntes Limit halten, nicht freigeben).
-- **FR19:** Solarbot respektiert hardware-spezifische Rate-Limits zur EEPROM-Schonung (Default ≤ 1 Schreibbefehl pro Device/Minute, per Device-Template überschreibbar).
+- **FR13:** Solalex wählt die Regelungs-Strategie je erkanntem Hardware-Setup automatisch (Drossel / Speicher / Multi-Modus).
+- **FR14:** Solalex regelt im Drossel-Modus reaktiv auf Nulleinspeisung per WR-Limit.
+- **FR15:** Solalex lädt im Speicher-Modus Akkus bei PV-Überschuss und entlädt zur Grundlast-Deckung innerhalb der konfigurierten SoC-Grenzen.
+- **FR16:** Solalex wechselt zur Laufzeit deterministisch zwischen Modi mit Hysterese (z. B. Drossel aktiv ab SoC ≥ 97 %, deaktiv erst bei SoC ≤ 93 %).
+- **FR17:** Solalex verifiziert jeden Steuerbefehl per Closed-Loop-Readback.
+- **FR18:** Solalex geht bei Kommunikations-Ausfall in einen deterministischen Fail-Safe-Zustand (letztes bekanntes Limit halten, nicht freigeben).
+- **FR19:** Solalex respektiert hardware-spezifische Rate-Limits zur EEPROM-Schonung (Default ≤ 1 Schreibbefehl pro Device/Minute, per Device-Template überschreibbar).
 - **FR20:** Nutzer kann Nacht-Entlade-Zeitfenster konfigurieren.
 
 **Akku-Management**
-- **FR21:** Solarbot abstrahiert mehrere Akkus als internen Pool mit Gleichverteilung in v1 (Marstek Venus Multi, Anker Solix, Generic).
+- **FR21:** Solalex abstrahiert mehrere Akkus als internen Pool mit Gleichverteilung in v1 (Marstek Venus Multi, Anker Solix, Generic).
 - **FR22:** Nutzer konfiguriert Min-SoC und Max-SoC pro Akku-Setup.
-- **FR23:** Solarbot zeigt SoC pro Einzel-Akku und aggregiert für den Pool.
+- **FR23:** Solalex zeigt SoC pro Einzel-Akku und aggregiert für den Pool.
 
 **Monitoring & Dashboard**
 - **FR24:** Nutzer sieht im Dashboard den aktuellen Euro-Wert der gesteuerten Ersparnis als 2-Sekunden-Kernaussage.
 - **FR25:** Nutzer sieht die Beleg-KPIs (kWh selbst verbraucht + kWh selbst gesteuert) getrennt ausgewiesen, nicht aggregiert.
 - **FR26:** Nutzer kann den Bezugspreis (Default 30 ct/kWh) im Dashboard jederzeit anpassen.
-- **FR27:** Solarbot attribuiert Steuerbefehle mit Event-Source-Flag (`solarbot` / `manual` / `ha_automation`) und nutzt dies als Basis der KPI-Berechnung.
+- **FR27:** Solalex attribuiert Steuerbefehle mit Event-Source-Flag (`solalex` / `manual` / `ha_automation`) und nutzt dies als Basis der KPI-Berechnung.
 - **FR28:** Nutzer sieht den aktuellen Regelungs-Modus (Drossel / Speicher / Multi) im Dashboard.
-- **FR29:** Solarbot zeigt einen sichtbaren „aktiver Idle-State"-Zustand, wenn keine Steuerung nötig ist.
-- **FR30:** Solarbot zeigt Charakter-Zeilen bei eigenem Tun und Fakten bei Zahlen (strikt getrennt). *Kippbar → Fallback Neutral-Mode.*
+- **FR29:** Solalex zeigt einen sichtbaren „aktiver Idle-State"-Zustand, wenn keine Steuerung nötig ist.
+- **FR30:** Solalex zeigt Charakter-Zeilen bei eigenem Tun und Fakten bei Zahlen (strikt getrennt). *Kippbar → Fallback Neutral-Mode.*
 
 **Diagnose & Support**
-- **FR31:** Solarbot protokolliert die letzten 100 Regelzyklen (Zeitstempel, Sensorwert, gesetztes Limit, Latenz, Modus).
-- **FR32:** Solarbot zeigt die letzten 20 Fehler/Warnungen mit Klartext-Beschreibung.
-- **FR33:** Solarbot zeigt die aktuellen Verbindungs-Stati (HA WebSocket, konfigurierte Entities, Lizenz-Status).
-- **FR34:** Solarbot misst die End-to-End-Regelungs-Latenz pro Device automatisch (Befehl-Auslösung → messbarer Effekt am Smart Meter) und loggt sie in SQLite.
+- **FR31:** Solalex protokolliert die letzten 100 Regelzyklen (Zeitstempel, Sensorwert, gesetztes Limit, Latenz, Modus).
+- **FR32:** Solalex zeigt die letzten 20 Fehler/Warnungen mit Klartext-Beschreibung.
+- **FR33:** Solalex zeigt die aktuellen Verbindungs-Stati (HA WebSocket, konfigurierte Entities, Lizenz-Status).
+- **FR34:** Solalex misst die End-to-End-Regelungs-Latenz pro Device automatisch (Befehl-Auslösung → messbarer Effekt am Smart Meter) und loggt sie in SQLite.
 - **FR35:** Nutzer kann Diagnose-Daten als strukturierten Bug-Report exportieren. *Kippbar → Fallback HA-Panel-Log-Download.*
-- **FR36:** Solarbot stellt ein strukturiertes Bug-Report-Template in GitHub Issues bereit (Hardware-/Firmware-Felder, Log-/Diagnose-Export-Platzhalter).
+- **FR36:** Solalex stellt ein strukturiertes Bug-Report-Template in GitHub Issues bereit (Hardware-/Firmware-Felder, Log-/Diagnose-Export-Platzhalter).
 
 **Updates & Administration**
-- **FR37:** Solarbot wird über den HA Add-on Store aktualisiert (manueller oder Nutzer-aktivierter Auto-Update).
-- **FR38:** Solarbot sichert vor jedem Update `solarbot.db`, `license.json` und `templates/` in `/data/.backup/vX.Y.Z/` (letzte 5 Stände).
-- **FR39:** Nutzer kann bei fehlgeschlagenem Update manuell auf eine ältere Version zurückrollen; Solarbot stellt `.backup/` automatisch wieder her.
-- **FR40:** Solarbot unterstützt die aktuelle Home-Assistant-Version und deklariert die supported Range in `addon.yaml`.
+- **FR37:** Solalex wird über den HA Add-on Store aktualisiert (manueller oder Nutzer-aktivierter Auto-Update).
+- **FR38:** Solalex sichert vor jedem Update `solalex.db`, `license.json` und `templates/` in `/data/.backup/vX.Y.Z/` (letzte 5 Stände).
+- **FR39:** Nutzer kann bei fehlgeschlagenem Update manuell auf eine ältere Version zurückrollen; Solalex stellt `.backup/` automatisch wieder her.
+- **FR40:** Solalex unterstützt die aktuelle Home-Assistant-Version und deklariert die supported Range in `addon.yaml`.
 
 **Branding & UI-Identität**
-- **FR41:** Solarbot nutzt in allen UI-Flächen durchgängig das ALKLY-Design-System (Farben, DM Sans, Spacing/Radius/Elevation-Tokens).
-- **FR42:** Solarbot erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solarbot by ALKLY").
+- **FR41:** Solalex nutzt in allen UI-Flächen durchgängig das ALKLY-Design-System (Farben, DM Sans, Spacing/Radius/Elevation-Tokens).
+- **FR42:** Solalex erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solalex by ALKLY").
 - **FR43:** UI ist im HA-Ingress-Frame eingebettet und adaptiert HA-Theme-Modi (Dark/Light) ohne Bruch der ALKLY-Farbidentität.
 
 **Total FRs: 43** (davon 4 explizit kippbar: FR12, FR30, FR35, plus FR34-UI-Anzeige als Nebenbedingung).
@@ -155,9 +155,9 @@ Zur Traceability werden die NFRs (im PRD als Bullet-Listen geführt) hier laufen
 **Observability**
 - **NFR39:** Strukturiertes Logging in `/data/logs/` (JSON, rotiert 10 MB / 5 Dateien).
 - **NFR40:** Add-on-Logs zusätzlich im HA-Log-Panel sichtbar.
-- **NFR41:** Diagnose-Export als versioniertes JSON-Schema (`solarbot-diag-v1.json`).
+- **NFR41:** Diagnose-Export als versioniertes JSON-Schema (`solalex-diag-v1.json`).
 - **NFR42:** E2E-Latenz-Messung automatisch pro Device, persistent in SQLite (`latency_measurements`-Tabelle).
-- **NFR43:** Regelungs-Zyklen mit Source-Flag (`solarbot / manual / ha_automation`) für KPI-Attribution (deckt FR27).
+- **NFR43:** Regelungs-Zyklen mit Source-Flag (`solalex / manual / ha_automation`) für KPI-Attribution (deckt FR27).
 - **NFR44:** Health-Status pro konfigurierter HA-Entity (letzte erfolgreiche Kommunikation, Readback-Erfolgsquote).
 
 **Scalability (selektiv)**
@@ -182,7 +182,7 @@ Zur Traceability werden die NFRs (im PRD als Bullet-Listen geführt) hier laufen
 ### Additional Requirements
 
 **Domain-Requirements / Regulatorik**
-- **DR1:** Einspeise-Begrenzung durch WR/Netz-Limits aus HA-Entities — Solarbot schreibt nur innerhalb. Für BKW (DE/AT 800 W, CH abhängig) bleibt Durchsetzung beim WR.
+- **DR1:** Einspeise-Begrenzung durch WR/Netz-Limits aus HA-Entities — Solalex schreibt nur innerhalb. Für BKW (DE/AT 800 W, CH abhängig) bleibt Durchsetzung beim WR.
 - **DR2:** Installations-Disclaimer „Keine Garantien für Hardware-Schäden oder Stromausfälle" als sichtbare Checkbox vor Aktivierung (nicht in AGB versteckt) — deckt FR4/NFR18.
 - **DR3:** EU CRA ab 2027: SBOM, Vulnerability-Handling, CE-Konformität als Future-Requirement (v2+).
 
@@ -196,9 +196,9 @@ Zur Traceability werden die NFRs (im PRD als Bullet-Listen geführt) hier laufen
 - **TC1:** HA WebSocket API als alleiniger Kanal (`ws://supervisor/core/websocket`, Auth via `SUPERVISOR_TOKEN`), keine Direkt-Hardware-Kommunikation in v1.
 - **TC2:** Subscription `subscribe_trigger` auf `state_changed`, Call via `call_service` (`number.set_value`, `switch.turn_on/off`, `button.press`).
 - **TC3:** Add-on-Isolation (Container, Alpine 3.19 + Python 3.13).
-- **TC4:** Persistenz in `/data/` mit `solarbot.db`, `license.json`, `templates/`, `.backup/`, `logs/`.
+- **TC4:** Persistenz in `/data/` mit `solalex.db`, `license.json`, `templates/`, `.backup/`, `logs/`.
 - **TC5:** HA Ingress als UI-Kanal, kein Port-Expose nach außen.
-- **TC6:** Distribution über Custom Add-on Repository `alkly/solarbot`, Auto-Updates via Add-on Store, Multi-Arch (amd64/aarch64).
+- **TC6:** Distribution über Custom Add-on Repository `alkly/solalex`, Auto-Updates via Add-on Store, Multi-Arch (amd64/aarch64).
 
 **Integration Requirements**
 - **IR1:** LemonSqueezy-Favorit als Merchant of Record; Lizenzprüfung einmalig bei Aktivierung, dann monatlich mit Graceful Degradation.
@@ -208,7 +208,7 @@ Zur Traceability werden die NFRs (im PRD als Bullet-Listen geführt) hier laufen
 - **BM1:** Geschäftsmodell noch offen: 30-Tage-Trial (Favorit) vs. Freemium 1-Gerät-Free/Multi-Pro — wird in Beta entschieden, beide Varianten als Toggle im Lizenz-Backend möglich.
 - **BM2:** Early-Bird-Preis für erste 50 Käufer; Rabatt-Code für 300 Blueprint-Bestandskunden (deckt FR6).
 - **BM3:** Beta-Gates (Woche 6–7): Install ≥ 18/20, Setup < 15 Min ≥ 80 %, Setup < 10 Min ≥ 50 %, NPS > 8, 0 offene kritische Bugs, ≥ 12/20 „würde kaufen".
-- **BM4:** Launch-Gates: YouTube-Launch-Video, Newsletter an Blueprint-Kunden, Repo `alkly/solarbot` public, Landing-Hinweis „benötigt HA OS/Supervised", Beta-Tester bestätigt „launch-ready".
+- **BM4:** Launch-Gates: YouTube-Launch-Video, Newsletter an Blueprint-Kunden, Repo `alkly/solalex` public, Landing-Hinweis „benötigt HA OS/Supervised", Beta-Tester bestätigt „launch-ready".
 
 **Timeline**
 - **TL1:** Woche 0 Spike (Marstek-Spike nicht verhandelbar), Wochen 1–6 Build, Wochen 6–7 Beta (20 Tester aus 165 Wartenden, 30 Pre-Auswahl), Woche 8 Launch.
@@ -234,10 +234,10 @@ Zur Traceability werden die NFRs (im PRD als Bullet-Listen geführt) hier laufen
 - **Grace Period (Lizenz)**: Einmal im PRD als „14 Tage" (NFR12), einmal als offene Entscheidung in Frontmatter (`openDecisions`). Inkonsistenz — später in Epic-Validation prüfen.
 - **Geschäftsmodell (Trial vs. Freemium)** ist für Entwicklung nicht blockierend (Toggle-Architektur), muss aber in den Lizenz-Epics als dual-konfigurierbar verankert sein.
 - **Telemetry/Observability**: im Betrieb Null, aber Beta-Feedback-Sammlung (A/B bei Charakter-Templates, „würde kaufen"-Abfrage, E2E-Latenz-Export) braucht einen klaren, opt-in-konformen Kanal.
-- **§14a EnWG** wird nur als „v3+"-Ziel genannt; kein aktueller Constraint dokumentiert, ob Solarbot mit §14a-Steuerbox-Szenarien interferiert (Netzbetreiber-Dimmsignal vs. Solarbot-WR-Limit).
+- **§14a EnWG** wird nur als „v3+"-Ziel genannt; kein aktueller Constraint dokumentiert, ob Solalex mit §14a-Steuerbox-Szenarien interferiert (Netzbetreiber-Dimmsignal vs. Solalex-WR-Limit).
 - **Bezugspreis-Konfigurierbarkeit** (FR26) — fehlt Klarheit zu Mehrtarif- und Zeit-Fenster-Logik in v1 (wahrscheinlich nicht enthalten, aber nicht explizit ausgeschlossen).
-- **Entities, die Solarbot schreibt**: FR17/TC2 referenzieren `number.set_value`, `switch.turn_on/off`, `button.press` — andere Typen (`select`, `input_*`) nicht genannt; je nach HW-Adapter relevant.
-- **Rollback-Orchestrierung**: FR39 beschreibt den Rollback-Pfad, aber nicht die Schema-Migrations-Strategie von `solarbot.db` (Abwärtskompatibilität zwischen `vX.Y` und `vX-1`).
+- **Entities, die Solalex schreibt**: FR17/TC2 referenzieren `number.set_value`, `switch.turn_on/off`, `button.press` — andere Typen (`select`, `input_*`) nicht genannt; je nach HW-Adapter relevant.
+- **Rollback-Orchestrierung**: FR39 beschreibt den Rollback-Pfad, aber nicht die Schema-Migrations-Strategie von `solalex.db` (Abwärtskompatibilität zwischen `vX.Y` und `vX-1`).
 - **architecture.md ist auffällig dünn (74 Zeilen)** — muss in Step 3 gegen diese Requirements-Fülle geprüft werden.
 
 **Gesamtbild:** PRD ist inhaltlich **sehr reif** und tauglich als Assessment-Basis. Die offenen Punkte sind bewusste Beta-Entscheidungen, keine Konzept-Lücken. Einzige echte Inkonsistenz: Grace Period 14 Tage (NFR12) vs. „offene Entscheidung" im Frontmatter.
@@ -300,7 +300,7 @@ Verified durch Querlesen der Epic-Stories gegen die PRD-FRs:
 | FR32 | Epic 4 | Story 4.2 (Letzte 20 Fehler mit Klartext + Handlungsempfehlung) | ✓ Covered |
 | FR33 | Epic 4 | Story 4.3 (Verbindungs-Status HA-WS, Entities, Lizenz) | ✓ Covered |
 | FR34 | Epic 3 (Messung) + Epic 4 (Auswertung) | Story 3.1 (`latency_measurements`-Log) + Story 4.4 (Median/P95/Max-Auswertung) | ✓ Covered |
-| FR35 | Epic 4 (kippbar) | Story 4.5 (Diagnose-Export `solarbot-diag-v1.json`) | ✓ Covered (kippbar) |
+| FR35 | Epic 4 (kippbar) | Story 4.5 (Diagnose-Export `solalex-diag-v1.json`) | ✓ Covered (kippbar) |
 | FR36 | Epic 4 | Story 4.6 (GitHub-Issues Bug-Report-Template + Direktlink) | ✓ Covered |
 | FR37 | Epic 6 | Story 6.1 **Stub** — User-Story vorhanden, ACs fehlen | ⚠️ AC-Gap |
 | FR38 | Epic 6 | Story 6.2 **Stub** — User-Story vorhanden, ACs fehlen | ⚠️ AC-Gap |
@@ -349,7 +349,7 @@ Verified durch Querlesen der Epic-Stories gegen die PRD-FRs:
 - **F-5 (Geschäftsmodell Trial vs. Freemium — Toggle-Architektur)**: PRD hält BM explizit offen (Beta-Entscheidung). Epic 7 ist BM-agnostisch (nur „Kauf bei LemonSqueezy"). Kein Gap, aber **keine Story** adressiert das „Toggle im Lizenz-Backend"-Feature aus dem PRD (BM1).
   - **Empfehlung:** Entweder Story 7.2/7.3 um Toggle-Fähigkeit (Trial-Timer vs. Sofort-Kauf-Unterscheidung) ergänzen, oder Toggle-Architektur als Architecture-Detail aufnehmen.
 
-- **F-6 (§14a-Steuerbox-Interferenz)**: PRD hat §14a nur als v3+-Ziel. Kein Epic adressiert aktuell, wie Solarbot bei gleichzeitiger Netzbetreiber-Dimmung reagiert (Netzbetreiber setzt WR-Limit → konfligiert Solarbot?). Niedrige Priorität für MVP, aber erwähnenswert.
+- **F-6 (§14a-Steuerbox-Interferenz)**: PRD hat §14a nur als v3+-Ziel. Kein Epic adressiert aktuell, wie Solalex bei gleichzeitiger Netzbetreiber-Dimmung reagiert (Netzbetreiber setzt WR-Limit → konfligiert Solalex?). Niedrige Priorität für MVP, aber erwähnenswert.
 
 #### NFR-Coverage (Kurz-Audit)
 
@@ -377,7 +377,7 @@ Die Epics-Doc listet NFRs explizit in den „Cross-cutting concerns"-Abschnitten
 - **NFR23 (DSGVO-Compliance durch lokalen Betrieb)**: Implicit durch Architektur, nicht durch eine Story garantiert. Low priority, Privacy-Policy-Doku (NFR22) deckt das narrativ.
 - **NFR33 (UI Deutsch / Code Englisch)**: Projekt-Standard, keine Story nötig.
 - **NFR35 (Test-Coverage ≥ 70 % Kern / ≥ 50 % gesamt)**: Engineering-Meta, keine Story. Sollte in CI/Quality-Gates landen.
-- **NFR40 (`solarbot-diag-v1.json` Schema-Versionierung)**: Epic 4 Story 4.5 covered ✓, aber Schema-Evolution-Strategie nicht spec'd.
+- **NFR40 (`solalex-diag-v1.json` Schema-Versionierung)**: Epic 4 Story 4.5 covered ✓, aber Schema-Evolution-Strategie nicht spec'd.
 
 ### Summary Step 3
 
@@ -524,8 +524,8 @@ Rigorous check gegen die create-epics-and-stories-Best-Practices: User-Value, Ep
     2. Alternative: Story 2.3 und Story 3.1 explizit als **Bundle** markieren (müssen gemeinsam implementiert werden).
     3. Implementierungs-Reihenfolge im Sprint-Plan offen dokumentieren (Epic 3 Story 3.1 vor Rest Epic 2).
 
-- **Q-3 (Story 2.2 AC enthält Reference auf Story 3.5 / Hysterese-Detail-Werte).** Story 2.2 Auto-Detection ist sauber, kein Eingriff. Aber die Entscheidung, welcher Modus am Ende läuft (Drossel/Speicher/Multi), fällt in Story 3.5 Strategie-Auswahl. Das Commissioning-Event in Story 2.3 schreibt eine Konfiguration, der konkrete Regelmodus wird aber erst in 3.5 gesetzt. Kein technisches Problem, aber **Erwartungslücke in der AC-Formulierung**: „Solarbot übernimmt die Konfiguration in den Regelungs-Zustand" (Story 2.3) — welcher Regelungs-Zustand, wenn Epic 3 noch nicht ausgeliefert?
-  - **Remediation:** AC in Story 2.3 um den Null-/Leerzustand ergänzen: „Wenn Epic 3 noch nicht aktiv → Solarbot persistiert Konfiguration, aber Regelung pausiert bis Core-Controller verfügbar."
+- **Q-3 (Story 2.2 AC enthält Reference auf Story 3.5 / Hysterese-Detail-Werte).** Story 2.2 Auto-Detection ist sauber, kein Eingriff. Aber die Entscheidung, welcher Modus am Ende läuft (Drossel/Speicher/Multi), fällt in Story 3.5 Strategie-Auswahl. Das Commissioning-Event in Story 2.3 schreibt eine Konfiguration, der konkrete Regelmodus wird aber erst in 3.5 gesetzt. Kein technisches Problem, aber **Erwartungslücke in der AC-Formulierung**: „Solalex übernimmt die Konfiguration in den Regelungs-Zustand" (Story 2.3) — welcher Regelungs-Zustand, wenn Epic 3 noch nicht ausgeliefert?
+  - **Remediation:** AC in Story 2.3 um den Null-/Leerzustand ergänzen: „Wenn Epic 3 noch nicht aktiv → Solalex persistiert Konfiguration, aber Regelung pausiert bis Core-Controller verfügbar."
 
 - **Q-4 (Story 4.3 Forward-Reference zu Epic 7 akzeptabel, aber explizit macht es besser).** AC: „bis Epic 7 produktiv wird, ist der Wert `unvalidated` Default". Das ist technisch sauber (Graceful-Degradation), aber die Best-Practice „No forward references" wird formal berührt. Da Epic 4 ohne Epic 7 voll funktionsfähig bleibt (zeigt `unvalidated`, statt Fehler), akzeptabel — als **minor issue** stehen lassen.
 
@@ -535,7 +535,7 @@ Rigorous check gegen die create-epics-and-stories-Best-Practices: User-Value, Ep
   - **Best-Practice-Bewertung:** Für ein Greenfield-Add-on mit nur-Supervised-Base-Image ist das legitim („Set up initial project from starter template"-Muster). Epic 1 als Ganzes liefert User-Value (Installation + Sichtbarkeit); die Enabler-Stories sind notwendig.
   - **Minor:** Ein saubererer Ansatz wäre, 1.3/1.4/1.7 als Sub-Tasks in Story 1.1 einzubetten — so bleibt Epic 1 durchgängig user-facing. Nicht kritisch, aber sauberer.
 
-- **Q-6 (Story 1.2 adressiert Landing-Page + `addon.yaml`-Range — zwei Artefakte in verschiedenen Repos).** Die Landing-Page liegt auf alkly.de (separates Projekt), die `addon.yaml`-Deklaration im `alkly/solarbot`-Repo. Eine Story über Repo-Grenzen hinweg ist messy.
+- **Q-6 (Story 1.2 adressiert Landing-Page + `addon.yaml`-Range — zwei Artefakte in verschiedenen Repos).** Die Landing-Page liegt auf alkly.de (separates Projekt), die `addon.yaml`-Deklaration im `alkly/solalex`-Repo. Eine Story über Repo-Grenzen hinweg ist messy.
   - **Remediation:** Story 1.2 in zwei Stories splitten: 1.2a (Landing-Page-Update, Marketing) und 1.2b (`addon.yaml`-Version-Range + Install-Warning-Mechanik).
 
 - **Q-7 (Epic 3 Story 3.3 „Akku-Pool-Abstraktion" ist technisch-infrastrukturell).** Titel und User-Story sind teilweise backend-orientiert. Akzeptabel, aber User-Value liegt in Story 3.4 (Speicher-Modus) und Story 3.5 (adaptive Strategie).
@@ -579,7 +579,7 @@ Check gegen „Tables created only when first needed":
 
 | Tabelle | Story | Timing |
 |---|---|---|
-| `solarbot.db` initialisiert (leer) | 1.1 | ✓ JIT — leer |
+| `solalex.db` initialisiert (leer) | 1.1 | ✓ JIT — leer |
 | `control_cycles` | 3.1 | ✓ JIT |
 | `latency_measurements` | 3.1 | ✓ JIT |
 | Settings (min/max SoC, Zeitfenster) | 3.6 | ✓ JIT |

@@ -3,7 +3,7 @@
 # Version: 6.3.0
 # Date: 2026-04-14T19:02:10.550Z
 
-project_name: SolarBotDevelopment
+project_name: SolalexDevelopment
 user_skill_level: intermediate
 planning_artifacts: "{project-root}/_bmad-output/planning-artifacts"
 implementation_artifacts: "{project-root}/_bmad-output/implementation-artifacts"

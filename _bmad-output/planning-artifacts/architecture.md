@@ -6,7 +6,7 @@ inputDocuments:
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/planning-artifacts/implementation-readiness-report-2026-04-21.md
 workflowType: 'architecture'
-project_name: 'SolarBotDevelopment'
+project_name: 'SolalexDevelopment'
 user_name: 'Alex'
 date: '2026-04-22'
 lastStep: 8
@@ -48,7 +48,7 @@ Aus dem PRD bereits fixiert:
 
 - Tech-Stack: Python 3.13 + FastAPI, Svelte 5 + Tailwind 4, SQLite
 - Runtime: HA Add-on Base Image (Alpine 3.19), HA-Ingress, Supervisor-Token
-- Distribution: Custom Add-on Repository (GitHub `alkly/solarbot`), Multi-Arch-Build (amd64 + aarch64)
+- Distribution: Custom Add-on Repository (GitHub `alkly/solalex`), Multi-Arch-Build (amd64 + aarch64)
 - Alleiniger Integrations-Kanal: HA WebSocket API (`ws://supervisor/core/websocket`)
 - Externe Services: ausschließlich LemonSqueezy (Aktivierung + monatliche Re-Validation)
 - Persistenz: `/data/`-Volume (SQLite, Lizenz, Backup, rotierte Logs)
@@ -58,7 +58,7 @@ Aus dem PRD bereits fixiert:
 ### Cross-Cutting Concerns
 
 1. **Closed-Loop-Readback + Fail-Safe** als durchgängiges Pattern für jeden Steuerbefehl
-2. **Event-Source-Attribution** (`solarbot | manual | ha_automation`) als Basis aller KPIs
+2. **Event-Source-Attribution** (`solalex | manual | ha_automation`) als Basis aller KPIs
 3. **E2E-Latenz-Messung pro Device** als Input für hardware-spezifische Regel-Parameter
 4. **EEPROM-Rate-Limiting** (≤ 1 Schreibbefehl/Device/Minute Default)
 5. **Stdlib-Logging mit JSON-Formatter** (rotiert 10 MB / 5 Dateien)
@@ -98,9 +98,9 @@ Edge Orchestrator / IoT Embedded als Home-Assistant-Add-on. Stack: Python 3.13 +
 | `tiangolo/full-stack-fastapi-template` | Verworfen — Postgres + Traefik + K8s sind Cloud-first und widersprechen „100 % lokal + SQLite". |
 | `buhodev/sveltekit-tailwind-starter` | Verworfen — SvelteKit ist SSR-orientiert, passt nicht zu HA-Ingress. |
 | `home-assistant/addons-example` | Als Referenz adoptiert für `config.yaml`, `Dockerfile`, s6-overlay, `run.sh` mit bashio. |
-| **Komponierter Solarbot-Skeleton** | **Gewählt.** Zwei separate `init`-Commands (Backend + Frontend), kein Monorepo-Workspace-Root. |
+| **Komponierter Solalex-Skeleton** | **Gewählt.** Zwei separate `init`-Commands (Backend + Frontend), kein Monorepo-Workspace-Root. |
 
-### Selected Starter: Komponierter Solarbot-Skeleton
+### Selected Starter: Komponierter Solalex-Skeleton
 
 **Rationale:**
 
@@ -184,7 +184,7 @@ npm i svelte-spa-router
 **Code Organization (ohne Monorepo-Workspace-Root):**
 
 ```
-solarbot/
+solalex/
 ├── addon/              # HA Add-on Definition
 │   ├── config.yaml
 │   ├── Dockerfile      # Multi-Stage: frontend-build + backend-assemble
@@ -193,7 +193,7 @@ solarbot/
 ├── backend/            # Python 3.13 + FastAPI (eigenständig)
 │   ├── pyproject.toml  # uv-managed
 │   ├── uv.lock
-│   ├── src/solarbot/
+│   ├── src/solalex/
 │   └── tests/
 ├── frontend/           # Svelte 5 + Vite + Tailwind 4 (eigenständig)
 │   ├── package.json
@@ -261,7 +261,7 @@ solarbot/
 
 ### Data Architecture
 
-**Driver:** Raw `aiosqlite` + handgeschriebene SQL-Queries in `backend/src/solarbot/persistence/repositories/*.py`. Kein ORM, keine Mapped-Models. Für ~9 Tabellen mit je ≤10 Spalten ist ein ORM reine Overhead. AI-Tooling (Claude Code) schreibt korrektes SQL zuverlässiger als korrekte SQLAlchemy-Session-Lifecycles.
+**Driver:** Raw `aiosqlite` + handgeschriebene SQL-Queries in `backend/src/solalex/persistence/repositories/*.py`. Kein ORM, keine Mapped-Models. Für ~9 Tabellen mit je ≤10 Spalten ist ein ORM reine Overhead. AI-Tooling (Claude Code) schreibt korrektes SQL zuverlässiger als korrekte SQLAlchemy-Session-Lifecycles.
 
 **Migration-Tool:** `schema_version`-Row in `meta`-Tabelle + sequentielle `sql/NNN_*.sql`-Upgrade-Blöcke. Beim Startup: aktuelle Version lesen, alle höher-nummerierten SQL-Dateien in Transaktion anwenden, `schema_version` hochzählen. ~30 Zeilen in `persistence/migrate.py`. **Kein Alembic**, keine Forward/Backward-Pflicht.
 
@@ -284,9 +284,9 @@ solarbot/
 
 ```python
 # in backup/snapshot.py
-await conn.execute("VACUUM INTO '/data/.backup/solarbot.db.tmp'")
+await conn.execute("VACUUM INTO '/data/.backup/solalex.db.tmp'")
 os.fsync(tmp_fd)
-os.rename('/data/.backup/solarbot.db.tmp', '/data/.backup/solarbot.db')
+os.rename('/data/.backup/solalex.db.tmp', '/data/.backup/solalex.db')
 os.fsync(dir_fd)  # fsync auf das Verzeichnis, damit rename persistiert
 ```
 
@@ -294,9 +294,9 @@ os.fsync(dir_fd)  # fsync auf das Verzeichnis, damit rename persistiert
 
 **Rollback-Semantik:**
 
-1. Vor jedem Update wird `.backup/solarbot.db` geschrieben (Sequenz oben).
+1. Vor jedem Update wird `.backup/solalex.db` geschrieben (Sequenz oben).
 2. Bei fehlgeschlagenem Update → User installiert über HA Add-on Store die vorherige Version.
-3. Beim Start der alten Version prüft `run.sh`: Wenn `schema_version` in `/data/solarbot.db` > der alten Version erwartet → automatisches Überschreiben aus `.backup/solarbot.db`.
+3. Beim Start der alten Version prüft `run.sh`: Wenn `schema_version` in `/data/solalex.db` > der alten Version erwartet → automatisches Überschreiben aus `.backup/solalex.db`.
 4. Das Backup-Schema matcht die zugehörige Add-on-Version automatisch. **Kein Forward/Backward-Migrations-Pfad nötig.**
 
 **Retention:** 
@@ -411,7 +411,7 @@ Der `stateSnapshot`-Store nutzt diesen Hook im Dashboard-Scope; Wizard und Diagn
 
 **Kein `structlog`, keine Correlation-IDs.** Ein Prozess, ein Kontext. Bei späterer Notwendigkeit (v2 Multi-Instance?) ist der Wechsel zu structlog ein mechanisches Refactor.
 
-**Observability:** Add-on-Log-Panel (Standard) + Diagnose-Export als JSON (`solarbot-diag_<timestamp>.json`, FR35) + optional Health-Endpoint `/api/health` für HA-Binary-Sensor-Integration. Zero Telemetry (NFR17).
+**Observability:** Add-on-Log-Panel (Standard) + Diagnose-Export als JSON (`solalex-diag_<timestamp>.json`, FR35) + optional Health-Endpoint `/api/health` für HA-Binary-Sensor-Integration. Zero Telemetry (NFR17).
 
 **Rollback:** Siehe Data Architecture — Backup-File-Replace beim Start der vorherigen Version. Add-on-Store-Manual-Downgrade als User-Action.
 
@@ -440,7 +440,7 @@ Beide in `main.py` als `asyncio.create_task` im `lifespan`-Context. Uvicorn-Work
 
 1. **Bootstrap** (Story 1.1) — `backend/` + `frontend/` Init, `addon/config.yaml`, Dockerfile, Multi-Arch-GHA-Workflow
 2. **Schema v0 + WAL-Mode + Backup-Slot** — erste `sql/001_initial.sql`, `schema_version`-Logik
-3. **HA-WebSocket-Adapter** (`backend/src/solarbot/ha_client.py`) — Subscribe + Exponential-Backoff-Reconnect zum HA-Upstream
+3. **HA-WebSocket-Adapter** (`backend/src/solalex/ha_client.py`) — Subscribe + Exponential-Backoff-Reconnect zum HA-Upstream
 4. **Adapter-Module für 3 Day-1-Hersteller** — `adapters/hoymiles.py`, `adapters/marstek_venus.py`, `adapters/shelly_3em.py` mit hardcoded Entity-Mappings
 5. **Controller + Executor + Rate-Limiter** — ein Controller-Modul mit Enum-Dispatch; Executor mit Readback + Rate-Limit + Fail-Safe
 6. **Setup-Wizard-REST-API + Frontend-Wizard-Views (4 Schritte)**
@@ -579,7 +579,7 @@ bus.publish(CycleComplete(...))   # Overengineered
 ### Complete Project Directory Structure
 
 ```
-solarbot/
+solalex/
 ├── README.md
 ├── LICENSE
 ├── CHANGELOG.md
@@ -608,7 +608,7 @@ solarbot/
 │   ├── icon.png
 │   ├── logo.png
 │   └── rootfs/
-│       └── etc/services.d/solarbot/
+│       └── etc/services.d/solalex/
 │           ├── run
 │           └── finish
 │
@@ -616,7 +616,7 @@ solarbot/
 │   ├── pyproject.toml                # uv-managed, requires-python = "3.13"
 │   ├── .python-version
 │   ├── uv.lock
-│   ├── src/solarbot/
+│   ├── src/solalex/
 │   │   ├── __init__.py
 │   │   ├── main.py                   # FastAPI-Entry + Lifespan-Tasks
 │   │   ├── config.py                 # pydantic-settings
@@ -799,13 +799,13 @@ solarbot/
 
 | Epic | Betroffene Verzeichnisse | Key-Files |
 |---|---|---|
-| **Epic 1 — Foundation** | `addon/`, `backend/src/solarbot/{main,config,startup,ha_client}/`, `frontend/src/{app.css,App.svelte,lib/{api,polling,stores/theme}}`, `.github/workflows/` | `addon/config.yaml`, `addon/Dockerfile`, `addon/run.sh`, `ha_client/client.py`, `app.css` (Tokens) |
-| **Epic 2 — Wizard (4 Schritte)** | `backend/src/solarbot/{api/routes/setup,adapters,executor}/`, `frontend/src/routes/Wizard/*`, `frontend/src/lib/components/wizard/*` | `setup.py`, `adapters/hoymiles.py`, `adapters/marstek_venus.py`, `adapters/shelly_3em.py`, `Step1Hardware.svelte` … `Step4Activation.svelte` |
-| **Epic 3 — Controller & Akku-Pool** | `backend/src/solarbot/{controller.py,executor,adapters,persistence/repositories/control_cycles}/` | `controller.py` (Mono-Modul mit Enum-Dispatch), `executor/readback.py`, `rate_limiter.py` |
-| **Epic 4 — Diagnose** | `backend/src/solarbot/{diagnose,api/routes/diagnose}/`, `frontend/src/{routes/Diagnose.svelte,lib/components/diagnose}/`, `.github/ISSUE_TEMPLATE/bug-report.yml` | `diagnose/export.py` (unversioniert), `analysis.py`, `Diagnose.svelte` |
-| **Epic 5 — Dashboard** | `backend/src/solarbot/{kpi,api/routes/{kpi,pricing,control},state_cache.py}/`, `frontend/src/{routes/{Dashboard,Stats}.svelte,lib/{components/{dashboard,charts},stores/stateSnapshot}}/` | `state_cache.py` (Polling-Backing), `kpi/attribution.py`, `rollup.py`, `EuroHero.svelte`, `EnergyRing.svelte`, `FlowAnimation.svelte` |
-| **Epic 6 — Update/Backup** | `backend/src/solarbot/{backup,api/routes/backup}/`, `addon/run.sh` (auto-restore), `persistence/sql/` | `backup/snapshot.py` (VACUUM INTO → fsync → rename), `backup/restore.py` |
-| **Epic 7 — License** | `backend/src/solarbot/{license,api/routes/license,api/middleware}/`, `frontend/src/{lib/stores/license,routes/Wizard/Step4Activation}` | `license/lemonsqueezy.py`, `grace.py`, `api/middleware.py`, `license.ts` (Store), `Step4Activation.svelte` |
+| **Epic 1 — Foundation** | `addon/`, `backend/src/solalex/{main,config,startup,ha_client}/`, `frontend/src/{app.css,App.svelte,lib/{api,polling,stores/theme}}`, `.github/workflows/` | `addon/config.yaml`, `addon/Dockerfile`, `addon/run.sh`, `ha_client/client.py`, `app.css` (Tokens) |
+| **Epic 2 — Wizard (4 Schritte)** | `backend/src/solalex/{api/routes/setup,adapters,executor}/`, `frontend/src/routes/Wizard/*`, `frontend/src/lib/components/wizard/*` | `setup.py`, `adapters/hoymiles.py`, `adapters/marstek_venus.py`, `adapters/shelly_3em.py`, `Step1Hardware.svelte` … `Step4Activation.svelte` |
+| **Epic 3 — Controller & Akku-Pool** | `backend/src/solalex/{controller.py,executor,adapters,persistence/repositories/control_cycles}/` | `controller.py` (Mono-Modul mit Enum-Dispatch), `executor/readback.py`, `rate_limiter.py` |
+| **Epic 4 — Diagnose** | `backend/src/solalex/{diagnose,api/routes/diagnose}/`, `frontend/src/{routes/Diagnose.svelte,lib/components/diagnose}/`, `.github/ISSUE_TEMPLATE/bug-report.yml` | `diagnose/export.py` (unversioniert), `analysis.py`, `Diagnose.svelte` |
+| **Epic 5 — Dashboard** | `backend/src/solalex/{kpi,api/routes/{kpi,pricing,control},state_cache.py}/`, `frontend/src/{routes/{Dashboard,Stats}.svelte,lib/{components/{dashboard,charts},stores/stateSnapshot}}/` | `state_cache.py` (Polling-Backing), `kpi/attribution.py`, `rollup.py`, `EuroHero.svelte`, `EnergyRing.svelte`, `FlowAnimation.svelte` |
+| **Epic 6 — Update/Backup** | `backend/src/solalex/{backup,api/routes/backup}/`, `addon/run.sh` (auto-restore), `persistence/sql/` | `backup/snapshot.py` (VACUUM INTO → fsync → rename), `backup/restore.py` |
+| **Epic 7 — License** | `backend/src/solalex/{license,api/routes/license,api/middleware}/`, `frontend/src/{lib/stores/license,routes/Wizard/Step4Activation}` | `license/lemonsqueezy.py`, `grace.py`, `api/middleware.py`, `license.ts` (Store), `Step4Activation.svelte` |
 
 **Cross-Cutting Concerns:**
 
@@ -831,7 +831,7 @@ solarbot/
 |---|---|---|
 | HA WebSocket | `ws://supervisor/core/websocket` | Sensor-Subscribe + `call_service` |
 | LemonSqueezy | `https://api.lemonsqueezy.com/v1/licenses/validate` | Kauf + monatliche Re-Validation |
-| GitHub Container Registry | `ghcr.io/alkly/solarbot-{amd64,aarch64}` | Docker-Image-Hosting |
+| GitHub Container Registry | `ghcr.io/alkly/solalex-{amd64,aarch64}` | Docker-Image-Hosting |
 | HA Add-on Store | HA Supervisor via Custom-Repo | Update-Distribution |
 
 **Data Flow (Haupt-Szenarien):**
@@ -993,7 +993,7 @@ solarbot/
 **First Implementation Priority (Story 1.1 Bootstrap):**
 
 ```bash
-mkdir solarbot && cd solarbot
+mkdir solalex && cd solalex
 git init
 
 # Repo-Wurzel (repository.yaml, README, LICENSE, .gitignore, CLAUDE.md)
@@ -1015,7 +1015,7 @@ npm i svelte-spa-router
 cd ..
 
 # Add-on-Skelett
-mkdir -p addon/rootfs/etc/services.d/solarbot
+mkdir -p addon/rootfs/etc/services.d/solalex
 # addon/config.yaml nach home-assistant/addons-example
 # addon/Dockerfile Multi-Stage
 # addon/run.sh mit bashio

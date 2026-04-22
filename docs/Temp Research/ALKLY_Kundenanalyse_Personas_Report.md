@@ -1,4 +1,4 @@
-# ALKLY Solarbot — Kundenanalyse, Personas & Funnel-Report
+# ALKLY Solalex — Kundenanalyse, Personas & Funnel-Report
 
 **Datengrundlage:** 6 Umfragen, 498 individuelle Datensätze  
 **Analyse-Stand:** 15.April 2026  
@@ -16,7 +16,7 @@
 
 | Datenquelle | n | Zeitraum | Zielgruppe |
 |---|---|---|---|
-| Warteliste Überschussmanager | 165 | Jun 2025 – Apr 2026 | Potentielle Solarbot-Käufer |
+| Warteliste Überschussmanager | 165 | Jun 2025 – Apr 2026 | Potentielle Solalex-Käufer |
 | Onboarding v3 Blueprint | 120 | Aug 2024 – fortlaufend | Neue Blueprint-Kunden |
 | Betatest v1 | 17 | Jun 2024 | Early Adopter |
 | Betatest v2 | 20 | Jun 2024 | Early Adopter |
@@ -28,7 +28,7 @@
 
 ## 2. Warteliste Überschussmanager — Deep Dive (n=165)
 
-Die Warteliste ist die wichtigste Datenquelle, da sie die konkrete Kaufabsicht für Solarbot repräsentiert.
+Die Warteliste ist die wichtigste Datenquelle, da sie die konkrete Kaufabsicht für Solalex repräsentiert.
 
 ### 2.1 Wachstumsdynamik
 
@@ -57,7 +57,7 @@ Die Warteliste zeigt exponentielles Wachstum seit Anfang 2026:
 | Fortgeschritten | 94 | 57% |
 | Profi | 11 | 7% |
 
-**Schlüsselinsight:** Fast 4 von 10 Interessenten stufen sich als **Einsteiger** ein. Das ist ein gewaltiges Signal für die UX-Anforderungen — Solarbot muss ohne YAML, Node-RED oder tiefe HA-Kenntnisse funktionieren. Die Fortgeschrittenen sind zwar in der Mehrzahl, aber das Produkt darf sie nicht mit Simplizität langweilen, sondern muss „einfach UND tiefgehend" sein.
+**Schlüsselinsight:** Fast 4 von 10 Interessenten stufen sich als **Einsteiger** ein. Das ist ein gewaltiges Signal für die UX-Anforderungen — Solalex muss ohne YAML, Node-RED oder tiefe HA-Kenntnisse funktionieren. Die Fortgeschrittenen sind zwar in der Mehrzahl, aber das Produkt darf sie nicht mit Simplizität langweilen, sondern muss „einfach UND tiefgehend" sein.
 
 
 ### 2.3 PV-Anlagengröße
@@ -69,7 +69,7 @@ Die Warteliste zeigt exponentielles Wachstum seit Anfang 2026:
 | 3–10 kWp (großes BKW / kleine Dachanlage) | 53 | **32%** |
 | > 10 kWp (Dachanlage) | 28 | 17% |
 
-**Schlüsselinsight:** 73% der Warteliste haben Anlagen zwischen 1 und 10 kWp — das ist der Sweet Spot. Bemerkenswert: Fast ein Fünftel hat bereits >10 kWp Dachanlagen. Diese Gruppe ist größer als erwartet und zeigt, dass Solarbot nicht nur ein Balkonkraftwerk-Tool ist. 49% der Wartenden haben Anlagen >3 kWp, was den ursprünglichen Fokus auf reine Balkonkraftwerke deutlich erweitert.
+**Schlüsselinsight:** 73% der Warteliste haben Anlagen zwischen 1 und 10 kWp — das ist der Sweet Spot. Bemerkenswert: Fast ein Fünftel hat bereits >10 kWp Dachanlagen. Diese Gruppe ist größer als erwartet und zeigt, dass Solalex nicht nur ein Balkonkraftwerk-Tool ist. 49% der Wartenden haben Anlagen >3 kWp, was den ursprünglichen Fokus auf reine Balkonkraftwerke deutlich erweitert.
 
 
 ### 2.4 Wechselrichter-Markt
@@ -86,9 +86,9 @@ Die Warteliste zeigt exponentielles Wachstum seit Anfang 2026:
 | APsystems | 3 | 2% |
 | Sonstige (38% einzelne) | 59 | 38% |
 
-**Hoymiles ist klar #1** mit über einem Viertel Marktanteil im Wartelisten-Segment. Anker auf Platz 2 ist interessant, da Anker sowohl WR als auch Speicher in einem System liefert. Die „Sonstigen" 38% verteilen sich auf Dutzende Marken — ein Zeichen dafür, dass der Hardware-agnostische Ansatz von Solarbot (Steuerung via HA-Entities) genau richtig ist.
+**Hoymiles ist klar #1** mit über einem Viertel Marktanteil im Wartelisten-Segment. Anker auf Platz 2 ist interessant, da Anker sowohl WR als auch Speicher in einem System liefert. Die „Sonstigen" 38% verteilen sich auf Dutzende Marken — ein Zeichen dafür, dass der Hardware-agnostische Ansatz von Solalex (Steuerung via HA-Entities) genau richtig ist.
 
-**WR aus Home Assistant steuerbar?** Ja: 115 (72%) | Nein: 44 (28%). Das bedeutet: 28% der Warteliste braucht noch Integration-Hilfe, bevor Solarbot überhaupt greifen kann.
+**WR aus Home Assistant steuerbar?** Ja: 115 (72%) | Nein: 44 (28%). Das bedeutet: 28% der Warteliste braucht noch Integration-Hilfe, bevor Solalex überhaupt greifen kann.
 
 
 ### 2.5 Akku-Speicher — Die Marstek-Überraschung
@@ -130,7 +130,7 @@ Die Warteliste zeigt exponentielles Wachstum seit Anfang 2026:
 
 **Zusätzlich genannt (Freitext, n=52):** Trockner (am häufigsten), Infrarotheizung, E-Bike Ladung, Server/Netzwerk, Pumpen/Bewässerung, Krypto-Miner (2x), Brauchwasserwärmepumpe.
 
-Die Top-3 (Waschmaschine, Wallbox, Klima) signalisieren klar, dass Solarbot über reine Nulleinspeisung hinausgehen muss — die Nutzer wollen **intelligente Verbraucher-Priorisierung**.
+Die Top-3 (Waschmaschine, Wallbox, Klima) signalisieren klar, dass Solalex über reine Nulleinspeisung hinausgehen muss — die Nutzer wollen **intelligente Verbraucher-Priorisierung**.
 
 **Verbraucher bereits in HA steuerbar?** Ca. 43 sagten klar „Ja", 16 „Nein", Rest „Teilweise" oder spezifische Geräte. Viele nutzen Smart Plugs (Shelly, Tasmota, Zigbee) als Steuerungsbrücke.
 
@@ -352,7 +352,7 @@ Fast die Hälfte sagt „extrem wichtig" — bestätigt das Wartelisten-Signal.
 | Bei mir läuft alles | 16 |
 | Keine Live-Daten | 14 |
 
-**Die Top-2-Bremsen sind Wissen und Orientierung, nicht Hardware.** Das ist eine massive Chance: Solarbot kann beide Probleme gleichzeitig lösen — durch ein einfaches Setup und ein Dashboard, das Orientierung bietet.
+**Die Top-2-Bremsen sind Wissen und Orientierung, nicht Hardware.** Das ist eine massive Chance: Solalex kann beide Probleme gleichzeitig lösen — durch ein einfaches Setup und ein Dashboard, das Orientierung bietet.
 
 ### 4.4 Überstrom-Nutzung
 
@@ -383,7 +383,7 @@ Fast die Hälfte sagt „extrem wichtig" — bestätigt das Wartelisten-Signal.
 | 5–6 (Neutral) | 14 (26%) |
 | 1–4 (Unzufrieden) | 3 (6%) |
 
-Nur 6% sind unzufrieden — das Blueprint-Produkt hat eine solide Basis. Aber 26% im neutralen Bereich zeigen Verbesserungspotential — genau diese Gruppe ist die Solarbot-Migrationszielgruppe.
+Nur 6% sind unzufrieden — das Blueprint-Produkt hat eine solide Basis. Aber 26% im neutralen Bereich zeigen Verbesserungspotential — genau diese Gruppe ist die Solalex-Migrationszielgruppe.
 
 **Beliebteste Features:** „Schnelle Anpassung", „die Ganztagsgeschichte", „dass ich durch die Helfer alles genau verfolgen kann"
 
@@ -414,7 +414,7 @@ Basierend auf der datengestützten Cluster-Analyse definieren sich fünf klar un
 
 **Kaufmotiv:** Will endlich eine zuverlässige, lokale Steuerung, die seinen Marstek sauber in Home Assistant integriert. Bereit, 25€ zu zahlen. Will kein Abo.
 
-**Was Solarbot liefern muss:** Marstek-Integration in HA (MQTT/lokale API), zuverlässige Nulleinspeisung ohne Cloud, Multi-Speicher-Fähigkeit, einfaches Setup.
+**Was Solalex liefern muss:** Marstek-Integration in HA (MQTT/lokale API), zuverlässige Nulleinspeisung ohne Cloud, Multi-Speicher-Fähigkeit, einfaches Setup.
 
 **Akquise-Pfad:** Newsletter → Warteliste → Kauf bei Launch. Kommt über YouTube oder Google-Suche nach „Marstek Home Assistant" oder „Marstek Nulleinspeisung".
 
@@ -435,9 +435,9 @@ Basierend auf der datengestützten Cluster-Analyse definieren sich fünf klar un
 
 **Kaufmotiv:** Will maximalen Eigenverbrauch aus seinem kleinen System holen. Hat ein festes Budget (BKW war schon eine Investition). 20–25€ ist seine Schmerzgrenze.
 
-**Was Solarbot liefern muss:** 10-Minuten-Setup, Anker/Hoymiles-Erkennung, sichtbare Einsparungen im Dashboard.
+**Was Solalex liefern muss:** 10-Minuten-Setup, Anker/Hoymiles-Erkennung, sichtbare Einsparungen im Dashboard.
 
-**Akquise-Pfad:** YouTube-Video „Nulleinspeisung mit Home Assistant" → Blueprint-Kauf → Warteliste für Solarbot. Klassischer Upgrade-Pfad.
+**Akquise-Pfad:** YouTube-Video „Nulleinspeisung mit Home Assistant" → Blueprint-Kauf → Warteliste für Solalex. Klassischer Upgrade-Pfad.
 
 ---
 
@@ -456,7 +456,7 @@ Basierend auf der datengestützten Cluster-Analyse definieren sich fünf klar un
 
 **Kaufmotiv:** Sucht eine Ergänzung zu EVCC für Geräte-Priorisierung. Preisbereitschaft höher (30–50€), aber auch anspruchsvoller. Will Peak-Shaving, dynamische Tarife, Solar-Forecast.
 
-**Was Solarbot liefern muss:** EVCC-Koexistenz, Verbraucher-Priorisierung, Forecast-Integration, Multi-WR-Support.
+**Was Solalex liefern muss:** EVCC-Koexistenz, Verbraucher-Priorisierung, Forecast-Integration, Multi-WR-Support.
 
 **Akquise-Pfad:** HA-Community → Google-Suche → Warteliste. Weniger über YouTube.
 
@@ -475,9 +475,9 @@ Basierend auf der datengestützten Cluster-Analyse definieren sich fünf klar un
 
 **Schmerzpunkt-Zitat:** „Eine gute Nulleinspeise-Steuerung wäre schön."
 
-**Kaufmotiv:** Sucht Orientierung, nicht Features. Wenn Solarbot ihm zeigt „du brauchst XY, installiere das so, dann funktioniert es" — dann kauft er.
+**Kaufmotiv:** Sucht Orientierung, nicht Features. Wenn Solalex ihm zeigt „du brauchst XY, installiere das so, dann funktioniert es" — dann kauft er.
 
-**Was Solarbot liefern muss:** Hardware-Checkliste im Onboarding, klare „Bist du bereit?"-Prüfung, ggf. Verweis auf Hardware-Empfehlungen.
+**Was Solalex liefern muss:** Hardware-Checkliste im Onboarding, klare „Bist du bereit?"-Prüfung, ggf. Verweis auf Hardware-Empfehlungen.
 
 **Akquise-Pfad:** YouTube → Quiz → Newsletter → wartet auf Hardware → Warteliste → Kauf. Längster Funnel, aber größtes Volumen. Braucht Nurturing.
 
@@ -494,11 +494,11 @@ Basierend auf der datengestützten Cluster-Analyse definieren sich fünf klar un
 
 **Zufriedenheit mit Blueprint:** 7.2/10 — gut, aber nicht begeistert. Sieht das Potential, weiß aber, dass es besser geht.
 
-**Kaufmotiv:** Will das „richtige" Produkt, nicht den Workaround. Bereit für Migration. Vertraut Alex. Wird Beta-Tester für Solarbot.
+**Kaufmotiv:** Will das „richtige" Produkt, nicht den Workaround. Bereit für Migration. Vertraut Alex. Wird Beta-Tester für Solalex.
 
-**Was Solarbot liefern muss:** Klarer Migrationspfad vom Blueprint, Feature-Parität + Verbesserungen, aktive Community (Discord).
+**Was Solalex liefern muss:** Klarer Migrationspfad vom Blueprint, Feature-Parität + Verbesserungen, aktive Community (Discord).
 
-**Akquise-Pfad:** Bestandskunde → Newsletter/Discord → sofortiger Solarbot-Kauf. Kürzester Funnel, höchste Conversion.
+**Akquise-Pfad:** Bestandskunde → Newsletter/Discord → sofortiger Solalex-Kauf. Kürzester Funnel, höchste Conversion.
 
 ---
 
@@ -517,7 +517,7 @@ INTEREST (Quiz / Lead Magnet) ────── n=123 Quiz-Teilnehmer
 ENGAGEMENT (Newsletter via ConvertKit)
     │                                  └── 112 von 114 Wartelisten-Zugriffen via CK
     ▼
-INTENT (Warteliste Solarbot) ──────── n=165 Wartende
+INTENT (Warteliste Solalex) ──────── n=165 Wartende
     │                                  └── 96% wollen Einmalkauf
     │                                  └── Median 25€ Zahlungsbereitschaft
     │                                  └── 44% Marstek-Segment
@@ -530,7 +530,7 @@ RETENTION (Update, Beta-Feedback)
     │                                  └── 53 Survey-Teilnehmer
     │                                  └── 36% Promoter (9–10/10)
     ▼
-UPSELL (Solarbot-Migration) ──────── Zielgruppe: Blueprint → Solarbot
+UPSELL (Solalex-Migration) ──────── Zielgruppe: Blueprint → Solalex
 ```
 
 ### 7.2 Conversion-Potentiale
@@ -539,7 +539,7 @@ UPSELL (Solarbot-Migration) ──────── Zielgruppe: Blueprint → S
 
 **Warteliste → Kauf:** Bei 165 Wartenden und einer konservativen 40–50% Conversion ergibt das ~65–80 Käufe bei Launch. Bei 25€ = **1.625–2.000€ Revenue allein aus der Warteliste**.
 
-**Blueprint → Solarbot:** Bei 300+ aktiven Blueprint-Nutzern und 50% Upgrade-Bereitschaft = 150 Migrations-Käufe möglich.
+**Blueprint → Solalex:** Bei 300+ aktiven Blueprint-Nutzern und 50% Upgrade-Bereitschaft = 150 Migrations-Käufe möglich.
 
 **Gesamt-Launch-Potential:** 215–230 Käufe × 25€ = **5.375–5.750€ Launch-Revenue**.
 
@@ -563,7 +563,7 @@ UPSELL (Solarbot-Migration) ──────── Zielgruppe: Blueprint → S
 | CleverPV | 1 | Feature-reich | „Kostet 76€ im Jahr" (Abo-Modell) |
 | ALKLY Blueprint | 3 | Bewährt, vertraut | Workaround, nicht plug&play |
 
-**Solarbot-Positionierung:** Die einzige Lösung, die lokal, einfach, hardware-agnostisch UND bezahlbar (einmalig) ist.
+**Solalex-Positionierung:** Die einzige Lösung, die lokal, einfach, hardware-agnostisch UND bezahlbar (einmalig) ist.
 
 ---
 
@@ -594,7 +594,7 @@ UPSELL (Solarbot-Migration) ──────── Zielgruppe: Blueprint → S
 
 1. **Marstek-Landingpage** mit SEO für „Marstek Home Assistant", „Marstek Nulleinspeisung", „Marstek Venus 3E HA" — dieses Segment wächst explosiv.
 2. **Quiz-to-Warteliste UTM-Tracking** implementieren.
-3. **Blueprint-Nutzer Migration-Kampagne** vorbereiten — E-Mail-Sequenz: „Du nutzt den Blueprint? Solarbot macht es 10x einfacher."
+3. **Blueprint-Nutzer Migration-Kampagne** vorbereiten — E-Mail-Sequenz: „Du nutzt den Blueprint? Solalex macht es 10x einfacher."
 4. **Hardware-Kompatibilitätsliste** auf der Wartelisten-Seite — senkt die Unsicherheit bei den 28% mit nicht-steuerbarem WR.
 
 ---

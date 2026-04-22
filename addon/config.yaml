@@ -1,0 +1,26 @@
+name: Solalex by ALKLY
+version: "0.1.0"
+slug: solalex
+description: >-
+  Sekundengenaue aktive Nulleinspeisung und Akku-Pool-Steuerung
+  für Home Assistant. 100% lokal, kein Cloud-Zwang.
+url: https://github.com/alkly/solalex
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: services
+boot: auto
+panel_icon: mdi:solar-power-variant
+panel_title: Solalex
+ingress: true
+ingress_port: 8099
+hassio_api: true
+hassio_role: default
+homeassistant_api: true
+# No external port exposure — HA Ingress is the only access path (AC 7, NFR28).
+ports: {}
+ports_description: {}
+# /data/ is auto-mounted by the HA Supervisor — do NOT declare it in `map`.
+map: []
+image: ghcr.io/alkly/solalex-{arch}

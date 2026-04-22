@@ -1,0 +1,17 @@
+#!/usr/bin/with-contenv bashio
+# s6-overlay v3 service entry point for Solalex.
+set -euo pipefail
+
+bashio::log.info "Solalex backend starting on ingress port 8099..."
+
+cd /opt/solalex
+
+export DB_PATH="${DB_PATH:-/data/solalex.db}"
+export PORT="${PORT:-8099}"
+export PYTHONPATH="/opt/solalex/src:${PYTHONPATH:-}"
+
+exec /opt/solalex/.venv/bin/uvicorn solalex.main:app \
+    --host 0.0.0.0 \
+    --port "${PORT}" \
+    --proxy-headers \
+    --forwarded-allow-ips "*"
