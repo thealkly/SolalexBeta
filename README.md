@@ -15,7 +15,7 @@ Voraussetzungen: Home Assistant OS. Siehe [docs/landing/voraussetzungen.md](./do
 
 1. In Home Assistant: **Einstellungen → Add-ons → Add-on-Store**.
 2. Oben rechts **⋮ → Repositories**.
-3. URL eintragen: `https://github.com/alkly/solalex`
+3. URL eintragen: `https://github.com/thealkly/SolalexBeta`
 4. Nach dem Refresh erscheint Solalex in der Liste. **Installieren**.
 5. Nach dem Start öffnet sich der Wizard im HA-Ingress-Frame.
 
@@ -41,6 +41,46 @@ Das Repository ist ein pragmatisches Zwei-Projekt-Setup ohne Workspace-Root:
 Siehe `CLAUDE.md` für projekt-spezifische Regeln und die harten Nicht-Verwendungen
 (kein SQLAlchemy, kein structlog, kein Redis, kein APScheduler, kein WebSocket im
 Frontend in v1).
+
+## Manuelles Release (erster Test)
+
+Wenn Du für einen ersten Test ein Release-Paket lokal bauen und selbst in ein
+öffentliches GitHub-Repository hochladen willst:
+
+1. Archiv bauen:
+   - `scripts/create_manual_release.sh 0.1.0`
+2. Ergebnis prüfen:
+   - `dist/releases/solalex-v0.1.0.tar.gz`
+   - `dist/releases/sha256sums.txt`
+3. Im Ziel-Repository auf GitHub eine neue Release anlegen (z. B. Tag `v0.1.0`)
+   und beide Dateien als Assets hochladen.
+
+Hinweis: Das Skript packt den aktuellen Repo-Stand, aber ohne `.git`,
+`frontend/node_modules`, `backend/.venv`, `dist/releases`, `__pycache__` und
+`.DS_Store`.
+
+### Manuell nach `SolalexBeta`-Branch publizieren
+
+Wenn ein neues Release zuerst bewusst per Hand in das öffentliche Beta-Repo
+gepusht werden soll:
+
+1. Sicherstellen, dass der Arbeitsbaum sauber ist:
+   - `git status`
+2. Release-Tag lokal anlegen (falls noch nicht vorhanden):
+   - `git tag v0.1.0`
+3. Publish-Skript ausführen:
+   - `scripts/publish_release_to_solalexbeta.sh 0.1.0 main`
+
+Das Skript:
+- baut zuerst das manuelle Release-Archiv (`create_manual_release.sh`)
+- pusht danach `HEAD` in den Ziel-Branch im Repo `thealkly/SolalexBeta`
+- pusht abschließend den Tag `v<version>` in dasselbe Repo
+
+Wichtig fuer Home Assistant Pulls:
+- Das Add-on nutzt GHCR-Images `ghcr.io/thealkly/solalexbeta-{arch}`.
+- Stelle in GitHub sicher, dass die Packages `solalexbeta-amd64` und
+  `solalexbeta-aarch64` auf **Public** stehen, sonst liefert GHCR beim
+  anonymen Token-Request `401 Unauthorized`.
 
 ## Lizenz
 

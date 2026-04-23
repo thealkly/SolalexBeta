@@ -116,7 +116,7 @@ body {
     justify-content: center;
     gap: var(--space-4);
     padding: clamp(20px, 4vw, 40px);
-    background: radial-gradient(circle at 50% 0%, rgb(0 214 180 / 12%), transparent 36%), var(--color-bg);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-brand-teal) 12%, transparent), transparent 36%), var(--color-bg);
     color: var(--color-text);
   }
 
@@ -166,7 +166,7 @@ body {
     justify-content: center;
     height: 44px;
     border-radius: 999px;
-    padding: 0 24px;
+    padding: 0 var(--space-3);
     background: linear-gradient(
       135deg,
       color-mix(in srgb, var(--color-accent-primary) 92%, white 8%),
@@ -175,18 +175,18 @@ body {
     color: var(--color-button-text);
     font-weight: 700;
     text-decoration: none;
-    box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent-primary) 48%, transparent);
+    box-shadow: var(--shadow-2);
     transition: transform 120ms ease, box-shadow 120ms ease;
   }
 
   .setup-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 0 28px color-mix(in srgb, var(--color-accent-primary) 62%, transparent);
+    box-shadow: var(--shadow-2);
   }
 
   .meta {
     display: inline-flex;
-    gap: 8px;
+    gap: var(--space-1);
     align-items: center;
     font-size: 0.9rem;
   }
@@ -230,13 +230,10 @@ body {
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    background: color-mix(in srgb, var(--color-accent-primary) 36%, var(--color-surface) 64%);
-    color: var(--color-text);
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    flex-shrink: 0;
   }
 
   .footer-links {

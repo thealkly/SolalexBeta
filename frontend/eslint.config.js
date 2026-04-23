@@ -31,6 +31,8 @@ export default [
         clearInterval: 'readonly',
         MutationObserver: 'readonly',
         Response: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
     rules: {

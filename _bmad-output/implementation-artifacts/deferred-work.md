@@ -72,3 +72,19 @@ Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story
 - `font-display: swap` ohne `size-adjust`/`ascent-override`-Fallback (`frontend/src/app.css:169-174`) — FOUT-Layout-Shift-Optimierung post-MVP; nur relevant falls Layout-Shift-Metrics in HA-Ingress kritisch werden.
 - Deep-Link `#/wizard` zeigt Empty-State statt Wizard-Route (`frontend/src/App.svelte:39-41`) — Wizard kommt in Epic 2; `svelte-spa-router` ist dep-seitig vorhanden, aber ungenutzt. Wird mit Epic-2-Wizard-Shell gewired.
 - `document.body` theoretisch null bei `observer.observe` (`frontend/src/App.svelte:91-92`) — in HA-Ingress-Kontext nicht reproduzierbar (`onMount` läuft post-paint), SSR nicht genutzt; Defensive-Check wäre Zero-Cost-Hardening falls jemals SSR/JSDOM-Test-Context hinzukommt.
+
+## Deferred from: code review of 1-6-ha-ingress-frame-mit-light-look-und-empty-state (2026-04-23)
+
+- `pingAttempts`-Counter in `App.svelte` wird nach 3 Fehlversuchen nie zurueckgesetzt — Backend das spaet hochfaehrt zeigt nach Retry-Exhaustion dauerhaft "Fehler" bis zum naechsten Page-Reload. Kein Blocker fuer v1-Beta (HA Add-on startet synchron); Low-Prio-Fix oder silent Retry-Reset per Route-Change.
+- `syncRoute` erlaubt `/wizard` als Route aber kein View vorhanden — pre-existing in Story-1.6-Code; VALID_ROUTES-Erweiterung und Conditional-Rendering wurde in nachfolgenden Epic-2-Commits nachgezogen. Kein Handlungsbedarf.
+- Commission-Gate-Race-Conditions in `App.svelte` (async IIFE in `onMount`) — eingebracht durch Epic-2-Commits nach Story 1.6; mehrere Racing-Szenarien (hashchange vs. Gate-Resolve, `currentRoute`-Staleness, timed deep-link override). Edge-Case-Hunter-Details in Story 2.x; nachholen falls Routing-Bugs in Manual-QA aufschlagen.
+- `BASE_URL` relative-URL-Verhalten bei HA Ingress ohne trailing slash — `import.meta.env.BASE_URL` nach `replace(/\/$/, '')` = `'.'`; `fetch('./api/health')` loest korrekt auf solange HA Ingress trailing slash liefert (Standard). Kein akuter Bug; Robustheit-Check wenn HA-Ingress-Pfade kuenftig ohne trailing slash kommen.
+- `color-mix()` ohne Fallback fuer aeltere Browser — HA-Frontend-Target ist modernes Chromium (Supervisor-intern); kein praktisches Problem in v1. Re-evaluieren wenn Support-Matrix erweitert wird.
+
+## Deferred from: code review of 1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline (2026-04-23, Zweiter Review-Zyklus)
+
+- `color-mix()` ohne `@supports`-Fallback (`frontend/src/app.css:127-128, 172-174, 238, 263`) — Redundant zum Story-1.6-Eintrag oben; bleibt Story-1.6-Scope. Fix erst, wenn HA-Companion-Webview-Kompatibilität ein reales Problem wird.
+- `.setup-button`-Kontrast auf Gradient-Ende unter WCAG-AA (`frontend/src/app.css:163-180`) — Story-1.6-Scope; Button ist Teal-Gradient mit `--color-button-text: #00120f`. Kontrast-Messung im Browser noch ausstehend. Nicht-blockierend (Button ist CTA, nicht Fließtext).
+- `ensureDefaultRoute()` → `hashchange`-Race (`frontend/src/App.svelte:28-32`) — `location.hash = '#/'` feuert vor Listener-Registrierung. In HA-Ingress-Praxis nicht reproduzierbar.
+- In-iframe-Navigation via `<a href="#/...">` / `target="_blank"` unter HA-Ingress (`frontend/src/App.svelte:114, 129-131`) — Anchor-vs-Button-Refactor ist größerer Touch, gehört in Epic 2 Routing-Hardening.
+- Working-Tree-App.svelte enthält Epic-2-Routing (uncommitted M) — Commission-Gate + 4 Route-Komponenten. Gehört in nächsten Epic-2-Review-Zyklus, sobald committed.

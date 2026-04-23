@@ -1,6 +1,6 @@
 # Story 1.6: HA-Ingress-Frame mit statischem Light-Look und Empty-State
 
-Status: review
+Status: done
 
 *(Amendment 2026-04-23: Umbenennung von „Dark/Light-Adaption" → „statischer Light-Look". Dark-Mode-Code aus App.svelte + app.css entfernt. Siehe Sprint-Change-Proposal 2026-04-23-dark-mode-drop.md)*
 
@@ -43,6 +43,20 @@ so that ich sofort weiss: Solalex ist da und wartet auf mich.
   - [x] Frontend Build/Lint/Test: `cd frontend && npm run build` sowie bestehende Frontend-Checks (mind. `vitest` falls vorhanden).
   - [x] Backend Smoke: `cd backend && pytest -q` (Ingress-Auslieferung darf nicht regressieren).
   - [ ] Manual QA in HA: Sidebar-Klick -> Empty-State < 2 s sichtbar, Light-Look konsistent.
+
+### Review Findings
+
+- [x] [Review][Decision] `svelte-spa-router` in package.json aber nicht importiert — RESOLVED: Dep aus package.json entfernt; hand-rolled Hash-Routing bleibt (KISS)
+- [x] [Review][Decision] Avatar als Initialen-Badge "AK" statt echtem Profilbild — RESOLVED: `Alex Kly_logo_klein_v01.png` als `static/avatar-alex.png` eingebunden; `<img>` mit `object-fit: cover; object-position: top center` [`App.svelte`]
+- [x] [Review][Patch] `font-weight: 700` mapped auf `DMSans-SemiBold.woff2` — bereits in Post-1.6-Commits auf `DMSans-Bold.woff2` korrigiert; kein weiterer Handlungsbedarf
+- [x] [Review][Patch] Footer fehlen GitHub- und Privacy-Link (AC3) — FIXED: Discord/GitHub/Datenschutz-Links eingebaut [`App.svelte` footer-links]
+- [x] [Review][Patch] Rohes `rgb(0 214 180 / 12%)` in `.app-shell`-Gradient statt CSS-Token — FIXED: durch `color-mix(in srgb, var(--color-brand-teal) 12%, transparent)` ersetzt [`app.css:119`]
+- [x] [Review][Defer] `pingAttempts`-Counter wird nach 3 Fehlversuchen nie zurueckgesetzt — Backend das spaet hochfaehrt zeigt dauerhaft "Fehler" bis Reload; deferred, kein Blocker fuer v1-Beta [`App.svelte` onMount/setInterval]
+- [x] [Review][Patch] Spacing-Rohwerte umgehen `--space-*`-Tokens — FIXED: `.meta gap: 8px → var(--space-1)`, `.setup-button padding: 0 24px → 0 var(--space-3)` [`app.css`]
+- [x] [Review][Defer] `syncRoute` erlaubt `/wizard` aber kein entsprechender View vorhanden — deferred, in nachfolgenden Stories (2.x) durch VALID_ROUTES-Erweiterung behoben [`App.svelte` syncRoute]
+- [x] [Review][Defer] Commission-Gate-Race-Conditions in `App.svelte` — deferred, post-Story-1.6-Code aus Epic-2-Commits; ausserhalb diesem Story-Scope [`App.svelte` onMount async IIFE]
+- [x] [Review][Defer] `BASE_URL` relative-URL-Verhalten bei HA Ingress ohne trailing slash — deferred, pre-existing; bisher in Praxis unproblematisch
+- [x] [Review][Defer] `color-mix()` ohne Fallback fuer aeltere Browser — deferred, pre-existing; HA-Frontend-Ziel ist modernes Chromium
 
 ## Dev Notes
 
