@@ -107,9 +107,11 @@ class HaWebSocketClient:
             raise RuntimeError("client not connected")
         msg_id = self._next_id
         self._next_id += 1
-        self._subscriptions.append(payload)
         message = {"id": msg_id, **payload}
+        # Only persist after the send succeeds — a failed send shouldn't
+        # leave a phantom subscription that gets replayed on reconnect.
         await self._ws.send(json.dumps(message))
+        self._subscriptions.append(payload)
         return msg_id
 
     async def call_service(

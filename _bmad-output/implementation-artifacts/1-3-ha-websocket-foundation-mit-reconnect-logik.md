@@ -1,6 +1,6 @@
 # Story 1.3: HA WebSocket Foundation mit Reconnect-Logik
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -105,6 +105,21 @@ so that alle späteren Epics sich auf einen verlässlichen Kommunikationskanal z
   - [x] `uv run ruff check backend/src/solalex/ha_client/` → clean
   - [x] `uv run mypy --strict backend/src/solalex/ha_client/` → clean
   - [x] Manuelle Verifikation per `curl http://<ingress>/api/health`: Response-Shape matcht AC 6
+
+### Review Findings
+
+Code-Review 2026-04-23 (Blind Hunter + Edge Case Hunter + Acceptance Auditor).
+
+- [x] [Review][Patch] [CRITICAL] Generische `Exception` entkommt `run_forever` und tötet den Supervisor-Task permanent [backend/src/solalex/ha_client/reconnect.py:79-147] — `run_forever` fängt nur `AuthError`, `ConnectionClosed`, `InvalidHandshake`, `InvalidURI`, `OSError`, `CancelledError`, `KeyboardInterrupt`, `WebSocketException`. Ein `on_event`-Callback der einen beliebigen anderen Typ wirft, ein `RuntimeError` aus `connect()` (Zeilen 78/87 bei unerwarteten Protokoll-Messages) oder ein `json.JSONDecodeError` innerhalb `connect()` (Zeilen 76/81, anders als `listen()` NICHT umschlossen) beendet die Task ohne Reconnect. Epic 3 wird einen echten Controller in `on_event` einhängen — Problem wird dann garantiert aktiv. Fix: nach den spezifischen Handlern ein `except Exception as exc` ergänzen, per `log.exception("ha_ws_unexpected_error", extra={...})` strukturiert loggen, `_reconnect_attempt` erhöhen, Backoff + Rebuild wie im WebSocketException-Pfad.
+- [x] [Review][Patch] `subscribe()` persistiert den Payload vor erfolgreichem Send [backend/src/solalex/ha_client/client.py:108-113] — `_subscriptions.append(payload)` läuft vor `await self._ws.send(...)`. Wirft `send` (z. B. weil der Socket gerade fiel), bleibt die Subscription persistent und wird beim Reconnect re-gesendet — obwohl der Aufrufer die Exception bekommen hat und die Subscription eventuell verwerfen will. `_next_id` wird zusätzlich unnötig inkrementiert. Fix: `_subscriptions.append(payload)` nach dem erfolgreichen `ws.send(...)` platzieren.
+- [x] [Review][Patch] Teilweise fehlgeschlagenes Replay verliert Subscriptions dauerhaft [backend/src/solalex/ha_client/reconnect.py:149-162] — `_replay_subscriptions()` leert `_subscriptions` upfront und iteriert dann `previous`. Wirft `subscribe()` mitten im Loop (z. B. Socket-Drop nach 2 von 5 resubscribes), enthält `self._client.subscriptions` nur die bereits wieder hinzugefügten. Das `finally` in `run_forever` snapshottet diesen Teilzustand — die ungelaufenen Payloads aus `previous` sind verloren. Fix: In `_replay_subscriptions` `_subscriptions` nicht vorher leeren; stattdessen am Ende auf den neuen Stand setzen. Alternativ: Exceptions im Loop abfangen und den noch nicht probierten Rest an `_subscriptions` zurückhängen, bevor propagiert wird.
+- [x] [Review][Defer] `_reconnect_attempt`-Counter wird im AuthError-Pfad nie erhöht [backend/src/solalex/ha_client/reconnect.py:98-109] — deferred, Diagnose-Accuracy für Story 4.2, nicht reconnect-kritisch.
+- [x] [Review][Defer] `/api/health` kann AttributeError werfen bevor Lifespan-Startup gelaufen ist [backend/src/solalex/api/routes/health.py:25-27] — deferred, ASGI-Pfade die Lifespan überspringen sind im HA-Add-on-Runtime nicht erreichbar.
+- [x] [Review][Defer] Health-Endpoint meldet `ha_ws_connected=true` wenn Supervisor-Task still gestorben ist [backend/src/solalex/api/routes/health.py] — deferred, nach Patch #1 weitgehend moot; optional Belt-and-Suspenders via `task.done()/exception()` später.
+- [x] [Review][Defer] Kein Integrationstest für `call_service`-Round-Trip [backend/tests/integration/test_ha_client_reconnect.py] — deferred, AC5 fordert ihn nicht explizit; Mock-Server-Handler ist da, Test fehlt — Test-Coverage-Nachzug vor Epic 3.
+- [x] [Review][Defer] Client-Swap beim Reconnect exponiert veraltete Referenzen an externe Caller [backend/src/solalex/ha_client/reconnect.py:69-72] — deferred, braucht Epic-3-API-Design-Entscheidung (alles durch Wrapper routen vs. Lock um `client`-Zugriff).
+
+**Dismissed (22):** `ConnectionClosed(None, None)`-API-Mismatch (verified gegen `websockets` 16.0 — funktioniert), `_pending_results` angeblich nicht gefailt nach `listen()`-Return (wird via `finally → close()` gesetzt), pop-while-iterate-Race in `close()` (asyncio ist single-threaded — keine Race), `subscribe()` wartet nicht auf Ack (Design-Entscheidung), Replay „fragile contract" (funktioniert heute, Spekulation), `ha_ws_connected`-Position (bewusst im Wrapper), Flip-Timing Mikrosekundenfenster, `msg_id == 1`-Test-Brittleness, `test_auth_invalid` empty-list-Klausel (durch `_wait_for` geschützt), `json.loads`-bytes-vs-str-Log, Message-ID-Wraparound, `close()`-während-`connect()`-Race, `_sleep_if_running`-Pre-Sleep-Check, Lifespan-Cancellation-Ordering, `_next_id`-Reset-Redundanz, `_pending_results.clear()` ohne Exception-Set in `connect()`, ConnectionClosed-Silent-vs-Clean-Distinction, Replay-Log-Timing, Mock `trigger_disconnect`-Double-Call, `test_main.py`-vs-`test_health.py`-Namen-Drift, `_subscriptions`-Private-Access-via-`noqa`, `HaWebSocketClient.close()` OSError, `app.state.ha_client.close()` Double-Call, `started_at`-Startup-Timing.
 
 ## Dev Notes
 

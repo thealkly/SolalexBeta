@@ -6,13 +6,13 @@ required_above: ["install_cta", "download_cta", "waitlist_cta"]
 
 ## Voraussetzungen
 
-> **Benötigt Home Assistant OS oder Supervised.**
+> **Benötigt Home Assistant OS.**
 
-| HA-Installationstyp       | Status                                         |
-| ------------------------- | ---------------------------------------------- |
-| Home Assistant OS         | ✅ supported                                    |
-| Home Assistant Supervised | ✅ supported                                    |
-| Home Assistant Container  | ⚠️ nicht supported, best-effort ohne Support |
-| Home Assistant Core       | ⚠️ nicht supported, best-effort ohne Support |
+| HA-Installationstyp       | Status              |
+| ------------------------- | ------------------- |
+| Home Assistant OS         | ✅ unterstützt       |
+| Home Assistant Supervised | ❌ nicht unterstützt |
+| Home Assistant Container  | ❌ nicht unterstützt |
+| Home Assistant Core       | ❌ nicht unterstützt |
 
 Du weißt nicht, welche Variante du hast? Öffne in HA: **Einstellungen → System → Info**.

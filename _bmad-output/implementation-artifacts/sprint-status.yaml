@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-23 (Story 1.3 ready-for-dev → review)
+# last_updated: 2026-04-23 (Story 1.3 review → done; 3 review-patches applied)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -47,7 +47,7 @@ development_status:
   epic-1: in-progress
   1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: done
   1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: review
-  1-3-ha-websocket-foundation-mit-reconnect-logik: review
+  1-3-ha-websocket-foundation-mit-reconnect-logik: done
   1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: backlog
   1-5-ha-sidebar-registrierung-mit-alkly-branding: backlog
   1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: backlog

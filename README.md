@@ -11,7 +11,7 @@ Cloud-Zwang — nur der monatliche Lizenz-Check verlässt Dein Netz.
 
 ## Installation via Home Assistant Add-on Store
 
-Voraussetzungen: Home Assistant OS oder Supervised. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).
+Voraussetzungen: Home Assistant OS. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).
 
 1. In Home Assistant: **Einstellungen → Add-ons → Add-on-Store**.
 2. Oben rechts **⋮ → Repositories**.

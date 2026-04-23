@@ -39,3 +39,11 @@ Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story
 - `homeassistant:`-Pin wirkt nicht für HA Container/Core — DOCS-Formulierung könnte das präzisieren (Install-Warning-Mechanik ist Supervisor-only); low-prio, da Container/Core ohnehin keinen Add-on-Store-Flow hat.
 - „Getestet bis 2026.4.3" in `addon/DOCS.md` wird mit jedem HA-Patch veralten — manuelle Bump-Disziplin notwendig. Spec-explicit als „zum Release-Zeitpunkt dokumentieren".
 - Kein CI-Gate für Versions-Range-Konsistenz (`homeassistant:`-Pin ≤ Minimum-Doku ≤ „getestet bis") — strukturelles Gate-Thema, Kandidat für v1.5.
+
+## Deferred from: code review of story-1-3-ha-websocket-foundation-mit-reconnect-logik (2026-04-23)
+
+- `_reconnect_attempt`-Counter wird im AuthError-Pfad nie erhöht (`reconnect.py:98-109`) — Diagnose-Accuracy für Story 4.2 (Fehler-Historie); Reconnect-Korrektheit unbeeinträchtigt.
+- `/api/health` kann AttributeError werfen wenn Request vor Lifespan-Startup ankommt (`health.py:25-27`) — im HA-Add-on-Runtime unter uvicorn nicht erreichbar; defensive `getattr(..., default)` wäre Zero-Cost-Hardening.
+- Stale `ha_ws_connected=true` wenn der Supervisor-Task silent stirbt (`health.py`, `main.py`) — nach Patch #1 (generic `except Exception` in `run_forever`) größtenteils moot; optionaler Belt-and-Suspenders-Check via `task.done() and task.exception()` für Regression-Schutz.
+- Kein Integrationstest für `call_service`-Round-Trip (`tests/integration/test_ha_client_reconnect.py`) — AC5 fordert ihn nicht, aber Mock-Server-Handler existiert und Epic 3 wird `call_service` für Writes nutzen; Test-Coverage-Nachzug vor Epic 3 sinnvoll.
+- Client-Swap beim Reconnect exponiert veraltete Referenzen an externe Caller (`reconnect.py:69-72`) — `ReconnectingHaClient.client` gibt die aktuelle Instanz bei Access-Zeit zurück; Epic-3-Controller wird diese Referenz cachen und bei Reconnect auf einen toten Socket schreiben. Braucht Epic-3-API-Design-Entscheidung (alles durch Wrapper routen vs. Lock um `client`-Zugriff).

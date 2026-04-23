@@ -137,6 +137,25 @@ class ReconnectingHaClient:
                 )
                 await self._sleep_if_running(delay)
                 self._reconnect_attempt += 1
+            except Exception as exc:
+                # Anything else: a buggy ``on_event`` handler, a RuntimeError
+                # from ``connect()`` on a malformed protocol reply, a JSON
+                # decode error during the handshake, or a mid-replay failure.
+                # The supervisor must survive — Epic 3 wires downstream logic
+                # into ``on_event`` where any of those can surface.
+                self._connected = False
+                delay = self._backoff_delay(self._reconnect_attempt)
+                log.exception(
+                    "ha_ws_unexpected_error",
+                    extra={
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                        "reconnect_attempt": self._reconnect_attempt,
+                        "next_backoff_s": delay,
+                    },
+                )
+                await self._sleep_if_running(delay)
+                self._reconnect_attempt += 1
             finally:
                 await self._client.close()
                 if not self._stop_requested:
@@ -154,8 +173,16 @@ class ReconnectingHaClient:
         # Reset the internal list — re-adding via ``subscribe`` repopulates it
         # cleanly and assigns fresh IDs for this session.
         self._client._subscriptions = []  # noqa: SLF001
-        for payload in previous:
-            await self._client.subscribe(payload)
+        for index, payload in enumerate(previous):
+            try:
+                await self._client.subscribe(payload)
+            except Exception:
+                # Partial failure: restore the untried tail (including the one
+                # that just failed) so the next reconnect picks them up.
+                # Without this, ``run_forever``'s ``finally`` snapshots only
+                # the successfully-replayed subset and the rest are lost.
+                self._client._subscriptions.extend(previous[index:])  # noqa: SLF001
+                raise
         log.info(
             "ha_ws_resubscribed",
             extra={"subscription_count": len(previous)},
