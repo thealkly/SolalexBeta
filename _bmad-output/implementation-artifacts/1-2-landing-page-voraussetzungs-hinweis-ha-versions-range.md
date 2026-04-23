@@ -1,6 +1,6 @@
 # Story 1.2: Landing-Page-Voraussetzungs-Hinweis + HA-Versions-Range
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,23 +18,23 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: `addon/config.yaml` um `homeassistant:`-Feld erweitern** (AC: 3)
-  - [ ] Voraussetzung: Story 1.1 hat `addon/config.yaml` bereits mit Grundfeldern (name, version, slug, arch, ingress, ingress_port, panel_title, hassio_api, …) angelegt. **Nur erweitern, nicht neu schaffen.**
-  - [ ] Feld `homeassistant: "2026.4.0"` (Minimum-Pin) einfügen. Begründung: aktuelle stable HA Core ist 2026.4.3 (Stand April 2026). Minimum auf Patch-Release-Start des aktuellen Minor pinnen, um Lag-Toleranz für Beta-Tester zu gewähren.
-  - [ ] Kommentar im YAML: `# Minimum HA Core version — inkompatible Versionen erhalten Install-Warning im Add-on-Store.`
-  - [ ] **snake_case-Disziplin** (CLAUDE.md Regel 1): Key ist `homeassistant` (HA-Supervisor-Spec, lowercase — passt zu snake_case). Kein PascalCase, kein camelCase.
-  - [ ] **Kein `homeassistant_api`-Setzen in dieser Story** — das wurde in Story 1.1 entschieden. Nicht umschalten.
-  - [ ] Manuelle Verifikation: `yq '.homeassistant' addon/config.yaml` liefert die Versions-String.
-- [ ] **Task 2: Install-Warning-Smoke-Test dokumentieren** (AC: 3)
-  - [ ] **Kein CI-Gate** — HA-Supervisor validiert das Feld beim Install. Reproduktion nur manuell via HA-Test-Instanz möglich.
-  - [ ] In `addon/DOCS.md` einen Abschnitt **„Unterstützte HA-Versionen"** ergänzen:
+- [x] **Task 1: `addon/config.yaml` um `homeassistant:`-Feld erweitern** (AC: 3)
+  - [x] Voraussetzung: Story 1.1 hat `addon/config.yaml` bereits mit Grundfeldern (name, version, slug, arch, ingress, ingress_port, panel_title, hassio_api, …) angelegt. **Nur erweitern, nicht neu schaffen.**
+  - [x] Feld `homeassistant: "2026.4.0"` (Minimum-Pin) einfügen. Begründung: aktuelle stable HA Core ist 2026.4.3 (Stand April 2026). Minimum auf Patch-Release-Start des aktuellen Minor pinnen, um Lag-Toleranz für Beta-Tester zu gewähren.
+  - [x] Kommentar im YAML: `# Minimum HA Core version — inkompatible Versionen erhalten Install-Warning im Add-on-Store.`
+  - [x] **snake_case-Disziplin** (CLAUDE.md Regel 1): Key ist `homeassistant` (HA-Supervisor-Spec, lowercase — passt zu snake_case). Kein PascalCase, kein camelCase.
+  - [x] **Kein `homeassistant_api`-Setzen in dieser Story** — das wurde in Story 1.1 entschieden. Nicht umschalten.
+  - [x] Manuelle Verifikation: `yq '.homeassistant' addon/config.yaml` liefert die Versions-String.
+- [x] **Task 2: Install-Warning-Smoke-Test dokumentieren** (AC: 3)
+  - [x] **Kein CI-Gate** — HA-Supervisor validiert das Feld beim Install. Reproduktion nur manuell via HA-Test-Instanz möglich.
+  - [x] In `addon/DOCS.md` einen Abschnitt **„Unterstützte HA-Versionen"** ergänzen:
     - Minimum: 2026.4.0
     - Getestet bis: aktuelle stable (zum Release-Zeitpunkt dokumentieren)
     - Supported Installation-Types: **HA OS, HA Supervised**. HA Container und HA Core werden als **nicht supported, best-effort ohne Support** gekennzeichnet.
-  - [ ] In `addon/CHANGELOG.md` Eintrag für die Version hinzufügen: `- Minimum HA Core: 2026.4.0 deklariert.`
-- [ ] **Task 3: Landing-Page-Content für alkly.de erstellen** (AC: 1, 2)
-  - [ ] **Scope-Hinweis für Dev-Agent:** Die Landing-Page lebt **außerhalb dieses Repos** (alkly.de-Marketing-Site). In diesem Repo wird nur der **Content-Baustein als Markdown-Snippet** unter `docs/landing/voraussetzungen.md` abgelegt — damit die Copy-Quelle versioniert ist und per `git mv` beim „Solalex"-Rename mitwandert.
-  - [ ] Datei `docs/landing/voraussetzungen.md` neu anlegen mit folgender Struktur (Frontmatter + Markdown-Body):
+  - [x] In `addon/CHANGELOG.md` Eintrag für die Version hinzufügen: `- Minimum HA Core: 2026.4.0 deklariert.`
+- [x] **Task 3: Landing-Page-Content für alkly.de erstellen** (AC: 1, 2)
+  - [x] **Scope-Hinweis für Dev-Agent:** Die Landing-Page lebt **außerhalb dieses Repos** (alkly.de-Marketing-Site). In diesem Repo wird nur der **Content-Baustein als Markdown-Snippet** unter `docs/landing/voraussetzungen.md` abgelegt — damit die Copy-Quelle versioniert ist und per `git mv` beim „Solalex"-Rename mitwandert.
+  - [x] Datei `docs/landing/voraussetzungen.md` neu anlegen mit folgender Struktur (Frontmatter + Markdown-Body):
     ```markdown
     ---
     slug: voraussetzungen
@@ -55,18 +55,33 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
     Du weißt nicht, welche Variante du hast? Öffne in HA: **Einstellungen → System → Info**.
     ```
-  - [ ] **Formulierungen wörtlich aus Epics/FR2 übernehmen** — kein Umformulieren in Marketing-Sprech. Keine emotionalen Adjektive, keine „easy/einfach"-Claims (CLAUDE.md Stil-Leitplanken).
-  - [ ] **Glossar-Disziplin** (CLAUDE.md): Der Begriff ist **„Home Assistant OS"** (korrekt ausgeschrieben bei Erstnennung), danach „HA OS" okay. Nie „HAOS".
-  - [ ] Alex überträgt den Content manuell auf alkly.de (Marketing-Site-Deployment ist außerhalb dieser Story). Commit in diesem Repo genügt als Abnahme-Beleg.
-- [ ] **Task 4: Referenz-Link zwischen Landing-Page und Add-on-Repo** (AC: 1, 2)
-  - [ ] In `README.md` (Root) unter „Installation" eine Zeile ergänzen, die auf die Voraussetzungen verweist: `Voraussetzungen: Home Assistant OS oder Supervised. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).`
-  - [ ] Keine Inhalts-Duplikation — nur Verweis, damit Single-Source-of-Truth das `voraussetzungen.md`-File bleibt.
-- [ ] **Task 5: Smoke-Tests & Final Verification** (AC: 1, 2, 3)
-  - [ ] `addon/config.yaml` ist valides YAML (`yq . addon/config.yaml` wirft keinen Fehler).
-  - [ ] `homeassistant:`-Feld hat einen Versions-String, der semver-kompatibel zum HA-Supervisor-Pattern ist (`YYYY.M.P`, z. B. `2026.4.0`).
-  - [ ] `docs/landing/voraussetzungen.md` existiert, enthält die drei Pflicht-Elemente: „Benötigt HA OS oder Supervised"-Kernzeile, Tabelle mit 4 Install-Typ-Zeilen, Hinweis auf Einstellungen → System → Info.
-  - [ ] `addon/DOCS.md` hat Abschnitt „Unterstützte HA-Versionen".
-  - [ ] `README.md` verweist auf `docs/landing/voraussetzungen.md`.
+  - [x] **Formulierungen wörtlich aus Epics/FR2 übernehmen** — kein Umformulieren in Marketing-Sprech. Keine emotionalen Adjektive, keine „easy/einfach"-Claims (CLAUDE.md Stil-Leitplanken).
+  - [x] **Glossar-Disziplin** (CLAUDE.md): Der Begriff ist **„Home Assistant OS"** (korrekt ausgeschrieben bei Erstnennung), danach „HA OS" okay. Nie „HAOS".
+  - [x] Alex überträgt den Content manuell auf alkly.de (Marketing-Site-Deployment ist außerhalb dieser Story). Commit in diesem Repo genügt als Abnahme-Beleg.
+- [x] **Task 4: Referenz-Link zwischen Landing-Page und Add-on-Repo** (AC: 1, 2)
+  - [x] In `README.md` (Root) unter „Installation" eine Zeile ergänzen, die auf die Voraussetzungen verweist: `Voraussetzungen: Home Assistant OS oder Supervised. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).`
+  - [x] Keine Inhalts-Duplikation — nur Verweis, damit Single-Source-of-Truth das `voraussetzungen.md`-File bleibt.
+- [x] **Task 5: Smoke-Tests & Final Verification** (AC: 1, 2, 3)
+  - [x] `addon/config.yaml` ist valides YAML (`yq . addon/config.yaml` wirft keinen Fehler).
+  - [x] `homeassistant:`-Feld hat einen Versions-String, der semver-kompatibel zum HA-Supervisor-Pattern ist (`YYYY.M.P`, z. B. `2026.4.0`).
+  - [x] `docs/landing/voraussetzungen.md` existiert, enthält die drei Pflicht-Elemente: „Benötigt HA OS oder Supervised"-Kernzeile, Tabelle mit 4 Install-Typ-Zeilen, Hinweis auf Einstellungen → System → Info.
+  - [x] `addon/DOCS.md` hat Abschnitt „Unterstützte HA-Versionen".
+  - [x] `README.md` verweist auf `docs/landing/voraussetzungen.md`.
+
+### Review Findings
+
+_Code-Review vom 2026-04-23 (3 parallele Layer: Blind Hunter, Edge Case Hunter, Acceptance Auditor). Acceptance-Auditor bestätigt AC 1/2/3 inhaltlich erfüllt._
+
+- [ ] [Review][Patch] **Story-1-1-Patches separat vor Story-1-2 committen** — `panel_title: Solalex → Solalex by ALKLY` und neue `schema: {}` / `options: {}` in `addon/config.yaml` sind laut Story-1-1-Completion-Log Review-Patches aus 1-1. Saubere Git-Historie herstellen: die drei Zeilen aus dem 1-2-Arbeitsbaum isoliert committen (Referenz auf 1-1), bevor die Story-1-2-Dateien committed werden. [addon/config.yaml:1,17,28-29]
+- [ ] [Review][Decision] **„Install-Warning" vs. realer Supervisor-Block** — DOCS.md behauptet „niedrigere Versionen erhalten eine Install-Warning im Add-on-Store". Der Supervisor zeigt bei `homeassistant:`-Pin-Mismatch realistisch einen Inkompatibilitäts-Status und blockiert den Install-Button — nicht eine weiche Warning. Entscheidung: (a) präzisieren, (b) Spec-Sprache behalten, (c) in Beta verifizieren und nachziehen. [addon/DOCS.md:22-24]
+- [ ] [Review][Decision] **Doppelte Kompatibilitäts-Matrix in DOCS.md und voraussetzungen.md** — Dieselbe Matrix in zwei Files pflegt Doku-Drift vor. Zusätzliche Inkonsistenz: alter `## Voraussetzungen`-Block (Z. 14-19: „Container-only ist nicht supported") widerspricht neuem `## Unterstützte HA-Versionen`-Block (Z. 27-28: „Container und Core … best-effort ohne Support"). Entscheidung: (a) DOCS.md nur auf `voraussetzungen.md` verweisen (Single-Source), (b) Duplikation akzeptieren + Bump-Disziplin dokumentieren, (c) alten `## Voraussetzungen`-Block ganz entfernen/mergen. [addon/DOCS.md:14-19,21-31]
+- [ ] [Review][Patch] `## Voraussetzungen`-Block in DOCS.md an neue „best-effort ohne Support"-Formulierung harmonisieren [addon/DOCS.md:14-19]
+- [ ] [Review][Patch] CHANGELOG-Eintrag um Landing-Page- und DOCS-Ergänzung erweitern (aktuell nur „Minimum HA Core: 2026.4.0 deklariert.") [addon/CHANGELOG.md:12]
+- [x] [Review][Defer] `homeassistant:`-Pin wirkt nicht für HA Container/Core — DOCS-Formulierung präzisieren low-prio [addon/DOCS.md:22-28] — deferred, Container/Core hat keinen Add-on-Store-Flow
+- [x] [Review][Defer] „Getestet bis 2026.4.3" wird mit jedem HA-Patch veralten — manuelle Bump-Disziplin notwendig [addon/DOCS.md:25] — deferred, spec-explicit als „zum Release-Zeitpunkt dokumentieren"
+- [x] [Review][Defer] Kein CI-Gate für Versions-Range-Konsistenz (`homeassistant:` ≤ Minimum ≤ „getestet bis") — deferred, strukturelles Gate-Thema für v1.5
+
+_Dismissed (12) als Noise/Spec-konform: Tabelle+Emojis in voraussetzungen.md (Spec-mandated), README-Link-Bruch (README ≠ DOCS-Kanal), Tabellen-Alignment-Delimiter ohne `:` (Spec-Muster), Frontmatter-Keys Dead-Metadata (Spec als „dokumentative Hints"), Glossar-Alias HAOS (Spec verbietet), „best-effort"-Mehrdeutigkeit (wörtlich aus FR2), Feld-Reihenfolge `homeassistant:` (Spec-konform), Trailing-Whitespace/EOF-Newline (pre-commit grün), Tabellen-Spalten-Kosmetik, Debug-Log „21 Top-Level-Keys" (1-1-Context), ⚠️-Emoji-Breite (GFM rendert sauber)._
 
 ## Dev Notes
 
@@ -263,12 +278,42 @@ Kein Backend-Code, kein Frontend-Code, kein CI-Gate. Dev-Agent bleibt fokussiert
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7 (1M context) — bmad-dev-story skill
 
 ### Debug Log References
+
+- `addon/config.yaml`: YAML-Parser-Validierung via `python3 -c "import yaml; yaml.safe_load(open('addon/config.yaml'))"` (uv run --with pyyaml) → OK, `homeassistant='2026.4.0'`, 21 Top-Level-Keys.
+- Semver-Pattern-Check: `re.fullmatch(r'\d{4}\.\d{1,2}\.\d+', "2026.4.0")` → Match.
+- Pflicht-Element-Check `docs/landing/voraussetzungen.md`: Kernzeile „Benötigt Home Assistant OS oder Supervised", 4 Install-Typ-Zeilen (HA OS, HA Supervised, HA Container, HA Core), Info-Hinweis „Einstellungen → System → Info" — alle vorhanden.
+- `addon/DOCS.md`: Abschnitt `## Unterstützte HA-Versionen` vorhanden.
+- `addon/CHANGELOG.md`: Eintrag `- Minimum HA Core: 2026.4.0 deklariert.` vorhanden.
+- `README.md`: Verweis-Zeile `docs/landing/voraussetzungen.md` vorhanden.
+- Pre-commit Hooks (`uvx pre-commit run --files …`): trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-merge-conflict, mixed-line-ending → alle Passed. Ruff/ruff-format/prettier → no files to check (Story enthält keine Python-/Svelte-Änderungen, wie erwartet).
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- **Task 1:** `addon/config.yaml` um `homeassistant: "2026.4.0"` ergänzt, mit YAML-Kommentar direkt darüber. Position: zwischen `version:` und `slug:` (Nähe zu Identitäts-Feldern, Supervisor ist reihenfolge-indifferent).
+- **Task 2:** Neuer Abschnitt „Unterstützte HA-Versionen" in `addon/DOCS.md` nach „Voraussetzungen" eingefügt (Minimum 2026.4.0, Getestet bis 2026.4.3, HA OS/Supervised supported, HA Container/Core als „nicht supported, best-effort ohne Support"). Bestehender „Voraussetzungen"-Abschnitt unverändert, um Scope minimal zu halten. Changelog-Eintrag in `addon/CHANGELOG.md` unter der bestehenden `0.1.0 — TBD`-Rubrik ergänzt.
+- **Task 3:** `docs/landing/voraussetzungen.md` 1:1 nach dem Copy-Paste-Muster der Story-Spec angelegt (Frontmatter + Markdown-Body). Kernzeile „Benötigt Home Assistant OS oder Supervised." wörtlich aus PRD FR2. Keine Marketing-Umformulierung, keine Tooltips/Modals, keine Tracking-Pixel. Glossar-Disziplin: „Home Assistant OS" voll ausgeschrieben.
+- **Task 4:** `README.md` um eine Verweis-Zeile unter der „Installation"-Überschrift ergänzt (direkt vor dem nummerierten Install-Flow). Keine Inhalts-Duplikation — nur Link auf `docs/landing/voraussetzungen.md` als Single-Source.
+- **Task 5:** Alle 5 Smoke-Tests (YAML-Validität, Semver-Pattern, Pflicht-Elemente in Markdown-Snippet, DOCS-Abschnitt, README-Verweis) automatisch via Python/pyyaml durchlaufen — alle grün. Pre-commit-Hooks ohne Beanstandung.
+- **Scope-Disziplin:** Keine Änderungen in `backend/` oder `frontend/`. Keine neuen Dependencies. Kein Rename von Slug/Image/Repo-Namen.
 
 ### File List
+
+- `addon/config.yaml` [MOD] — `homeassistant: "2026.4.0"` + Kommentar ergänzt
+- `addon/DOCS.md` [MOD] — Abschnitt „Unterstützte HA-Versionen" ergänzt
+- `addon/CHANGELOG.md` [MOD] — Eintrag „Minimum HA Core: 2026.4.0 deklariert." ergänzt
+- `docs/landing/voraussetzungen.md` [NEW] — Landing-Page-Copy-Quelle (Frontmatter + Markdown)
+- `README.md` [MOD] — Verweis-Zeile unter „Installation via Home Assistant Add-on Store"
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` [MOD] — Status-Tracking (ready-for-dev → in-progress → review)
+- `_bmad-output/implementation-artifacts/1-2-landing-page-voraussetzungs-hinweis-ha-versions-range.md` [MOD] — Tasks abgehakt, Dev Agent Record, File List, Change Log, Status
+
+## Change Log
+
+| Datum      | Version | Änderung                                                               | Autor |
+| ---------- | ------- | ---------------------------------------------------------------------- | ----- |
+| 2026-04-22 | 0.1.0   | Minimum HA Core 2026.4.0 via `addon/config.yaml` pinnt Install-Warning | Dev   |
+| 2026-04-22 | 0.1.0   | `docs/landing/voraussetzungen.md` als Landing-Page-Copy-Quelle         | Dev   |
+| 2026-04-22 | 0.1.0   | `addon/DOCS.md` + `README.md` um Voraussetzungs-Hinweise ergänzt       | Dev   |

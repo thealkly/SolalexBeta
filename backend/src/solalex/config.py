@@ -1,15 +1,17 @@
 """Runtime configuration loaded from environment variables.
 
-Values come from the HA add-on environment (set by the Supervisor from the
-add-on options schema) plus a handful of pure-env overrides useful for local
-dev and tests.
+All Solalex-owned settings use the `SOLALEX_` env-var prefix to avoid
+colliding with generic PaaS / shell conventions (e.g. `PORT`). The one
+exception is `supervisor_token`, which HA Supervisor injects under the
+hardcoded name `SUPERVISOR_TOKEN` — a `validation_alias` handles that.
 """
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=None,
-        env_prefix="",
+        env_prefix="SOLALEX_",
         case_sensitive=False,
         extra="ignore",
     )
@@ -35,10 +37,15 @@ class Settings(BaseSettings):
     supervisor_token: str | None = Field(
         default=None,
         description="Injected by HA Supervisor. Not yet consumed in Story 1.1.",
+        validation_alias=AliasChoices("SUPERVISOR_TOKEN", "SOLALEX_SUPERVISOR_TOKEN"),
     )
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a fresh Settings instance. Intentionally not cached — tests can
-    override via monkeypatching the env and recall."""
+    """Return the process-wide Settings singleton.
+
+    Cached so repeated lookups don't reparse env vars. Tests that need a
+    fresh instance after mutating env must call `get_settings.cache_clear()`.
+    """
     return Settings()

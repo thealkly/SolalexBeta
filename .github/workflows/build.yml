@@ -6,7 +6,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: build-${{ github.ref }}
+  # Scope the concurrency group to THIS workflow so an in-flight release
+  # workflow (which publishes :latest) is never cancelled by a push to main.
+  # Cancelling a release mid-push can leave :latest pointing at a half-pushed
+  # manifest.
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

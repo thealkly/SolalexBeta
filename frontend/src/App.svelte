@@ -1,18 +1,27 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   // Minimal hello shell for Story 1.1. Branding, design system, wizard
   // routing all land in later stories (1.4–1.6, Epic 2).
   let backendStatus = $state<'unknown' | 'ok' | 'error'>('unknown');
 
-  async function ping() {
+  // Resolve the health endpoint against Vite's base URL so the request
+  // works both at the repo root in local dev AND under arbitrary HA
+  // Ingress sub-paths (`/api/hassio_ingress/<token>/`). A bare
+  // `./api/health` is fragile: relative resolution depends on the current
+  // document path and trailing-slash handling of the proxy.
+  const healthUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/health`;
+
+  async function ping(): Promise<void> {
     try {
-      const res = await fetch('./api/health');
+      const res = await fetch(healthUrl);
       backendStatus = res.ok ? 'ok' : 'error';
     } catch {
       backendStatus = 'error';
     }
   }
 
-  $effect(() => {
+  onMount(() => {
     ping();
   });
 </script>

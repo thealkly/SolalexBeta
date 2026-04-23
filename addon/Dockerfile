@@ -8,7 +8,9 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.19
 # ----- Stage 1: frontend build -----
 # Builds the Svelte 5 / Vite 7 SPA into frontend/dist/.
 # Runs on the build host arch; produces static assets consumed by the runtime stage.
-FROM node:20-alpine AS frontend-builder
+# Node 22 matches the version used in .github/workflows/*.yml — drift between
+# CI and the image has caused "works in CI, breaks in Docker" bugs before.
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 

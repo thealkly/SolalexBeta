@@ -1,16 +1,19 @@
 #!/usr/bin/with-contenv bashio
-# Legacy entry point. The canonical service launch lives in
-# addon/rootfs/etc/services.d/solalex/run — this script is kept for
-# out-of-s6 manual invocation (e.g. `docker run ... /run.sh`).
+# Manual entry point (e.g. `docker run ... /run.sh`).
+# The canonical service launch lives in addon/rootfs/etc/services.d/solalex/run;
+# this script stays aligned with it on purpose — same Python env, same flags.
 set -euo pipefail
 
 bashio::log.info "Starting Solalex backend (manual entry)..."
 
-export DB_PATH="${DB_PATH:-/data/solalex.db}"
-export PORT="${PORT:-8099}"
+cd /opt/solalex
 
-exec uv run --no-dev uvicorn solalex.main:app \
+export SOLALEX_DB_PATH="${SOLALEX_DB_PATH:-/data/solalex.db}"
+export SOLALEX_PORT="${SOLALEX_PORT:-8099}"
+export PYTHONPATH="/opt/solalex/src:${PYTHONPATH:-}"
+
+exec /opt/solalex/.venv/bin/uvicorn solalex.main:app \
     --host 0.0.0.0 \
-    --port "${PORT}" \
+    --port "${SOLALEX_PORT}" \
     --proxy-headers \
     --forwarded-allow-ips "*"

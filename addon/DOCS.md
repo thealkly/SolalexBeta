@@ -18,6 +18,18 @@ rendert sie im Add-on-Detail-View.
 - Mindestens einen unterstützten Wechselrichter oder Akku im HA-Netzwerk.
 - Gültige Solalex-Lizenz (wird im Wizard via LemonSqueezy gekauft).
 
+## Unterstützte HA-Versionen
+
+- **Minimum:** 2026.4.0 (im `addon/config.yaml` via `homeassistant:`-Feld
+  gepinnt; niedrigere Versionen erhalten eine Install-Warning im Add-on-Store).
+- **Getestet bis:** 2026.4.3 (aktuelle stable zum Release-Zeitpunkt).
+- **Supported Installation-Types:** Home Assistant OS, Home Assistant Supervised.
+- **Home Assistant Container** und **Home Assistant Core** werden als
+  **nicht supported, best-effort ohne Support** gekennzeichnet.
+
+Du weißt nicht, welche Variante du hast? Öffne in HA:
+**Einstellungen → System → Info**.
+
 ## Unterstützte Hardware (Day 1)
 
 - **Hoymiles / OpenDTU** — Wechselrichter-Limit-Regelung

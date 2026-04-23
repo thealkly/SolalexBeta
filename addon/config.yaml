@@ -1,5 +1,7 @@
 name: Solalex by ALKLY
 version: "0.1.0"
+# Minimum HA Core version — inkompatible Versionen erhalten Install-Warning im Add-on-Store.
+homeassistant: "2026.4.0"
 slug: solalex
 description: >-
   Sekundengenaue aktive Nulleinspeisung und Akku-Pool-Steuerung
@@ -12,7 +14,7 @@ init: false
 startup: services
 boot: auto
 panel_icon: mdi:solar-power-variant
-panel_title: Solalex
+panel_title: Solalex by ALKLY
 ingress: true
 ingress_port: 8099
 hassio_api: true
@@ -23,4 +25,7 @@ ports: {}
 ports_description: {}
 # /data/ is auto-mounted by the HA Supervisor — do NOT declare it in `map`.
 map: []
+# No user-facing options yet. Empty schema so the Supervisor accepts the manifest.
+schema: {}
+options: {}
 image: ghcr.io/alkly/solalex-{arch}

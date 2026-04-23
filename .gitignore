@@ -46,14 +46,19 @@ build/
 out/
 
 # Home Assistant runtime data (local dev only — never committed)
+# `data/` (no leading slash) matches at any depth, so this one entry covers
+# both `/data/` at repo root and any nested `data/` a test fixture creates.
 data/
-/data/
 
-# Secrets
+# Secrets.
+# Gitignore negation (`!foo`) only re-includes a path if NONE of its
+# parent directories are excluded. Our `*.key` pattern matches files,
+# not directories, so `addon/example-certs/` stays visible and the
+# negation below does take effect for `*.key.example` files.
 *.pem
 *.key
 *.crt
-!addon/**/*.key.example
+!*.key.example
 
 # Logs
 logs/

@@ -13,12 +13,23 @@ with additional steps in a strict init order:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import aiosqlite
 
 from solalex.common.logging import configure_logging, get_logger
 from solalex.config import Settings
 
 _logger = get_logger(__name__)
+
+
+class WALModeError(RuntimeError):
+    """Raised when SQLite refuses to switch the DB to WAL journal mode.
+
+    Some filesystems (read-only mounts, certain network shares) silently
+    fall back to `rollback` mode; failing loud at init avoids surprises
+    later when KPI tables rely on WAL.
+    """
 
 
 async def initialize_database(db_path: str) -> None:
@@ -28,9 +39,16 @@ async def initialize_database(db_path: str) -> None:
     via `sql/NNN_*.sql` in later stories. WAL is set now because the later
     KPI tables will depend on it; enabling it upfront costs nothing.
     """
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
     async with aiosqlite.connect(db_path) as db:
-        await db.execute("PRAGMA journal_mode=WAL")
-        await db.execute("PRAGMA foreign_keys=ON")
+        async with db.execute("PRAGMA journal_mode=WAL") as cur:
+            row = await cur.fetchone()
+        if row is None or str(row[0]).lower() != "wal":
+            actual = row[0] if row else "<no response>"
+            raise WALModeError(
+                f"SQLite refused WAL journal mode (got {actual!r}) for {db_path}"
+            )
         await db.commit()
     _logger.info("database initialized", extra={"db_path": db_path})
 
@@ -40,5 +58,4 @@ async def run_startup(settings: Settings) -> None:
     configure_logging(settings.log_dir)
     _logger.info("solalex starting", extra={"port": settings.port})
 
-    settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     await initialize_database(str(settings.db_path))

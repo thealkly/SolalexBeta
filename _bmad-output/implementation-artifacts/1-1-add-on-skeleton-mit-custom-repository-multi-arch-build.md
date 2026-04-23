@@ -1,6 +1,6 @@
 # Story 1.1: Add-on Skeleton mit Custom Repository & Multi-Arch-Build
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -328,6 +328,8 @@ claude-opus-4-7 (1M context, 2026-01 cutoff)
 
 - **2026-04-22** — Story an Amendment 2026-04-22 angeglichen (cryptography/structlog/Root-Workspace entfernt, ESLint-Flat-Config, Tool-Configs in backend/pyproject.toml).
 - **2026-04-22** — Skeleton implementiert. Backend (FastAPI + aiosqlite + stdlib-JSON-Logging), Frontend (Svelte 5 + Vite 7 + Tailwind 4), Add-on (Dockerfile Multi-Stage + s6-Services + HA Base), CI (3 Workflows). Lokale Container-Probe: 64.9 MiB RSS, 0.49 % CPU, `/api/health` 200 OK.
+- **2026-04-22** — Code-Review (bmad-code-review, 3 parallele Layer). 5 Decisions resolved, 23 Patches identifiziert.
+- **2026-04-23** — 21 Patches angewandt (addon/config.yaml `panel_title` + `schema`/`options`, s6-`finish` Exit-Code-Propagation, WAL-Verify, `initialize_database` mkdir parent, `env_prefix="SOLALEX_"` + `AliasChoices` für `SUPERVISOR_TOKEN`, `get_settings` lru_cache, Logging-Handler-Cleanup + dynamisches `_RESERVED_LOGRECORD_KEYS`, Health-Readiness-Check, Frontend `BASE_URL`-relativer fetch + `onMount`, `run.sh`/s6-`run`-Alignment, Dockerfile Node 22, GHA concurrency-Key, Pre-commit-Prettier-Local + ESLint-Stub, `.gitignore`-Bereinigung). 2 Patches als Defer eskaliert (Port-DRY, Docker `USER`). Status: review → done.
 
 ### File List
 
@@ -402,3 +404,98 @@ claude-opus-4-7 (1M context, 2026-01 cutoff)
 
 - `_bmad-output/implementation-artifacts/1-1-add-on-skeleton-mit-custom-repository-multi-arch-build.md` (Status, Tasks checked, Dev Agent Record, File List, Change Log; Architektur-Amendment-Anpassungen in Task-Texten, Source Tree, Library Requirements, Anti-Patterns)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (Story 1.1: ready-for-dev → review)
+
+### Review Findings
+
+Code Review am 2026-04-22 (bmad-code-review, 3 parallele Layer: Blind Hunter / Edge Case Hunter / Acceptance Auditor). Reviewed commit: `24a0fa3`. Keine Verletzung der 5 harten CLAUDE.md-Regeln. Die 7 ACs sind substantiell erfüllt.
+
+Counts: 5 decision-needed (alle resolved), 23 patches (21 angewandt, 2 zu defer eskaliert — USER-Direktive + Port-DRY), 29 deferred, 16 dismissed. Patch-Apply am 2026-04-23: Backend ruff/mypy/pytest + Frontend svelte-check/build/eslint alle grün.
+
+**Decision-Needed (resolved 2026-04-22):**
+
+- [x] [Review][Decision] `homeassistant_api: true` in addon/config.yaml nicht im Spec authorisiert — Spec Task 2 listet nur `hassio_api: true` + `hassio_role: default`. **Resolved: behalten** (dismiss — keine Code-Änderung; Nutzung ab Story 1.3 erwartet). [addon/config.yaml:22]
+- [x] [Review][Decision] `--forwarded-allow-ips "*"` mit `--host 0.0.0.0` akzeptiert gespoofte X-Forwarded-*-Header aus beliebiger Quelle. **Resolved: akzeptieren** (dismiss — Container-Netz isoliert, Ingress-Only-Policy ausreichend).
+- [x] [Review][Decision] Ungenutzte Backend-Deps `websockets>=13` und `httpx>=0.27` — keine Imports in Story-1.1-Code. **Resolved: behalten** (dismiss — Dep-Churn vermeiden, Story 1.3 + 7.x nutzen sie).
+- [x] [Review][Decision] Logging-Handler-Ownership: `configure_logging()` setzt `root.handlers = [file, stream]` und überschreibt damit uvicorn-Access-Log-Handler und pytest-Capture. **Resolved: akzeptieren** (dismiss — aktueller Stand bleibt). [backend/src/solalex/common/logging.py]
+- [x] [Review][Decision] Pre-commit ESLint-Hook fehlt — Spec Task 1 sagt "ruff + eslint + prettier vorbereiten (Stubs okay, kein Blocker)". **Resolved: Stub nachziehen** (→ Patch P23). [.pre-commit-config.yaml]
+
+**Patches (Code-Fixes, angewandt 2026-04-23):**
+
+- [x] [Review][Patch] `panel_title: Solalex` statt spec-literal `"Solalex by ALKLY"` [addon/config.yaml:17]
+- [x] [Review][Patch] s6 `finish` unbedingt `exit 0` + falsche "256"-Anmerkung (s6-overlay v3 nutzt 125 für "don't restart") — fataler Fehler propagiert jetzt Code 125 an den Container-Supervisor [addon/rootfs/etc/services.d/solalex/finish]
+- [x] [Review][Patch] `PRAGMA journal_mode=WAL`-Ergebnis jetzt explizit verifiziert — `WALModeError` bei silent fallback [backend/src/solalex/startup.py]
+- [x] [Review][Patch] `PRAGMA foreign_keys=ON` entfernt (war per-connection wirkungslos) — wird zurückkehren in Story 3.x mit Connection-Factory [backend/src/solalex/startup.py]
+- [x] [Review][Patch] `initialize_database` legt `db_path.parent` selbst an — Test-Kopplung an `tmp_path`-Vorexistenz entfernt [backend/src/solalex/startup.py]
+- [x] [Review][Patch] Pre-commit Prettier-Mirror durch lokalen Hook ersetzt (nutzt `frontend/node_modules/.bin/prettier`) — kein deprecated-Mirror mehr [.pre-commit-config.yaml]
+- [x] [Review][Patch] `.gitignore` redundante Einträge konsolidiert — nur noch `data/` (matcht überall) [.gitignore]
+- [x] [Review][Patch] `.gitignore` `*.key.example`-Negation vereinfacht (`!*.key.example`) + Kommentar, warum die Negation jetzt greift [.gitignore]
+- [x] [Review][Patch] Frontend nutzt `import.meta.env.BASE_URL`-relativen `healthUrl` statt `./api/health` — Ingress-Subpath-robust [frontend/src/App.svelte]
+- [x] [Review][Patch] `$effect` → `onMount` — semantisch korrekte Mount-Primitive statt "Effect ohne Reads" [frontend/src/App.svelte]
+- [x] [Review][Patch] `get_settings()` mit `@lru_cache` gecached — `cache_clear()`-Hook für Tests dokumentiert [backend/src/solalex/config.py]
+- [x] [Review][Patch] `_CONFIGURED`-Shortcut durch `_current_log_dir`-Vergleich ersetzt; alte Handler werden bei Rekonfiguration via `_close_installed_handlers()` geschlossen. Neues `reset_logging_for_tests()` für pytest [backend/src/solalex/common/logging.py]
+- [x] [Review][Patch] `_RESERVED_LOGRECORD_KEYS` zur Laufzeit aus `logging.LogRecord`-Instanz abgeleitet — keine manuelle Pflege, keine `taskName`-Drift auf 3.11/3.12 [backend/src/solalex/common/logging.py]
+- [x] [Review][Patch] `env_prefix="SOLALEX_"` in `Settings`; `supervisor_token` behält `SUPERVISOR_TOKEN` via `AliasChoices` (HA Supervisor injiziert den genauen Namen). Run-Scripts + conftest nachgezogen [backend/src/solalex/config.py + conftest + run-Scripts]
+- [x] [Review][Patch] `addon/config.yaml` mit `schema: {}` + `options: {}` — Supervisor akzeptiert jetzt das Manifest [addon/config.yaml]
+- [x] [Review][Patch] `addon/run.sh` auf `.venv/bin/uvicorn`-Pfad der s6-`run` aligned (gleicher Python-Env, gleiche Flags, selbe SOLALEX_*-Env) [addon/run.sh]
+- [x] [Review][Patch] Dockerfile Node-Base `node:20-alpine` → `node:22-alpine` (aligned mit CI-`setup-node` v22) [addon/Dockerfile]
+- [x] [Review][Patch] `concurrency.group` in build.yml auf `${{ github.workflow }}-${{ github.ref }}` — cancelt keine anderen Workflows mehr [.github/workflows/build.yml]
+- [x] [Review][Patch] `conftest.py` nutzt nur noch `monkeypatch.setenv`; `os.environ.pop`-Zeilen + `SOLALEX_CACHED_APP`-Cargo-Cult entfernt. Plus `get_settings.cache_clear()` + `reset_logging_for_tests()` [backend/tests/conftest.py]
+- [x] [Review][Patch] `/api/health` prüft `settings.db_path.is_file()` → `503 database not initialized` vor `200 {status: ok}` [backend/src/solalex/api/routes/health.py]
+- [x] [Review][Patch] Pre-commit ESLint-Stub-Hook (local `npx eslint`) ergänzt [.pre-commit-config.yaml]
+
+**Nicht angewandt (skipped mit Begründung):**
+
+- [x] [Review][Skip] Ingress-Port 8099 DRY — echter Single-Source würde `addon/config.yaml` → HA-Supervisor-env → Python-Settings → Docker-Compose-Override-Channel bedingen. Refactor-Kandidat für Folge-Story, nicht zum Review-Patch-Umfang. Vorerst bleibt 8099 als Fallback in Settings + Run-Scripts. [mehrere] → defer
+- [x] [Review][Skip] Docker `USER`-Directive — HA-Add-on-Konvention fordert root für s6-overlay (PID 1, /data-Mount-Permissions, hassio_api-Token-Zugriff). Drop-privileges-Patch wäre nicht-trivial (s6 `user=`-Direktiven + /data-Chown + Test auf echter HA-Instanz). Defer als Hardening-Story. [addon/Dockerfile] → defer
+
+**Verifikation nach Patches (2026-04-23):**
+
+- Backend: `ruff check .` ✅, `mypy --strict .` ✅, `pytest -q` ✅ (3 passed in 0.06s)
+- Frontend: `svelte-check` ✅ (0 errors), `vite build` ✅ (CSS 5.53 kB, JS 27.20 kB), `eslint src` ✅
+- Shell-Scripts: `bash -n` auf `run.sh`, `services.d/solalex/{run,finish}` ✅
+- YAML: `addon/config.yaml`, alle `.github/workflows/*.yml`, `.pre-commit-config.yaml` parsen ✅
+
+**Deferred (out-of-scope / pre-existing / Spec-Hygiene):**
+
+- [x] [Review][Defer] GHA-Actions nicht auf Commit-SHA gepinnt — Supply-Chain-Hardening (Epic 6/7) — deferred, pre-existing
+- [x] [Review][Defer] Keine cosign/SBOM/gitleaks/secret-scan in CI (Epic 6/7) — deferred, pre-existing
+- [x] [Review][Defer] Kein CODEOWNERS — org-admin, nicht Story-1.1-Code — deferred, pre-existing
+- [x] [Review][Defer] LICENSE-Text mischt MIT-Warranty-Boilerplate mit proprietären Klauseln — deferred, legal review
+- [x] [Review][Defer] Kein Vitest/Playwright-Frontend-Test — Spec explizit "post-MVP" — deferred, pre-existing
+- [x] [Review][Defer] `configure_logging`-Unit-Test fehlt (nur Integration via conftest) — deferred, pre-existing
+- [x] [Review][Defer] Kein SPA-Catch-All-Fallback-Route für Client-Routed Deep-Links — Epic 2 Wizard-Territory — deferred
+- [x] [Review][Defer] `docs_url=None / redoc_url=None / openapi_url=None` intentional per CLAUDE.md "kein OpenAPI-Codegen" — deferred, pre-existing
+- [x] [Review][Defer] Release publishes `:latest` auch für Prerelease-Tags — deferred, Release-Strategie post-Beta
+- [x] [Review][Defer] Release-Tag-Filter `v*.*.*` matcht `-rc.1`/`-beta.1` nicht — deferred, Release-Strategie
+- [x] [Review][Defer] `release.yml` bumps `repository.yaml` nicht automatisch — Spec erlaubt "manuell" — deferred, pre-existing
+- [x] [Review][Defer] `map: []` sperrt Zugriff auf `/share`, `/ssl` — nicht in Story 1.1 gebraucht — deferred
+- [x] [Review][Defer] Ingress-Port 8099 statisch (potentielle Kollision mit anderem Addon) — deferred, HA-Supervisor-Konvention
+- [x] [Review][Defer] Dockerfile frontend-builder-Stage ohne `--platform=$BUILDPLATFORM` — CI-Optimierung — deferred
+- [x] [Review][Defer] Dockerfile `curl | sh` für uv-Installer — Supply-Chain; auf pinned uv-Image umstellen — deferred
+- [x] [Review][Defer] Dockerfile baut Frontend neu obwohl CI `frontend/dist` als Artifact hochlädt (Redundanz) — deferred
+- [x] [Review][Defer] `fastapi[standard]` + separates `uvicorn[standard]` + `websockets` = überlappende Extras — deferred, uv dedupes
+- [x] [Review][Defer] `frontend/tsconfig.json` überschreibt `@tsconfig/svelte`-Base-Keys — deferred, post-MVP cleanup
+- [x] [Review][Defer] `importlib.reload(main_mod)` in Test-Fixture ist Smell — auf `create_app()`-Factory refactoren — deferred
+- [x] [Review][Defer] `RotatingFileHandler` + Multi-Worker-Race — aktuell Single-Process-Uvicorn, nicht triggerbar — deferred
+- [x] [Review][Defer] `.editorconfig max_line_length=120` vs Ruff `ignore=["E501"]` inkonsistent — deferred, Style-Hygiene
+- [x] [Review][Defer] Ruff `per-file-ignores` für tests vs `mypy strict=true` auf tests — deferred, Strictness-Alignment
+- [x] [Review][Defer] Spec-Source-Tree drift (`test_main.py` statt `test_health.py`; `svelte.config.js` fehlt) — Spec-Doc-Hygiene — deferred
+- [x] [Review][Defer] `log_dir`-Feld in `config.py` nicht im Spec-Task-3 dokumentiert — Spec-Doc-Hygiene — deferred
+- [x] [Review][Defer] Icon/Logo-Größen nicht verifiziert (Platzhalter per Spec) — deferred, Story 1.5
+- [x] [Review][Defer] `homeassistant:`-Min-Version in 1.1-Commit fehlt (in Story-1.2 uncommitted bereits nachgezogen) — deferred, Story 1.2
+- [x] [Review][Defer] `repository.yaml` minimal (nur name/url/maintainer) — deferred, Doc-Enhancement
+
+**Dismissed (Noise / False-Positive / HA-Konvention):**
+
+- "Multi-arch manifest never assembled" — HA-Add-ons nutzen per-arch Image-Repos (`solalex-{arch}`); aktuelles Muster ist HA-konform
+- "Two matrix jobs push same :latest" — jeweils eigenes Image-Repo (`solalex-amd64` vs `solalex-aarch64`), keine Kollision
+- "Image-Tag-Mismatch config.yaml vs CI" — CI strippt `v` via `${GITHUB_REF#refs/tags/v}` → matcht `version: "0.1.0"`
+- Fallback-Root-Route liefert `message`-Feld neben `status` — kein Regel-4-Wrapper (Auditor bestätigt)
+- `svelte-spa-router` als reine Dependency — spec-konform für Skeleton (Auditor bestätigt)
+- `get_logger()` vor `configure_logging()` — intentional per Debug-Log-Ref (Auditor bestätigt)
+- Spec File-List `test_main.py` → actual `test_health.py` — File-List-Bottom ist konsistent, nur Source-Tree stale (siehe Defer)
+- `$effect` "Infinite-Loop-Risk" — keine reaktiven Reads, feuert einmalig (Semantik-Patch in P11 trotzdem sinnvoll)
+- `Path(__file__).parents[3]` IndexError — uv-Install-Layout garantiert Tiefe
+- `index.html` zero-length / assets-Symlink broken — Filesystem-Pathologie, nicht realistisch
+- Uvicorn `--host 0.0.0.0` per se — korrekt für Container-Netz; Verschärfung via D2 Forwarded-Headers
+- `SOLALEX_CACHED_APP`-Env-Cleanup — in P21 bereits adressiert

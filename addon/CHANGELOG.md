@@ -9,3 +9,4 @@ Repo-weites Changelog: `/CHANGELOG.md`.
 - FastAPI-Backend unter Ingress-Port 8099.
 - Health-Endpoint `/api/health`.
 - SQLite-Init unter `/data/solalex.db` (WAL-Mode).
+- Minimum HA Core: 2026.4.0 deklariert.
