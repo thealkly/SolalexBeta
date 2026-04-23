@@ -1,16 +1,61 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  // Minimal hello shell for Story 1.1. Branding, design system, wizard
-  // routing all land in later stories (1.4–1.6, Epic 2).
   let backendStatus = $state<'unknown' | 'ok' | 'error'>('unknown');
+  let currentRoute = $state('/');
+  let isDarkTheme = $state(false);
 
-  // Resolve the health endpoint against Vite's base URL so the request
-  // works both at the repo root in local dev AND under arbitrary HA
-  // Ingress sub-paths (`/api/hassio_ingress/<token>/`). A bare
-  // `./api/health` is fragile: relative resolution depends on the current
-  // document path and trailing-slash handling of the proxy.
   const healthUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/health`;
+
+  function normalizeRoute(hash: string): string {
+    const route = hash.replace(/^#/, '').trim();
+    if (route === '' || route === '/') {
+      return '/';
+    }
+
+    return route.startsWith('/') ? route : `/${route}`;
+  }
+
+  function ensureDefaultRoute(): void {
+    if (!window.location.hash) {
+      window.location.hash = '#/';
+    }
+  }
+
+  function syncRoute(): void {
+    currentRoute = normalizeRoute(window.location.hash);
+    if (currentRoute !== '/' && currentRoute !== '/wizard') {
+      window.location.hash = '#/';
+    }
+  }
+
+  function resolveThemeMode(): 'dark' | 'light' {
+    const html = document.documentElement;
+    const body = document.body;
+    const htmlTheme = html.getAttribute('data-theme');
+    const bodyTheme = body.getAttribute('data-theme');
+
+    if (htmlTheme === 'dark' || bodyTheme === 'dark') {
+      return 'dark';
+    }
+
+    if (htmlTheme === 'light' || bodyTheme === 'light') {
+      return 'light';
+    }
+
+    const classHint = `${html.className} ${body.className}`.toLowerCase();
+    if (classHint.includes('dark')) {
+      return 'dark';
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(): void {
+    const mode = resolveThemeMode();
+    isDarkTheme = mode === 'dark';
+    document.documentElement.setAttribute('data-theme', mode);
+  }
 
   async function ping(): Promise<void> {
     try {
@@ -22,25 +67,61 @@
   }
 
   onMount(() => {
+    ensureDefaultRoute();
+    syncRoute();
+    applyTheme();
     ping();
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleMediaChange = () => applyTheme();
+    const handleHashChange = () => syncRoute();
+    const observer = new window.MutationObserver(() => applyTheme());
+
+    window.addEventListener('hashchange', handleHashChange);
+    mediaQuery.addEventListener('change', handleMediaChange);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      mediaQuery.removeEventListener('change', handleMediaChange);
+      observer.disconnect();
+    };
   });
 </script>
 
-<main class="flex min-h-screen items-center justify-center bg-slate-50 p-8">
-  <div class="max-w-md text-center">
-    <h1 class="text-3xl font-bold text-slate-900">Solalex</h1>
-    <p class="mt-2 text-slate-600">
-      Add-on-Skeleton läuft. Setup-Wizard folgt in Epic 2.
-    </p>
-    <p class="mt-6 text-sm text-slate-500">
-      Backend:
-      <span
-        class:text-emerald-600={backendStatus === 'ok'}
-        class:text-rose-600={backendStatus === 'error'}
-        class:text-slate-400={backendStatus === 'unknown'}
-      >
-        {backendStatus}
-      </span>
-    </p>
-  </div>
+<main class="app-shell" data-route={currentRoute} data-theme-mode={isDarkTheme ? 'dark' : 'light'}>
+  <section class="empty-state-card">
+    <header class="empty-state-header">
+      <p class="eyebrow">Solalex</p>
+      <h1>Willkommen bei Solalex</h1>
+      <p class="intro">
+        Du bist startklar. Richte jetzt in wenigen Schritten deinen Setup-Wizard ein und starte mit lokaler
+        Energie-Steuerung.
+      </p>
+    </header>
+
+    <div class="cta-row">
+      <a class="setup-button" href="#/wizard">Setup starten</a>
+      <div class="meta">
+        <span class="status-label">Backend:</span>
+        <span class="status-value" data-state={backendStatus}>{backendStatus}</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    <div class="brand">
+      <span class="avatar" aria-hidden="true">AK</span>
+      <span>Made by Alex Kly</span>
+    </div>
+
+    <nav class="footer-links" aria-label="Weiterfuehrende Links">
+      <a href="https://discord.com" target="_blank" rel="noreferrer">Discord</a>
+      <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="#/privacy">Privacy</a>
+    </nav>
+
+    <span class="status-chip local-badge">100 % lokal</span>
+  </footer>
 </main>

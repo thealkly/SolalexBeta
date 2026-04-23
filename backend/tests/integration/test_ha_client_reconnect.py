@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 import pytest
+import pytest_asyncio
 
 from solalex.ha_client import AuthError, ReconnectingHaClient
 from tests.integration.mock_ha_ws.server import MockHaServer, run_mock_server
@@ -42,7 +43,7 @@ async def _noop(_msg: dict[str, Any]) -> None:
     pass
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mock_server() -> AsyncIterator[MockHaServer]:
     async with run_mock_server() as server:
         yield server

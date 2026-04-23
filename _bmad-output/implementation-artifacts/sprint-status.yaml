@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-23 (Story 1.2 in-progress → review: PRD-FR2-Amendment via /bmad-correct-course angewandt)
+# last_updated: 2026-04-23 (Story 1.2 review → done: Cycle-2-Review abgeschlossen, Scope-Bleed als defer akzeptiert)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -46,12 +46,12 @@ development_status:
   # Epic 1: Add-on Foundation & Branding
   epic-1: in-progress
   1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: done
-  1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: review
+  1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: done
   1-3-ha-websocket-foundation-mit-reconnect-logik: done
-  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: backlog
-  1-5-ha-sidebar-registrierung-mit-alkly-branding: backlog
-  1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: backlog
-  1-7-i18n-foundation-mit-locales-de-json: backlog
+  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: in-progress
+  1-5-ha-sidebar-registrierung-mit-alkly-branding: in-progress
+  1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: in-progress
+  1-7-i18n-foundation-mit-locales-de-json: review
   epic-1-retrospective: optional
 
   # Epic 2: Setup-Wizard & Hardware-Onboarding
