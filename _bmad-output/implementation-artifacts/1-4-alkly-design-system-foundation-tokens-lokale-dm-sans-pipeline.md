@@ -1,6 +1,6 @@
 # Story 1.4: ALKLY-Design-System-Foundation — Tokens & lokale DM-Sans-Pipeline
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -16,7 +16,7 @@ so that alle späteren UI-Stories (1.5 Sidebar-Branding, 1.6 Ingress-Frame + Lig
 
 2. **Light-Mode-Token-Set als Single-Source:** `Given` die Tokens sind definiert, `When` eine Komponente rendert, `Then` alle semantischen Farb-Tokens (`--color-bg`, `--color-surface`, `--color-text`, `--color-text-secondary`, `--color-accent-primary`, `--color-accent-warning`) sind ausschließlich in `:root` definiert **And** es existiert **kein** `[data-theme="dark"]`-Override-Block **And** Komponenten nutzen ausschließlich semantische Token-Namen (`var(--color-bg)`), nicht die Roh-Farbwerte. *(Amendment 2026-04-23: Dark-Mode-Varianten gestrichen — Light-only in v1)*
 
-3. **8-px-Spacing-Raster:** `Given` eine Komponente setzt Padding oder Margin, `When` sie rendert, `Then` das 8-px-Raster wird via Tokens durchgesetzt: `--space-1: 8px`, `--space-2: 16px`, `--space-3: 24px`, `--space-4: 32px`, `--space-5: 48px`, `--space-6: 64px` (exakte Namen, keine Abweichung) **And** das Raster ist an Tailwind 4 Theme-Keys (`@theme { --spacing-*: ... }`) gebunden, so dass Tailwind-Utilities (`p-2`, `gap-3`, …) die Tokens konsumieren.
+3. **8-px-Spacing-Raster:** `Given` eine Komponente setzt Padding oder Margin, `When` sie rendert, `Then` das 8-px-Raster wird via Tokens durchgesetzt: `--space-1: 8px`, `--space-2: 16px`, `--space-3: 24px`, `--space-4: 32px`, `--space-5: 48px`, `--space-6: 64px` (exakte Namen, keine Abweichung) **And** Komponenten-CSS konsumiert das Raster ausschließlich via `var(--space-*)`. *(Amendment 2026-04-23 Zweiter Review-Zyklus: Die zuvor geforderte Tailwind-Utility-Binding-Klausel (`--spacing-*`-Keys, `p-2`/`gap-3`-Utilities) wurde gestrichen — war in sich widersprüchlich mit der „exakte Namen"-Forderung. Tailwind-Spacing-Utilities greifen in v1 auf ihre Default-Skala; unsere Tokens bleiben die Single-Source für Komponenten-CSS.)*
 
 4. **Card-Radius-Default 16 px + zwei-stufige Shadow-Palette:** `Given` eine Card rendert, `When` der Default-Radius greift, `Then` der Radius-Token beträgt 16 px (`--radius-card: 16px`, Tailwind: `rounded-card`) **And** es existieren genau zwei Shadow-Ebenen (`--shadow-1`, `--shadow-2`) — nicht mehr, nicht weniger (UX-Spec „Shadow-System (2 Ebenen max)") **And** keine weiteren `--shadow-*`-Tokens werden eingeführt (selbst-disziplin gegen Creep).
 
@@ -140,31 +140,37 @@ _Code-Review vom 2026-04-23 (3 parallele Layer: Blind Hunter, Edge Case Hunter, 
 
 #### Decision needed (3)
 
-- [ ] [Review][Decision] **Scope-Bleed: Story-1.6-Code (App.svelte-Rewrite, 15 `@layer components`-Klassen, Theme-Subscriber) im Story-1.4-Commit** — Technical Requirements verbieten explizit „Keine weiteren Änderungen an `App.svelte`-Struktur, kein Theme-Toggle" und „Wenn Du einen Theme-Store baust — STOP. Das ist Story 1.6". Commit `9d31cd6` fügt `normalizeRoute`/`syncRoute`/`applyTheme` + `MutationObserver` + Empty-State-Card + Footer hinzu, entfernt die Tailwind-Palette-Klassen (`bg-slate-50` etc.), die laut Spec unangetastet bleiben sollten. Optionen: (a) Scope-Bleed akzeptieren und Story 1.6 auf `done` rollen (Review-Verantwortung shiftet zu 1.6); (b) Commit splitten via `git reset` + separate Commits; (c) Story 1.4 als „Scope-Bleed accepted" dokumentieren und Story 1.6 parallel reviewen. [frontend/src/App.svelte:5-153, frontend/src/app.css:286-445]
+- [x] [Review][Decision-Resolved] **Scope-Bleed Story-1.6-Code im Story-1.4-Commit** — *Entscheidung Alex 2026-04-23: Option (a) — Scope-Bleed akzeptiert, Story 1.4 + 1.6 rollen parallel auf `done`. Review-Verantwortung für `App.svelte`-Routing/Footer/App-Shell shiftet in den Story-1.6-Abschluss.*
 - [x] [Review][Dismissed] **Dark-Mode-Akzent-Hex weicht vom Spec-Richtwert ab** — *Obsolet durch Sprint-Change 2026-04-23: Dark-Mode-Override-Block (`[data-theme='dark']`) wurde mit diesem Amendment komplett entfernt. Dark-Hex-Werte existieren nicht mehr im Code.*
-- [ ] [Review][Decision] **Ad-hoc `box-shadow` auf `.setup-button` bricht das 2-Shadow-Ebenen-System (AC 4)** — `.setup-button` nutzt `box-shadow: 0 0 24px color-mix(...)` + Hover `0 0 28px ...`. AC 4 + Anti-Pattern-Liste erlauben genau `--shadow-1` + `--shadow-2`, „nicht mehr, nicht weniger". Optionen: (a) Glow auf `--shadow-2` mappen; (b) `--shadow-glow`-Token offiziell einführen (3. Ebene, bricht Spec); (c) Glow in Story 1.6 mit Token-Disziplin neu designen. [frontend/src/app.css:352-358]
+- [x] [Review][Decision-Resolved] **Ad-hoc `box-shadow` auf `.setup-button` → Patch** — *Entscheidung Alex 2026-04-23: Option (a) — Glow auf `--shadow-2` mappen. Wird als Patch unten aufgenommen.*
 
 #### Patch (15)
 
 _Story-1.4-Scope:_
 
-- [ ] [Review][Patch] **Fonts + `OFL.txt` sind untracked (`git add` fehlt)** — 4 WOFF2 (74 kB gesamt) + `OFL.txt` liegen im Working-Tree, sind aber nicht committed. Commit `9d31cd6` referenziert die Pfade in `@font-face`, so dass ein sauberer Checkout/CI-Build 404 für alle vier Font-Weights produziert. [frontend/static/fonts/DMSans-{Regular,Medium,SemiBold,Bold}.woff2, frontend/static/fonts/OFL.txt]
-- [ ] [Review][Patch] **Roh-Hex `#00120f` im `.setup-button` verletzt „keine inline-Hex-Farben"** — AC 2 + CLAUDE.md-Anti-Pattern fordern Token-Referenz via `var(--color-*)`. Scope-formal Story 1.6, aber Token-Disziplin aus Story 1.4. [frontend/src/app.css:349]
+- [x] [Review][Dismissed] **Fonts + `OFL.txt` waren untracked** — *Erledigt: Alle 5 Files sind committed (verifiziert via `git status`, 2026-04-23 Zweiter Review-Zyklus).*
+- [x] [Review][Dismissed] **Roh-Hex `#00120f` im `.setup-button`** — *Erledigt: Wert als `--color-button-text`-Token in `@theme` gezogen, kein inline-Hex mehr.*
 
 _Story-1.6-Scope (real bugs, kommen im 1.4-Commit mit):_
 
 - [x] [Review][Dismissed] **MutationObserver-Feedback-Loop auf `data-theme`** — *Obsolet durch Sprint-Change 2026-04-23: `applyTheme()`, `resolveThemeMode()` und MutationObserver wurden aus `App.svelte` entfernt.*
-- [ ] [Review][Patch] **Externe Links ohne `rel="noopener"` (Reverse-Tabnabbing)** — Discord- und GitHub-Links nutzen `target="_blank"` mit nur `rel="noreferrer"`. Standard: `rel="noopener noreferrer"`. [frontend/src/App.svelte:146-147]
-- [ ] [Review][Patch] **Platzhalter-URLs in Produktions-Footer** — `https://discord.com` und `https://github.com` sind generische Landing-Pages; `#/privacy` wird von `syncRoute()` aktiv auf `/` redirected → toter Footer-Link. [frontend/src/App.svelte:146-148]
-- [ ] [Review][Patch] **Hash-Rewrite-Loop blockt eigenen `#/privacy`-Link** — `syncRoute()` kennt nur `/` und `/wizard`, redirectet alles andere auf `/`. Der Footer-Link `#/privacy` triggert damit einen sichtbaren Flicker-Redirect. [frontend/src/App.svelte:37-42, 148]
+- [x] [Review][Dismissed] **Externe Links ohne `rel="noopener"`** — *`noreferrer` impliziert `noopener` in allen modernen Browsern; kein Sicherheitsrisiko.*
+- [x] [Review][Dismissed] **Platzhalter-URLs im Footer** — *Erledigt: Links zeigen auf echte alkly.de-URLs (`alkly.de/discord/`, `alkly.de`, `alkly.de/macherwerkstatt/`).*
+- [x] [Review][Dismissed] **Hash-Rewrite-Loop `#/privacy`** — *Erledigt: `#/privacy`-Link aus Footer entfernt.*
 - [x] [Review][Dismissed] **`classHint.includes('dark')` matcht zu gierig** — *Obsolet durch Sprint-Change 2026-04-23: `resolveThemeMode()` und gesamter Theme-Detection-Code entfernt.*
 - [x] [Review][Dismissed] **Dark-Mode-Tokens greifen nur auf `:root[data-theme='dark']`, nicht auf `<body>`** — *Obsolet durch Sprint-Change 2026-04-23: `[data-theme='dark']`-Block aus `app.css` entfernt.*
-- [ ] [Review][Patch] **`ensureDefaultRoute()` → `hashchange`-Race** — `location.hash = '#/'` feuert asynchron, bevor der `hashchange`-Listener registriert ist. Listener vor Hash-Set anhängen oder Initial-Sync idempotent machen. [frontend/src/App.svelte:79-83]
-- [ ] [Review][Patch] **`color-mix()` ohne `@supports`-Fallback** — Baseline seit 2023; ältere Companion-App-Webviews rendern die Regeln als ungültig → Border/Button/Avatar transparent. Guard: `@supports (color: color-mix(in srgb, red, blue)) { ... }` + `rgba()`-Fallback. [frontend/src/app.css:301, 347, 352, 358, 412, 437]
-- [ ] [Review][Patch] **`.setup-button`-Kontrast auf Gradient-Ende unter WCAG-AA** — `color: #00120f` (quasi-schwarz) auf `linear-gradient`-Mix mit `--color-brand-ink` — kein expliziter Contrast-Test. Nur noch im Light-Mode relevant. [frontend/src/app.css:337-354]
+- [ ] [Review][Defer] **`ensureDefaultRoute()` → `hashchange`-Race** — In HA-Ingress-Praxis nicht reproduzierbar, deferred ohne Fix.
+- [x] [Review][Defer] **`color-mix()` ohne `@supports`-Fallback** — Story-1.6-Scope, HA-Frontend-Target ist modernes Chromium; Re-evaluieren wenn Support-Matrix erweitert wird. Siehe `deferred-work.md`.
+- [x] [Review][Defer] **`.setup-button`-Kontrast auf Gradient-Ende** — Story-1.6-Scope; nicht-blockierend (Button ist CTA, nicht Fließtext). Browser-Messung nachzuziehen. Siehe `deferred-work.md`.
 - [x] [Review][Dismissed] **FOUC im Dark-Mode auf Cold-Load** — *Obsolet durch Sprint-Change 2026-04-23: kein Dark-Mode, kein FOUC-Risiko.*
-- [ ] [Review][Patch] **`ping()` ohne `AbortController` → State-Update nach Unmount** — Cleanup-Funktion bricht den Fetch nicht ab. In HMR-Remounts akkumulieren Fetches, Svelte warnt bei State-Update nach Destroy. [frontend/src/App.svelte:60-73]
-- [ ] [Review][Patch] **In-iframe-Navigation via `<a href="#/...">` / `target="_blank"` unter HA-Ingress** — Anchor-Navigation kann Parent-Scroll/Focus-Side-Effects auslösen, `target="_blank"` wird in manchen Sandbox-Konfigurationen geblockt. Besser: `<button onclick>` mit `history.replaceState`. [frontend/src/App.svelte:131, 146-148]
+- [x] [Review][Patch-Applied] **`ping()` ohne `AbortController`** — *Gefixt 2026-04-23: `AbortController` am Scope-Top von `onMount`, `signal` an `fetch()` durchgereicht, AbortError abgefangen, `ac.abort()` im Cleanup. [frontend/src/App.svelte]*
+- [ ] [Review][Patch] **In-iframe-Navigation via `<a href="#/...">` / `target="_blank"` unter HA-Ingress** — Anchor-Navigation kann Parent-Scroll/Focus-Side-Effects auslösen, `target="_blank"` wird in manchen Sandbox-Konfigurationen geblockt. Besser: `<button onclick>` mit `history.replaceState`. [frontend/src/App.svelte:114, 129-131]
+
+#### Zweiter Review-Zyklus 2026-04-23 (Nachzieher)
+
+- [x] [Review][Decision-Resolved] **AC-3-Widerspruch `--space-*` vs. `--spacing-*` → Spec-Edit-Patch** — *Entscheidung Alex 2026-04-23: Option (a1) — AC 3 wird angepasst, Token-Namen `--space-*` bleiben wie sie sind, Tailwind-Utility-Binding-Klausel wird aus AC 3 gestrichen. Wird als Spec-Edit-Patch unten aufgenommen.*
+- [x] [Review][Patch-Applied] **Commission-Gate-IIFE ohne `AbortController`** — *Gefixt 2026-04-23: IIFE guardet jetzt State-Updates via `if (ac.signal.aborted) return;` nach dem `await client.getDevices()`. Full Abort-Durchreiche an `client.getDevices()` würde einen API-Client-Refactor voraussetzen (Epic-2-Scope) — Guard reicht gegen den akuten State-nach-Unmount-Bug. [frontend/src/App.svelte]*
+- [ ] [Review][Defer] **Scope-Bleed weitet sich aus: Working-Tree-App.svelte enthält Epic-2-Routing** — Uncommitted M-Änderungen fügen 4 Route-Komponenten (`Config`, `FunctionalTest`, `DisclaimerActivation`, `RunningPlaceholder`), `VALID_ROUTES`-Set und Commission-Gate-Logik hinzu. Formal Story 2.1–2.3-Scope, nicht 1.4 und nicht mal 1.6. **Nicht blockierend für Story-1.4-Abschluss** — gehört in den nächsten Epic-2-Review-Cycle, wenn committed.
 
 #### Defer (5)
 

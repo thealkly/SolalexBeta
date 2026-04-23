@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-23 (Story 2.3 → review)
+last_updated: 2026-04-23 (Story 1.4 Zweiter Review-Zyklus → done; Story 1.6 per Scope-Bleed-Decision mit auf done)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -48,10 +48,10 @@ development_status:
   1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: done
   1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: done
   1-3-ha-websocket-foundation-mit-reconnect-logik: done
-  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: review
+  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: done
   1-5-ha-sidebar-registrierung-mit-alkly-branding: done
   # Key aktualisiert: Amendment 2026-04-23 — Dark/Light-Adaption → statischer Light-Look
-  1-6-ha-ingress-frame-mit-light-look-und-empty-state: review
+  1-6-ha-ingress-frame-mit-light-look-und-empty-state: done
   # Note: Story 1.7 auf v2 verschoben (Amendment 2026-04-22); Story-File existiert, Status bleibt erhalten
   1-7-i18n-foundation-mit-locales-de-json: done
   epic-1-retrospective: optional

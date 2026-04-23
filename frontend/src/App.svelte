@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import avatarUrl from '../static/avatar-alex.png';
   import Config from './routes/Config.svelte';
   import DisclaimerActivation from './routes/DisclaimerActivation.svelte';
   import FunctionalTest from './routes/FunctionalTest.svelte';
@@ -40,24 +41,28 @@
     }
   }
 
-  async function ping(): Promise<void> {
+  async function ping(signal?: AbortSignal): Promise<void> {
     try {
-      const res = await fetch(healthUrl);
+      const res = await fetch(healthUrl, { signal });
+      if (signal?.aborted) return;
       backendStatus = res.ok ? 'ok' : 'error';
-    } catch {
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
       backendStatus = 'error';
     }
   }
 
   onMount(() => {
+    const ac = new AbortController();
+
     ensureDefaultRoute();
     syncRoute();
-    void ping();
+    void ping(ac.signal);
 
-    // Commission gate: check device state and redirect accordingly.
     void (async () => {
       try {
         const devices = await client.getDevices();
+        if (ac.signal.aborted) return;
         if (devices.length === 0) return;
         const allCommissioned = devices.every((d) => d.commissioned_at !== null);
         if (allCommissioned) {
@@ -80,10 +85,11 @@
         return;
       }
       pingAttempts++;
-      await ping();
+      await ping(ac.signal);
     }, 5000);
 
     return () => {
+      ac.abort();
       window.removeEventListener('hashchange', handleHashChange);
       clearInterval(pingRetryInterval);
     };
@@ -121,14 +127,14 @@
 
     <footer class="app-footer">
       <div class="brand">
-        <span class="avatar" aria-hidden="true">AK</span>
+        <img src={avatarUrl} alt="Alex Kly" class="avatar" />
         <span>Made by Alex Kly</span>
       </div>
 
       <nav class="footer-links" aria-label="Weiterfuehrende Links">
         <a href="https://alkly.de/discord/" target="_blank" rel="noreferrer">Discord</a>
-        <a href="https://alkly.de" target="_blank" rel="noreferrer">Alkly</a>
-        <a href="https://alkly.de/macherwerkstatt/" target="_blank" rel="noreferrer">Macherwerkstatt</a>
+        <a href="https://github.com/alkly/solalex" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://alkly.de/datenschutz/" target="_blank" rel="noreferrer">Datenschutz</a>
       </nav>
 
       <span class="status-chip local-badge">100 % lokal</span>
