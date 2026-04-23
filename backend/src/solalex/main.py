@@ -158,7 +158,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Solalex",
-        version="0.1.0-beta.0",
+        version="0.1.0-beta.1",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,

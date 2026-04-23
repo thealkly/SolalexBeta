@@ -1,5 +1,5 @@
 name: Solalex by ALKLY
-version: "0.1.0-beta.0"
+version: "0.1.0-beta.1"
 # Minimum HA Core version — inkompatible Versionen erhalten Install-Warning im Add-on-Store.
 homeassistant: "2026.4.0"
 slug: solalex
@@ -28,4 +28,4 @@ map: []
 # No user-facing options yet. Empty schema so the Supervisor accepts the manifest.
 schema: {}
 options: {}
-image: ghcr.io/alkly/solalex-{arch}
+image: ghcr.io/thealkly/solalex-{arch}

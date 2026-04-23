@@ -3,7 +3,7 @@
 Dieses Changelog betrifft nur das HA-Add-on-Artefakt (Container + Manifest).
 Repo-weites Changelog: `/CHANGELOG.md`.
 
-## 0.1.0-beta.0 — 2026-04-23
+## 0.1.0-beta.1 — 2026-04-23
 
 - Initiales Add-on-Skeleton (Multi-Arch, amd64 + aarch64).
 - FastAPI-Backend unter Ingress-Port 8099.
