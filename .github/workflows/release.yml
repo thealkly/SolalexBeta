@@ -64,8 +64,8 @@ jobs:
           build-args: |
             BUILD_FROM=${{ matrix.base }}
           tags: |
-            ghcr.io/thealkly/solalex-${{ matrix.arch }}:latest
-            ghcr.io/thealkly/solalex-${{ matrix.arch }}:${{ steps.version.outputs.tag }}
+            ghcr.io/thealkly/solalexbeta-${{ matrix.arch }}:latest
+            ghcr.io/thealkly/solalexbeta-${{ matrix.arch }}:${{ steps.version.outputs.tag }}
 
   create-github-release:
     name: github release

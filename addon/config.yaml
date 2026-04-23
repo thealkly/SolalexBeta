@@ -28,4 +28,4 @@ map: []
 # No user-facing options yet. Empty schema so the Supervisor accepts the manifest.
 schema: {}
 options: {}
-image: ghcr.io/thealkly/solalex-{arch}
+image: ghcr.io/thealkly/solalexbeta-{arch}

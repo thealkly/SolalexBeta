@@ -118,7 +118,7 @@ jobs:
           build-args: |
             BUILD_FROM=${{ matrix.base }}
           tags: |
-            ghcr.io/alkly/solalex-${{ matrix.arch }}:latest
-            ghcr.io/alkly/solalex-${{ matrix.arch }}:${{ github.sha }}
+            ghcr.io/thealkly/solalexbeta-${{ matrix.arch }}:latest
+            ghcr.io/thealkly/solalexbeta-${{ matrix.arch }}:${{ github.sha }}
           cache-from: type=gha,scope=solalex-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=solalex-${{ matrix.arch }}

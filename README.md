@@ -15,7 +15,7 @@ Voraussetzungen: Home Assistant OS. Siehe [docs/landing/voraussetzungen.md](./do
 
 1. In Home Assistant: **Einstellungen → Add-ons → Add-on-Store**.
 2. Oben rechts **⋮ → Repositories**.
-3. URL eintragen: `https://github.com/alkly/solalex`
+3. URL eintragen: `https://github.com/thealkly/SolalexBeta`
 4. Nach dem Refresh erscheint Solalex in der Liste. **Installieren**.
 5. Nach dem Start öffnet sich der Wizard im HA-Ingress-Frame.
 
@@ -75,6 +75,12 @@ Das Skript:
 - baut zuerst das manuelle Release-Archiv (`create_manual_release.sh`)
 - pusht danach `HEAD` in den Ziel-Branch im Repo `thealkly/SolalexBeta`
 - pusht abschließend den Tag `v<version>` in dasselbe Repo
+
+Wichtig fuer Home Assistant Pulls:
+- Das Add-on nutzt GHCR-Images `ghcr.io/thealkly/solalexbeta-{arch}`.
+- Stelle in GitHub sicher, dass die Packages `solalexbeta-amd64` und
+  `solalexbeta-aarch64` auf **Public** stehen, sonst liefert GHCR beim
+  anonymen Token-Request `401 Unauthorized`.
 
 ## Lizenz
 
