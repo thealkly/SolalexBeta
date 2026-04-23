@@ -9,4 +9,10 @@ Repo-weites Changelog: `/CHANGELOG.md`.
 - FastAPI-Backend unter Ingress-Port 8099.
 - Health-Endpoint `/api/health`.
 - SQLite-Init unter `/data/solalex.db` (WAL-Mode).
-- Minimum HA Core: 2026.4.0 deklariert.
+- Minimum HA Core: 2026.4.0 deklariert (via `addon/config.yaml`
+  `homeassistant:`-Feld; niedrigere Versionen erhalten Install-Warning).
+- Support-Matrix auf **Home Assistant OS** beschränkt. Home Assistant
+  Supervised, Container und Core werden nicht unterstützt.
+- Landing-Page-Voraussetzungen (`docs/landing/voraussetzungen.md`) und
+  In-Store-Doku (`addon/DOCS.md` Abschnitt „Unterstützte HA-Versionen")
+  ergänzt.

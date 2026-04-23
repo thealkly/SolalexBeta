@@ -244,6 +244,8 @@ Bei Widerspruch zwischen Dokumenten gewinnt die Architecture. Bei Widerspruch zw
 ## Git & Commits
 
 - **Keine Commits ohne explizite User-Anweisung.** Alex commitet selbst oder weist explizit dazu an.
+- **Proaktiver Commit-Hinweis:** Wenn ein logischer Commit-Zeitpunkt erreicht ist (Story/Task abgeschlossen, atomare Änderung fertig, Review-Patches angewendet, grüne Tests nach Refactor etc.), sag Alex in **einer Zeile** Bescheid: Scope der Änderung + Vorschlag der Commit-Message. Erst nach Alex' Bestätigung (z. B. „ja", „commit", „push") wird tatsächlich committed. Kein Commit bei unvollständigem/kaputtem Zustand vorschlagen.
+- **Push folgt demselben Muster:** nie ungefragt pushen. Auf Ansage pushen; bei fehlendem Upstream kurz Branch-Namen bestätigen.
 - Commit-Message-Stil: kurz, Imperativ, eine Zeile wenn möglich, ausführlicher Body bei nicht-trivialen Änderungen. Deutsche Commit-Messages sind erlaubt und üblich in diesem Repo.
 - Keine sekundären Commit-Attribute wie „Co-Authored-By" ohne Rücksprache.
 

@@ -10,10 +10,12 @@ As a Interessent auf alkly.de,
 I want vor dem Download-Schritt klar zu sehen, welche HA-Installationstypen und welche HA-Version unterstützt werden,
 so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher kenne.
 
+> **Amendment 2026-04-23 (KISS-Cut):** Support-Matrix auf **Home Assistant OS** reduziert. Supervised, Container und Core werden nicht unterstützt. Begründung: „Keep it simple" — v1-Komplexität minimieren, Support-Triage-Matrix auf eine known-good Host-Konfiguration beschränken. Trifft auch PRD FR2 und Epic 1 Story 1.2 → PRD/Epic-Amendment via `/bmad-correct-course` nötig.
+
 ## Acceptance Criteria
 
-1. **Voraussetzungs-Zeile über jedem CTA (Landing-Page):** `Given` die Solalex-Landing-Page auf alkly.de, `When` der Besucher die Seite öffnet, `Then` oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile **„Benötigt Home Assistant OS oder Supervised"** sichtbar (keine Tooltips, keine Modals — direkt im Flow, siehe CLAUDE.md Stil-Leitplanken).
-2. **HA-Container/Core explizit als nicht supported markiert (Landing-Page):** `Given` der Check-Block auf der Landing-Page, `When` er gelesen wird, `Then` HA Container **und** HA Core sind explizit als **„nicht supported, best-effort ohne Support"** markiert. Formulierung wörtlich aus Epics/FR2.
+1. **Voraussetzungs-Zeile über jedem CTA (Landing-Page):** `Given` die Solalex-Landing-Page auf alkly.de, `When` der Besucher die Seite öffnet, `Then` oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile **„Benötigt Home Assistant OS"** sichtbar (keine Tooltips, keine Modals — direkt im Flow, siehe CLAUDE.md Stil-Leitplanken).
+2. **Nicht unterstützte HA-Varianten explizit markiert (Landing-Page):** `Given` der Check-Block auf der Landing-Page, `When` er gelesen wird, `Then` HA Supervised, HA Container **und** HA Core sind explizit als **„nicht unterstützt"** markiert (punkt, ohne best-effort-Aufweichung).
 3. **Install-Warning via `addon/config.yaml`-Deklaration:** `Given` ein Nutzer versucht Solalex auf einer nicht-unterstützten HA-Version zu installieren, `When` der Add-on-Store die Installation prüft, `Then` eine Install-Warning wird gezeigt **And** die supported HA-Version-Range ist in `addon/config.yaml` via `homeassistant:`-Feld deklariert (Mindest-Version-Pin).
 
 ## Tasks / Subtasks
@@ -30,11 +32,11 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
   - [x] In `addon/DOCS.md` einen Abschnitt **„Unterstützte HA-Versionen"** ergänzen:
     - Minimum: 2026.4.0
     - Getestet bis: aktuelle stable (zum Release-Zeitpunkt dokumentieren)
-    - Supported Installation-Types: **HA OS, HA Supervised**. HA Container und HA Core werden als **nicht supported, best-effort ohne Support** gekennzeichnet.
+    - Unterstützt: **ausschließlich Home Assistant OS** (Amendment 2026-04-23, KISS-Cut). Home Assistant Supervised, Container und Core werden als **nicht unterstützt** gekennzeichnet (kein „best-effort"-Aufweichen).
   - [x] In `addon/CHANGELOG.md` Eintrag für die Version hinzufügen: `- Minimum HA Core: 2026.4.0 deklariert.`
 - [x] **Task 3: Landing-Page-Content für alkly.de erstellen** (AC: 1, 2)
   - [x] **Scope-Hinweis für Dev-Agent:** Die Landing-Page lebt **außerhalb dieses Repos** (alkly.de-Marketing-Site). In diesem Repo wird nur der **Content-Baustein als Markdown-Snippet** unter `docs/landing/voraussetzungen.md` abgelegt — damit die Copy-Quelle versioniert ist und per `git mv` beim „Solalex"-Rename mitwandert.
-  - [x] Datei `docs/landing/voraussetzungen.md` neu anlegen mit folgender Struktur (Frontmatter + Markdown-Body):
+  - [x] Datei `docs/landing/voraussetzungen.md` neu anlegen mit folgender Struktur (Frontmatter + Markdown-Body) — **aktualisiert 2026-04-23 auf OS-only-Cut**:
     ```markdown
     ---
     slug: voraussetzungen
@@ -44,27 +46,27 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
     ## Voraussetzungen
 
-    > **Benötigt Home Assistant OS oder Supervised.**
+    > **Benötigt Home Assistant OS.**
 
-    | HA-Installationstyp   | Status                              |
-    | --------------------- | ----------------------------------- |
-    | Home Assistant OS     | ✅ supported                         |
-    | Home Assistant Supervised | ✅ supported                     |
-    | Home Assistant Container  | ⚠️ nicht supported, best-effort ohne Support |
-    | Home Assistant Core       | ⚠️ nicht supported, best-effort ohne Support |
+    | HA-Installationstyp       | Status              |
+    | ------------------------- | ------------------- |
+    | Home Assistant OS         | ✅ unterstützt       |
+    | Home Assistant Supervised | ❌ nicht unterstützt |
+    | Home Assistant Container  | ❌ nicht unterstützt |
+    | Home Assistant Core       | ❌ nicht unterstützt |
 
     Du weißt nicht, welche Variante du hast? Öffne in HA: **Einstellungen → System → Info**.
     ```
-  - [x] **Formulierungen wörtlich aus Epics/FR2 übernehmen** — kein Umformulieren in Marketing-Sprech. Keine emotionalen Adjektive, keine „easy/einfach"-Claims (CLAUDE.md Stil-Leitplanken).
+  - [x] **Formulierungen nach KISS-Cut:** „Benötigt Home Assistant OS" + „nicht unterstützt" (hart, kein „best-effort ohne Support"-Aufweichen). Keine emotionalen Adjektive, keine „easy/einfach"-Claims (CLAUDE.md Stil-Leitplanken). PRD-FR2-wörtliche Formulierung wurde durch das 2026-04-23-Amendment ersetzt — PRD-Amendment folgt via `/bmad-correct-course`.
   - [x] **Glossar-Disziplin** (CLAUDE.md): Der Begriff ist **„Home Assistant OS"** (korrekt ausgeschrieben bei Erstnennung), danach „HA OS" okay. Nie „HAOS".
   - [x] Alex überträgt den Content manuell auf alkly.de (Marketing-Site-Deployment ist außerhalb dieser Story). Commit in diesem Repo genügt als Abnahme-Beleg.
 - [x] **Task 4: Referenz-Link zwischen Landing-Page und Add-on-Repo** (AC: 1, 2)
-  - [x] In `README.md` (Root) unter „Installation" eine Zeile ergänzen, die auf die Voraussetzungen verweist: `Voraussetzungen: Home Assistant OS oder Supervised. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).`
+  - [x] In `README.md` (Root) unter „Installation" eine Zeile ergänzen, die auf die Voraussetzungen verweist: `Voraussetzungen: Home Assistant OS. Siehe [docs/landing/voraussetzungen.md](./docs/landing/voraussetzungen.md).`
   - [x] Keine Inhalts-Duplikation — nur Verweis, damit Single-Source-of-Truth das `voraussetzungen.md`-File bleibt.
 - [x] **Task 5: Smoke-Tests & Final Verification** (AC: 1, 2, 3)
   - [x] `addon/config.yaml` ist valides YAML (`yq . addon/config.yaml` wirft keinen Fehler).
   - [x] `homeassistant:`-Feld hat einen Versions-String, der semver-kompatibel zum HA-Supervisor-Pattern ist (`YYYY.M.P`, z. B. `2026.4.0`).
-  - [x] `docs/landing/voraussetzungen.md` existiert, enthält die drei Pflicht-Elemente: „Benötigt HA OS oder Supervised"-Kernzeile, Tabelle mit 4 Install-Typ-Zeilen, Hinweis auf Einstellungen → System → Info.
+  - [x] `docs/landing/voraussetzungen.md` existiert, enthält die drei Pflicht-Elemente: „Benötigt Home Assistant OS"-Kernzeile, Tabelle mit 4 Install-Typ-Zeilen, Hinweis auf Einstellungen → System → Info.
   - [x] `addon/DOCS.md` hat Abschnitt „Unterstützte HA-Versionen".
   - [x] `README.md` verweist auf `docs/landing/voraussetzungen.md`.
 
@@ -73,9 +75,10 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 _Code-Review vom 2026-04-23 (3 parallele Layer: Blind Hunter, Edge Case Hunter, Acceptance Auditor). Acceptance-Auditor bestätigt AC 1/2/3 inhaltlich erfüllt._
 
 - [ ] [Review][Patch] **Story-1-1-Patches separat vor Story-1-2 committen** — `panel_title: Solalex → Solalex by ALKLY` und neue `schema: {}` / `options: {}` in `addon/config.yaml` sind laut Story-1-1-Completion-Log Review-Patches aus 1-1. Saubere Git-Historie herstellen: die drei Zeilen aus dem 1-2-Arbeitsbaum isoliert committen (Referenz auf 1-1), bevor die Story-1-2-Dateien committed werden. [addon/config.yaml:1,17,28-29]
-- [ ] [Review][Decision] **Doppelte Kompatibilitäts-Matrix in DOCS.md und voraussetzungen.md** — Dieselbe Matrix in zwei Files pflegt Doku-Drift vor. Zusätzliche Inkonsistenz: alter `## Voraussetzungen`-Block (Z. 14-19: „Container-only ist nicht supported") widerspricht neuem `## Unterstützte HA-Versionen`-Block (Z. 27-28: „Container und Core … best-effort ohne Support"). Entscheidung: (a) DOCS.md nur auf `voraussetzungen.md` verweisen (Single-Source), (b) Duplikation akzeptieren + Bump-Disziplin dokumentieren, (c) alten `## Voraussetzungen`-Block ganz entfernen/mergen. [addon/DOCS.md:14-19,21-31]
-- [ ] [Review][Patch] `## Voraussetzungen`-Block in DOCS.md an neue „best-effort ohne Support"-Formulierung harmonisieren [addon/DOCS.md:14-19]
-- [ ] [Review][Patch] CHANGELOG-Eintrag um Landing-Page- und DOCS-Ergänzung erweitern (aktuell nur „Minimum HA Core: 2026.4.0 deklariert.") [addon/CHANGELOG.md:12]
+- [x] [Review][PRD-Amendment] **OS-only-Cut trifft PRD FR2 und Epic 1 Story 1.2** — abgehakt am 2026-04-23 via `/bmad-correct-course` (Sprint Change Proposal 2026-04-23). PRD FR2, PRD Launch-Gates, PRD Journey 3, PRD Journey Requirements Summary, Epic-1-FR2-Inventory, Epic-1-Story-1.1-AC, Epic-1-Story-1.2-AC 1+2 wurden auf „Home Assistant OS"-Wording reduziert. Story 1.2 entblockt für `done`-Promotion.
+- [x] [Review][Patch] OS-only-Cut in DOCS.md, voraussetzungen.md, README.md und Story-1-2-Spec (AC 1, AC 2, Task 3, File-Spec, Anti-Patterns) vereinheitlicht — gefixt 2026-04-23
+- [x] [Review][Patch] `## Voraussetzungen`-Block + `## Unterstützte HA-Versionen`-Block in DOCS.md vereinheitlicht (keine Widersprüche mehr) [addon/DOCS.md:14-32] — gefixt (D3 via Variante 3 aufgelöst: Duplikation akzeptiert, beide Blöcke harmonisiert)
+- [x] [Review][Patch] CHANGELOG-Eintrag um Landing-Page, DOCS-Ergänzung und OS-only-Cut erweitert [addon/CHANGELOG.md:8-15] — gefixt
 - [x] [Review][Defer] `homeassistant:`-Pin wirkt nicht für HA Container/Core — DOCS-Formulierung präzisieren low-prio [addon/DOCS.md:22-28] — deferred, Container/Core hat keinen Add-on-Store-Flow
 - [x] [Review][Defer] „Getestet bis 2026.4.3" wird mit jedem HA-Patch veralten — manuelle Bump-Disziplin notwendig [addon/DOCS.md:25] — deferred, spec-explicit als „zum Release-Zeitpunkt dokumentieren"
 - [x] [Review][Defer] Kein CI-Gate für Versions-Range-Konsistenz (`homeassistant:` ≤ Minimum ≤ „getestet bis") — deferred, strukturelles Gate-Thema für v1.5
@@ -123,7 +126,7 @@ Diese Story hat **keine Code-Änderungen in `backend/` oder `frontend/`**. Sie b
 - **KEIN neuer `addon.yaml` neben `addon/config.yaml`.** Der HA-Supervisor erwartet die Datei unter `addon/config.yaml` (Architektur §601–602). Die Epic-/PRD-Formulierung „addon.yaml" meint umgangssprachlich das Addon-Manifest — die Datei heißt in unserer Struktur `addon/config.yaml`.
 - **KEIN `homeassistant_version`-Feld.** Der korrekte Key heißt `homeassistant` (ohne `_version`-Suffix). Andere Varianten führen zu Ignorierung ohne Fehler.
 - **KEIN Max-Version-Feld ausdenken.** HA-Supervisor hat keine Maximum-Deklaration. Range-Semantik lebt in DOCS.md als „getestet bis X".
-- **KEIN Marketing-Umformulieren** der Kernzeile „Benötigt Home Assistant OS oder Supervised". Die Formulierung ist in PRD-FR2 **wörtlich gesetzt** und darf nicht in „Unterstützt HA OS / Supervised" o. ä. weichgespült werden. Epic-AC fordert „prominent sichtbar".
+- **KEIN Marketing-Umformulieren** der Kernzeile. Die Formulierung lautet seit dem 2026-04-23-Amendment **„Benötigt Home Assistant OS"** (KISS-Cut, OS-only) und darf nicht in „Unterstützt HA OS" o. ä. weichgespült werden. Epic-AC fordert „prominent sichtbar". Ursprüngliche PRD-FR2-Formulierung („OS oder Supervised") wurde via `/bmad-correct-course` (Sprint Change Proposal 2026-04-23) nachgezogen.
 - **KEIN Tooltip, KEIN Modal, KEIN Accordion** für die Voraussetzungs-Information. CLAUDE.md Stil-Leitplanken (UX-DR30): Anti-Patterns explizit verboten. Direkt im Flow über dem CTA.
 - **KEIN Tracking-Pixel / Google-Analytics / Facebook-Pixel** auf der Landing-Page (NFR28 „100 % lokal" erstreckt sich auf die Marketing-Identität; keine Pflicht, aber strategisch kongruent).
 - **KEIN i18n-Framework** für das Markdown-Snippet (CLAUDE.md: keine i18n-Infrastruktur in v1). Deutsch hardcoded.
@@ -182,7 +185,7 @@ homeassistant: "2026.4.0"
 
 Einfügen idealerweise direkt nach `version:` oder vor `arch:` (Supervisor ist indifferent gegenüber Reihenfolge, aber Lesbarkeit bevorzugt die Nähe zu anderen Version-/Identitäts-Feldern).
 
-### File Spec — `docs/landing/voraussetzungen.md` (Copy-Paste-sicher)
+### File Spec — `docs/landing/voraussetzungen.md` (Copy-Paste-sicher, KISS-Cut 2026-04-23)
 
 ```markdown
 ---
@@ -193,14 +196,14 @@ required_above: ["install_cta", "download_cta", "waitlist_cta"]
 
 ## Voraussetzungen
 
-> **Benötigt Home Assistant OS oder Supervised.**
+> **Benötigt Home Assistant OS.**
 
-| HA-Installationstyp       | Status                                         |
-| ------------------------- | ---------------------------------------------- |
-| Home Assistant OS         | ✅ supported                                    |
-| Home Assistant Supervised | ✅ supported                                    |
-| Home Assistant Container  | ⚠️ nicht supported, best-effort ohne Support |
-| Home Assistant Core       | ⚠️ nicht supported, best-effort ohne Support |
+| HA-Installationstyp       | Status              |
+| ------------------------- | ------------------- |
+| Home Assistant OS         | ✅ unterstützt       |
+| Home Assistant Supervised | ❌ nicht unterstützt |
+| Home Assistant Container  | ❌ nicht unterstützt |
+| Home Assistant Core       | ❌ nicht unterstützt |
 
 Du weißt nicht, welche Variante du hast? Öffne in HA: **Einstellungen → System → Info**.
 ```
@@ -283,7 +286,7 @@ claude-opus-4-7 (1M context) — bmad-dev-story skill
 
 - `addon/config.yaml`: YAML-Parser-Validierung via `python3 -c "import yaml; yaml.safe_load(open('addon/config.yaml'))"` (uv run --with pyyaml) → OK, `homeassistant='2026.4.0'`, 21 Top-Level-Keys.
 - Semver-Pattern-Check: `re.fullmatch(r'\d{4}\.\d{1,2}\.\d+', "2026.4.0")` → Match.
-- Pflicht-Element-Check `docs/landing/voraussetzungen.md`: Kernzeile „Benötigt Home Assistant OS oder Supervised", 4 Install-Typ-Zeilen (HA OS, HA Supervised, HA Container, HA Core), Info-Hinweis „Einstellungen → System → Info" — alle vorhanden.
+- Pflicht-Element-Check `docs/landing/voraussetzungen.md`: Kernzeile „Benötigt Home Assistant OS" (Stand nach KISS-Cut-Review-Patch 2026-04-23; ursprüngliche Dev-Cycle-Verifikation am 2026-04-22 prüfte noch die alte Formulierung „OS oder Supervised"), 4 Install-Typ-Zeilen (HA OS, HA Supervised, HA Container, HA Core), Info-Hinweis „Einstellungen → System → Info" — alle vorhanden.
 - `addon/DOCS.md`: Abschnitt `## Unterstützte HA-Versionen` vorhanden.
 - `addon/CHANGELOG.md`: Eintrag `- Minimum HA Core: 2026.4.0 deklariert.` vorhanden.
 - `README.md`: Verweis-Zeile `docs/landing/voraussetzungen.md` vorhanden.
@@ -293,11 +296,12 @@ claude-opus-4-7 (1M context) — bmad-dev-story skill
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - **Task 1:** `addon/config.yaml` um `homeassistant: "2026.4.0"` ergänzt, mit YAML-Kommentar direkt darüber. Position: zwischen `version:` und `slug:` (Nähe zu Identitäts-Feldern, Supervisor ist reihenfolge-indifferent).
-- **Task 2:** Neuer Abschnitt „Unterstützte HA-Versionen" in `addon/DOCS.md` nach „Voraussetzungen" eingefügt (Minimum 2026.4.0, Getestet bis 2026.4.3, HA OS/Supervised supported, HA Container/Core als „nicht supported, best-effort ohne Support"). Bestehender „Voraussetzungen"-Abschnitt unverändert, um Scope minimal zu halten. Changelog-Eintrag in `addon/CHANGELOG.md` unter der bestehenden `0.1.0 — TBD`-Rubrik ergänzt.
-- **Task 3:** `docs/landing/voraussetzungen.md` 1:1 nach dem Copy-Paste-Muster der Story-Spec angelegt (Frontmatter + Markdown-Body). Kernzeile „Benötigt Home Assistant OS oder Supervised." wörtlich aus PRD FR2. Keine Marketing-Umformulierung, keine Tooltips/Modals, keine Tracking-Pixel. Glossar-Disziplin: „Home Assistant OS" voll ausgeschrieben.
+- **Task 2:** Neuer Abschnitt „Unterstützte HA-Versionen" in `addon/DOCS.md` nach „Voraussetzungen" eingefügt (Minimum 2026.4.0, Getestet bis 2026.4.3). Ursprünglicher Snapshot 2026-04-22: „HA OS/Supervised supported, HA Container/Core als nicht supported, best-effort ohne Support". KISS-Cut-Review-Patch 2026-04-23 reduziert auf „HAOS-only unterstützt; Supervised/Container/Core nicht unterstützt". Bestehender „Voraussetzungen"-Abschnitt unverändert. Changelog-Eintrag in `addon/CHANGELOG.md` unter der bestehenden `0.1.0 — TBD`-Rubrik ergänzt.
+- **Task 3:** `docs/landing/voraussetzungen.md` 1:1 nach dem Copy-Paste-Muster der Story-Spec angelegt (Frontmatter + Markdown-Body). Kernzeile ursprünglich „Benötigt Home Assistant OS oder Supervised." wörtlich aus PRD FR2 (Stand 2026-04-22) — durch KISS-Cut-Review-Patch 2026-04-23 auf „Benötigt Home Assistant OS." reduziert; PRD FR2 wurde via Sprint Change Proposal 2026-04-23 nachgezogen. Keine Marketing-Umformulierung, keine Tooltips/Modals, keine Tracking-Pixel. Glossar-Disziplin: „Home Assistant OS" voll ausgeschrieben.
 - **Task 4:** `README.md` um eine Verweis-Zeile unter der „Installation"-Überschrift ergänzt (direkt vor dem nummerierten Install-Flow). Keine Inhalts-Duplikation — nur Link auf `docs/landing/voraussetzungen.md` als Single-Source.
 - **Task 5:** Alle 5 Smoke-Tests (YAML-Validität, Semver-Pattern, Pflicht-Elemente in Markdown-Snippet, DOCS-Abschnitt, README-Verweis) automatisch via Python/pyyaml durchlaufen — alle grün. Pre-commit-Hooks ohne Beanstandung.
 - **Scope-Disziplin:** Keine Änderungen in `backend/` oder `frontend/`. Keine neuen Dependencies. Kein Rename von Slug/Image/Repo-Namen.
+- **Review-Patch 2026-04-23 (KISS-Cut):** Support-Matrix im Review-Cycle auf „nur Home Assistant OS" reduziert. Supervised/Container/Core jetzt hart „nicht unterstützt". Änderung trifft AC 1, AC 2, Task 3, File-Spec, Anti-Patterns, `addon/DOCS.md`, `docs/landing/voraussetzungen.md`, `README.md` und `addon/CHANGELOG.md`. PRD-FR2-Amendment als Action-Item an `/bmad-correct-course` delegiert.
 
 ### File List
 
@@ -313,6 +317,8 @@ claude-opus-4-7 (1M context) — bmad-dev-story skill
 
 | Datum      | Version | Änderung                                                               | Autor |
 | ---------- | ------- | ---------------------------------------------------------------------- | ----- |
-| 2026-04-22 | 0.1.0   | Minimum HA Core 2026.4.0 via `addon/config.yaml` pinnt Install-Warning | Dev   |
-| 2026-04-22 | 0.1.0   | `docs/landing/voraussetzungen.md` als Landing-Page-Copy-Quelle         | Dev   |
-| 2026-04-22 | 0.1.0   | `addon/DOCS.md` + `README.md` um Voraussetzungs-Hinweise ergänzt       | Dev   |
+| 2026-04-22 | 0.1.0   | Minimum HA Core 2026.4.0 via `addon/config.yaml` pinnt Install-Warning | Dev    |
+| 2026-04-22 | 0.1.0   | `docs/landing/voraussetzungen.md` als Landing-Page-Copy-Quelle         | Dev    |
+| 2026-04-22 | 0.1.0   | `addon/DOCS.md` + `README.md` um Voraussetzungs-Hinweise ergänzt       | Dev    |
+| 2026-04-23 | 0.1.0   | KISS-Cut im Review: Support-Matrix auf Home Assistant OS beschränkt; Supervised/Container/Core als „nicht unterstützt" markiert. AC 1/2, Task 3, File-Spec, `addon/DOCS.md`, `docs/landing/voraussetzungen.md`, `README.md`, `addon/CHANGELOG.md` angepasst. PRD-FR2 + Epic 1 Story 1.2 Amendment via `/bmad-correct-course` ausstehend. | Review |
+| 2026-04-23 | 0.1.0   | Sprint Change Proposal 2026-04-23 angewandt: PRD/Epic-Amendment OS-only-Cut nachgezogen (PRD FR2 + 3 narrative Stellen, Epic-1-FR2-Inventory, Epic-1-Story-1.1-AC, Epic-1-Story-1.2-AC 1+2, Story 1.1 AC 2). Task-4/Task-5-Beschreibungen wording-aligned. Review-Item `[Review][PRD-Amendment]` abgehakt → Story 1.2 entblockt, Status `in-progress → review`. | Dev (Correct-Course) |

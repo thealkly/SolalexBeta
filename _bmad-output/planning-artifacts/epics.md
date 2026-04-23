@@ -37,7 +37,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 **Installation & Lizenz**
 
 - **FR1:** Nutzer kann Solalex als HA Add-on über das Custom Repository `alkly/solalex` installieren.
-- **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „HA OS oder Supervised" vor dem Download-Schritt.
+- **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „Home Assistant OS" vor dem Download-Schritt. Home Assistant Supervised, Container und Core sind ausdrücklich nicht unterstützt (Amendment 2026-04-23, KISS-Cut).
 - **FR3:** Nutzer erwirbt die Lizenz aus dem Setup-Wizard heraus (Weiterleitung zu LemonSqueezy, Rückkehr in den Wizard).
 - **FR4:** Nutzer bestätigt vor Lizenz-Aktivierung den Installations-Disclaimer als sichtbare Checkbox.
 - **FR5:** Solalex verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status (14-Tage-Grace).
@@ -320,7 +320,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 | FR | Epic | Thema |
 |---|---|---|
 | FR1 | Epic 1 | Installation via Custom Add-on Repository `alkly/solalex` |
-| FR2 | Epic 1 | Landing-Page HA-OS/Supervised-Voraussetzungs-Hinweis |
+| FR2 | Epic 1 | Landing-Page Home-Assistant-OS-Voraussetzungs-Hinweis |
 | FR3 | Epic 7 | LemonSqueezy-Kauf-Flow im Wizard |
 | FR4 | Epic 7 | Installations-Disclaimer als sichtbare Checkbox |
 | FR5 | Epic 7 | Monatliche Lizenz-Verifikation mit 14-Tage-Grace |
@@ -457,7 +457,7 @@ So that Solalex über den HA Add-on Store installierbar ist und das Fundament f�
 **Then** GitHub Actions baut Docker-Images für `amd64` + `aarch64` und publisht sie in GitHub Container Registry
 **And** Release-Builds werden bei Tag-Push automatisch getriggert
 
-**Given** eine HA-Instanz mit HA OS oder Supervised
+**Given** eine HA-Instanz mit Home Assistant OS
 **When** der Nutzer das Custom Repository in den Add-on-Store einfügt
 **Then** Solalex erscheint im Store als installierbar
 
@@ -498,11 +498,11 @@ So that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
 **Given** die Solalex-Landing-Page auf alkly.de
 **When** der Besucher die Seite öffnet
-**Then** oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile „Benötigt Home Assistant OS oder Supervised" sichtbar
+**Then** oberhalb jedes „Install"- oder „Download"-CTAs ist prominent die Zeile „Benötigt Home Assistant OS" sichtbar
 
 **Given** der Check-Block auf der Landing-Page
 **When** er gelesen wird
-**Then** HA Container und HA Core sind explizit als „nicht supported, best-effort ohne Support" markiert
+**Then** Home Assistant Supervised, Home Assistant Container und Home Assistant Core sind explizit als „nicht unterstützt" markiert (kein „best-effort"-Aufweichen)
 
 **Given** ein Nutzer versucht Solalex auf einer nicht-unterstützten HA-Version zu installieren
 **When** der Add-on-Store die Installation prüft

@@ -211,7 +211,7 @@ Geschätzt 500.000+ PV-Haushalte mit Home Assistant im DACH-Raum (bei ~3 Mio. PV
 - YouTube-Launch-Video aufgenommen (inkl. Add-on-Installation)
 - Newsletter an Blueprint-Kunden vorbereitet
 - Custom Add-on Repository auf GitHub public
-- Landing-Hinweis „Benötigt HA OS oder Supervised" prominent
+- Landing-Hinweis „Benötigt Home Assistant OS" prominent
 - Beta-Tester bestätigen explizit „launch-ready"
 
 ## Product Scope
@@ -265,7 +265,7 @@ Peak-Shaving · Speed-Aware-Pool-Verteilung · Wallbox als First-Class-Verbrauch
 
 ### Journey 3: Neugier-Nils — Einsteiger, Happy Path
 
-**Opening Scene:** Nils, 31, hat letzte Woche sein erstes Balkonkraftwerk mit Hoymiles HMS-800 aufgehängt. HA läuft auf einem Raspberry Pi 4, den er nach einem YouTube-Tutorial eingerichtet hat. Automationen? Nichts. YAML? Zweimal geöffnet, zweimal zugeklappt. Er entdeckt die Solalex-Landingpage über die Wartelisten-Mail. Oben steht gleich: „Benötigt Home Assistant OS oder Supervised." Er prüft HA → Einstellungen → „Raspberry Pi 4, HA OS". Passt.
+**Opening Scene:** Nils, 31, hat letzte Woche sein erstes Balkonkraftwerk mit Hoymiles HMS-800 aufgehängt. HA läuft auf einem Raspberry Pi 4, den er nach einem YouTube-Tutorial eingerichtet hat. Automationen? Nichts. YAML? Zweimal geöffnet, zweimal zugeklappt. Er entdeckt die Solalex-Landingpage über die Wartelisten-Mail. Oben steht gleich: „Benötigt Home Assistant OS." Er prüft HA → Einstellungen → „Raspberry Pi 4, HA OS". Passt.
 
 **Rising Action:** Installation Schritt für Schritt nach Landingpage-Anleitung. Repository hinzufügen — Screenshots helfen. Add-on installieren → starten → Klick in die Sidebar. Wizard begrüßt ihn. Schritt 1 Hardware-Auswahl, drei Pfade. Er klickt Hoymiles. Auto-Detection findet OpenDTU + Entities. Live-Werte rechts: „AC-Leistung: 412 W" — die Zahl, die er vorher nur in der OpenDTU-UI gesehen hat. Er nickt: ja, das ist mein System.
 
@@ -291,7 +291,7 @@ Peak-Shaving · Speed-Aware-Pool-Verteilung · Wallbox als First-Class-Verbrauch
 
 Aus den vier Journeys ergeben sich die Kern-Capabilities, die im PRD verbindlich sein müssen:
 
-- **Setup & Onboarding:** Zwei-Pfade-Wizard (Hoymiles/OpenDTU · Marstek Venus) · Auto-Detection für OpenDTU, Shelly 3EM, Marstek Venus · Live-Werte neben jedem Sensor · Funktionstest als Lern-Moment und Readback-Validierung · Landing-Page-Check für HA-OS/Supervised. Anker + Generic-Pfad + Blueprint-Import folgen v1.5.
+- **Setup & Onboarding:** Zwei-Pfade-Wizard (Hoymiles/OpenDTU · Marstek Venus) · Auto-Detection für OpenDTU, Shelly 3EM, Marstek Venus · Live-Werte neben jedem Sensor · Funktionstest als Lern-Moment und Readback-Validierung · Landing-Page-Check für Home Assistant OS. Anker + Generic-Pfad + Blueprint-Import folgen v1.5.
 - **Regelung & Akku-Pool:** Multi-Venus als interner Pool (≥ 2 Einheiten ohne UX-Komplikation) · reaktive Nulleinspeisung · Akku-Schutz mit Min/Max-SoC · Nacht-Entladung in Zeitfenstern · „kein Akku"-Pfad ohne tote Wizard-Schritte
 - **Dashboard & Kommunikation:** Euro-Zahl als 2-Sekunden-Kernaussage · sichtbarer Selbstverbrauch + selbst gesteuert als Beleg · Stille-statt-Pieks-Default
 - **Diagnose & Support:** Diagnose-Tab mit letzten 100 Zyklen + Export-Funktion · Add-on-Logs als zweiter Datenpunkt · strukturiertes Bug-Report-Template
@@ -502,7 +502,7 @@ Solalex wird trotz der Einordnung **iot_embedded** kein klassisches Embedded-Dev
 - GitHub `alkly/solalex` (privat → public zum Launch)
 - Discord #solalex-beta + #solalex-support (getrennt)
 - GitHub Issues + öffentliche Roadmap
-- Landing-Page mit HA-OS/Supervised-Check
+- Landing-Page mit Home-Assistant-OS-Check
 - YouTube-Launch-Video
 
 ### Post-MVP Features
@@ -575,7 +575,7 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 ### Installation & Lizenz
 
 - **FR1:** Nutzer kann Solalex als HA Add-on über das Custom Repository `alkly/solalex` installieren.
-- **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „HA OS oder Supervised" vor dem Download-Schritt.
+- **FR2:** Nutzer sieht auf der Landing-Page explizit die Voraussetzung „Home Assistant OS" vor dem Download-Schritt. Home Assistant Supervised, Home Assistant Container und Home Assistant Core sind ausdrücklich nicht unterstützt (Amendment 2026-04-23, KISS-Cut: Support-Matrix auf eine known-good Host-Konfiguration beschränkt).
 - **FR3:** Nutzer erwirbt die Lizenz aus dem Setup-Wizard heraus (Weiterleitung zu LemonSqueezy, Rückkehr in den Wizard).
 - **FR4:** Nutzer bestätigt vor Lizenz-Aktivierung den Installations-Disclaimer als sichtbare Checkbox.
 - **FR5:** Solalex verifiziert die Lizenz einmalig online bei Aktivierung und monatlich erneut, mit Graceful Degradation bei Offline-Status.

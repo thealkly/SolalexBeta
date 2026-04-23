@@ -13,7 +13,7 @@ so that Solalex über den HA Add-on Store installierbar ist und das Fundament f�
 ## Acceptance Criteria
 
 1. **GHA Multi-Arch Build:** `Given` das Repository `alkly/solalex`, `When` Code gepusht und getaggt wird, `Then` GitHub Actions baut Docker-Images für `amd64` + `aarch64` und publisht sie in GitHub Container Registry. **And** Release-Builds werden bei Tag-Push (`vX.Y.Z`) automatisch getriggert.
-2. **Custom-Repo-Installierbarkeit:** `Given` eine HA-Instanz mit HA OS oder Supervised, `When` der Nutzer das Custom Repository in den Add-on-Store einfügt, `Then` Solalex erscheint im Store als installierbar.
+2. **Custom-Repo-Installierbarkeit:** `Given` eine HA-Instanz mit Home Assistant OS, `When` der Nutzer das Custom Repository in den Add-on-Store einfügt, `Then` Solalex erscheint im Store als installierbar.
 3. **FastAPI + SQLite Bootstrap:** `Given` das Add-on ist installiert, `When` der Container startet, `Then` ein FastAPI-Prozess (Python 3.13) lauscht auf dem Ingress-Port **And** die SQLite-Datei `/data/solalex.db` wird initialisiert (leer, produktive Tabellen kommen in späteren Stories dazu).
 4. **Svelte-Minimal-Build:** `Given` der Container läuft, `When` die Svelte-Frontend-Route aufgerufen wird, `Then` ein minimaler Svelte + Tailwind-Build lädt ohne Fehler.
 5. **Persistenz-Volume:** `Given` `/data/` als Persistenz-Volume, `When` das Add-on neu gestartet wird, `Then` `/data/`-Inhalt bleibt erhalten.
@@ -330,6 +330,7 @@ claude-opus-4-7 (1M context, 2026-01 cutoff)
 - **2026-04-22** — Skeleton implementiert. Backend (FastAPI + aiosqlite + stdlib-JSON-Logging), Frontend (Svelte 5 + Vite 7 + Tailwind 4), Add-on (Dockerfile Multi-Stage + s6-Services + HA Base), CI (3 Workflows). Lokale Container-Probe: 64.9 MiB RSS, 0.49 % CPU, `/api/health` 200 OK.
 - **2026-04-22** — Code-Review (bmad-code-review, 3 parallele Layer). 5 Decisions resolved, 23 Patches identifiziert.
 - **2026-04-23** — 21 Patches angewandt (addon/config.yaml `panel_title` + `schema`/`options`, s6-`finish` Exit-Code-Propagation, WAL-Verify, `initialize_database` mkdir parent, `env_prefix="SOLALEX_"` + `AliasChoices` für `SUPERVISOR_TOKEN`, `get_settings` lru_cache, Logging-Handler-Cleanup + dynamisches `_RESERVED_LOGRECORD_KEYS`, Health-Readiness-Check, Frontend `BASE_URL`-relativer fetch + `onMount`, `run.sh`/s6-`run`-Alignment, Dockerfile Node 22, GHA concurrency-Key, Pre-commit-Prettier-Local + ESLint-Stub, `.gitignore`-Bereinigung). 2 Patches als Defer eskaliert (Port-DRY, Docker `USER`). Status: review → done.
+- **2026-04-23** — AC 2 Wording auf „Home Assistant OS" reduziert. Doku-Nachzug zum KISS-Cut-Amendment 2026-04-23 (siehe `_bmad-output/planning-artifacts/sprint-change-proposal-2026-04-23.md`). Code/Implementierung/Tests unverändert: Solalex-Add-on installiert sich strukturell ausschließlich auf Supervisor-basierten Hosts, und Story 1.2 schränkt die Support-Matrix per `homeassistant:`-Pin + `addon/DOCS.md` auf HAOS-only hart ein. Story-Status bleibt `done`.
 
 ### File List
 
