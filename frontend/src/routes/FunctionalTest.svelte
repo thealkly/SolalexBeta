@@ -30,8 +30,6 @@
   let testPhase = $state<TestPhase>('idle');
   let testResult = $state<FunctionalTestResponse | null>(null);
   let testError = $state<string | null>(null);
-  let commissionError = $state<string | null>(null);
-
   let chartPoints = $state<Record<string, { t: number; v: number }[]>>({});
   let nowTs = $state(Date.now());
 
@@ -81,7 +79,6 @@
     testPhase = 'running';
     testResult = null;
     testError = null;
-    commissionError = null;
     chartPoints = {};
     polling.start();
 
@@ -96,18 +93,6 @@
         : 'Funktionstest fehlgeschlagen. Prüfe die HA-Verbindung.';
     } finally {
       polling.stop();
-    }
-  }
-
-  async function handleCommission(): Promise<void> {
-    commissionError = null;
-    try {
-      await client.commission();
-      window.location.hash = '#/running';
-    } catch (err) {
-      commissionError = isApiError(err)
-        ? err.detail
-        : 'Aktivierung fehlgeschlagen. Bitte erneut versuchen.';
     }
   }
 
@@ -166,10 +151,7 @@
         {#if testResult?.latency_ms !== null && testResult?.latency_ms !== undefined}
           <p class="result-sub">Latenz: {testResult.latency_ms} ms</p>
         {/if}
-        <button class="activate-button" onclick={handleCommission}>Aktivieren</button>
-        {#if commissionError}
-          <p class="error-line">{commissionError}</p>
-        {/if}
+        <button class="continue-button" onclick={() => { window.location.hash = '#/disclaimer'; }}>Weiter zum Disclaimer</button>
       </section>
     {:else if testPhase === 'failed' || testPhase === 'timeout'}
       <section class="ft-card result-card result-failed">
@@ -376,7 +358,7 @@
   }
 
   .start-button,
-  .activate-button {
+  .continue-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -399,7 +381,7 @@
   }
 
   .start-button:hover,
-  .activate-button:hover {
+  .continue-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 0 32px color-mix(in srgb, var(--color-accent-primary) 56%, transparent);
   }

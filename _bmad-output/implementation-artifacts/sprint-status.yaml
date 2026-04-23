@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-23 (Sprint-Change 2026-04-23: Dark-Mode gestrichen; Story 1.6 umbenannt → mit-light-look)
+last_updated: 2026-04-23 (Story 2.3 → review)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -59,11 +59,11 @@ development_status:
   # Epic 2: Setup-Wizard & Hardware-Onboarding
   epic-2: in-progress
   # Key aktualisiert: Amendment 2026-04-23 — Config-Page statt 4-Schritt-Wizard
-  2-1-hardware-config-page-typ-auswahl-entity-dropdown: in-progress
+  2-1-hardware-config-page-typ-auswahl-entity-dropdown: review
   # Key aktualisiert: Amendment 2026-04-23 — Funktionstest + Commissioning kombiniert
-  2-2-funktionstest-mit-readback-commissioning: ready-for-dev
+  2-2-funktionstest-mit-readback-commissioning: review
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
-  2-3-disclaimer-aktivieren: ready-for-dev
+  2-3-disclaimer-aktivieren: review
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Config from './routes/Config.svelte';
+  import DisclaimerActivation from './routes/DisclaimerActivation.svelte';
   import FunctionalTest from './routes/FunctionalTest.svelte';
   import RunningPlaceholder from './routes/RunningPlaceholder.svelte';
   import * as client from './lib/api/client.js';
@@ -30,7 +31,7 @@
     }
   }
 
-  const VALID_ROUTES = new Set(['/', '/config', '/functional-test', '/running']);
+  const VALID_ROUTES = new Set(['/', '/config', '/functional-test', '/running', '/disclaimer']);
 
   function syncRoute(): void {
     currentRoute = normalizeRoute(window.location.hash);
@@ -94,6 +95,8 @@
     <Config />
   {:else if currentRoute === '/functional-test'}
     <FunctionalTest />
+  {:else if currentRoute === '/disclaimer'}
+    <DisclaimerActivation />
   {:else if currentRoute === '/running'}
     <RunningPlaceholder />
   {:else}

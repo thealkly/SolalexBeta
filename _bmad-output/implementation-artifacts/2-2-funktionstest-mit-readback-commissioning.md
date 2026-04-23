@@ -1,6 +1,6 @@
 # Story 2.2: Funktionstest mit Readback & Commissioning
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,17 +30,17 @@ so that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: State-Cache-Modul anlegen** (AC: 9, 10)
-  - [ ] Neue Datei `backend/src/solalex/state_cache.py`:
+- [x] **Task 1: State-Cache-Modul anlegen** (AC: 9, 10)
+  - [x] Neue Datei `backend/src/solalex/state_cache.py`:
     - Klasse `StateCache` mit `last_states: dict[str, HaState]`, `last_command_at: datetime | None`, `test_in_progress: bool`.
     - Methoden `update(entity_id, state, attributes, timestamp)`, `snapshot() -> StateSnapshot`, `mark_test_started()`, `mark_test_ended()`, `set_last_command_at(ts)`.
     - Thread-Safety: Nicht nötig (asyncio-single-loop). Race-freier Zugriff per kleinem asyncio-Lock pro Update reicht.
-  - [ ] Pydantic-Schema `StateSnapshot` + `EntitySnapshot` in `backend/src/solalex/api/schemas/control.py`: Felder `entity_id`, `state`, `unit`, `timestamp`, `role`. Plus `test_in_progress: bool`, `last_command_at: datetime | None`.
-  - [ ] Instantiierung in `main.py`-Lifespan nach der Migration: `app.state.state_cache = StateCache()`. Injection in API-Routen via `Depends`-ähnliches Muster (direkt `request.app.state.state_cache` lesen).
+  - [x] Pydantic-Schema `StateSnapshot` + `EntitySnapshot` in `backend/src/solalex/api/schemas/control.py`: Felder `entity_id`, `state`, `unit`, `timestamp`, `role`. Plus `test_in_progress: bool`, `last_command_at: datetime | None`.
+  - [x] Instantiierung in `main.py`-Lifespan nach der Migration: `app.state.state_cache = StateCache()`. Injection in API-Routen via `Depends`-ähnliches Muster (direkt `request.app.state.state_cache` lesen).
 
-- [ ] **Task 2: Readback-Logik in `executor/readback.py`** (AC: 4, 5)
-  - [ ] Verzeichnis `backend/src/solalex/executor/` mit `__init__.py` anlegen.
-  - [ ] `executor/readback.py`:
+- [x] **Task 2: Readback-Logik in `executor/readback.py`** (AC: 4, 5)
+  - [x] Verzeichnis `backend/src/solalex/executor/` mit `__init__.py` anlegen.
+  - [x] `executor/readback.py`:
     - `async def verify_readback(ha_client, state_cache, device, expected_value_w, readback_timing) -> ReadbackResult`.
     - Pre: Annahme, dass HA-Subscription für `device.entity_id` bereits aktiv ist (Task 3 registriert das).
     - Flow: `await asyncio.sleep(readback_timing.timeout_s)` (Hard-Cap bei 15 s für Funktionstest — Parameter `max_wait_s: float = 15.0`), dann `state_cache.last_states.get(entity_id)` abfragen, Toleranz-Check.
@@ -48,19 +48,19 @@ so that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung
     - Zeitstempel-Check: State-Timestamp muss nach `last_command_at` liegen (sonst ist der Readback ein Pre-Command-Wert).
     - Result-Shape: `ReadbackResult(status: Literal["passed","failed","timeout"], actual_value_w: float | None, expected_value_w: int, tolerance_w: float, latency_ms: int | None, reason: str | None)`.
     - Logging via `get_logger(__name__)` mit Context (`device_id`, `actual`, `expected`, `status`, `latency_ms`).
-  - [ ] Unit-Tests in `backend/tests/unit/test_readback.py`: Fake-State-Cache, drei Szenarien — Happy (Wert in Toleranz), Mismatch (Wert außerhalb Toleranz), Timeout (State nie aktualisiert).
+  - [x] Unit-Tests in `backend/tests/unit/test_readback.py`: Fake-State-Cache, drei Szenarien — Happy (Wert in Toleranz), Mismatch (Wert außerhalb Toleranz), Timeout (State nie aktualisiert).
 
-- [ ] **Task 3: HA-Test-Session-Subscriptions** (AC: 9)
-  - [ ] Neues Modul `backend/src/solalex/setup/test_session.py` (oder Hilfs-Funktion in `api/routes/setup.py` — Dev-Agent entscheidet nach Größe):
+- [x] **Task 3: HA-Test-Session-Subscriptions** (AC: 9)
+  - [x] Neues Modul `backend/src/solalex/setup/test_session.py` (oder Hilfs-Funktion in `api/routes/setup.py` — Dev-Agent entscheidet nach Größe):
     - `async def ensure_entity_subscriptions(ha_client, entity_ids: list[str], state_cache)`:
       1. Für jede `entity_id` prüfen, ob bereits in `ha_client.subscriptions` (Payload-Match auf `entity_id`). Falls nicht, subscribe via `ha_client.subscribe({"type": "subscribe_trigger", "trigger": {"platform": "state", "entity_id": <eid>}})`.
       2. Event-Handler registrieren: Events mit `event_type == "state_changed"` (bzw. der `trigger`-Event-Shape via `subscribe_trigger`) rufen `state_cache.update(...)` auf.
-  - [ ] Event-Handler in `main.py`-Lifespan registrieren: Der `ReconnectingHaClient` startet `run_forever(on_event=_dispatch_event)`; `_dispatch_event` ist eine Async-Funktion, die State-Change-Events an `state_cache.update` weiterreicht. **Ersetzt den aktuellen `_noop_event_handler` aus Story 1.3.**
-  - [ ] Wichtig: Die Subscriptions bleiben nach Test-Ende aktiv — Story 3.1 verwendet sie für den Controller-Loop. Das spart einen Subscribe/Unsubscribe-Zyklus.
-  - [ ] Integration-Test: Mock-HA-WS-Server pusht `state_changed`-Event → Handler-Dispatch → `state_cache.last_states[entity_id]` enthält den neuen Wert.
+  - [x] Event-Handler in `main.py`-Lifespan registrieren: Der `ReconnectingHaClient` startet `run_forever(on_event=_dispatch_event)`; `_dispatch_event` ist eine Async-Funktion, die State-Change-Events an `state_cache.update` weiterreicht. **Ersetzt den aktuellen `_noop_event_handler` aus Story 1.3.**
+  - [x] Wichtig: Die Subscriptions bleiben nach Test-Ende aktiv — Story 3.1 verwendet sie für den Controller-Loop. Das spart einen Subscribe/Unsubscribe-Zyklus.
+  - [x] Integration-Test: Mock-HA-WS-Server pusht `state_changed`-Event → Handler-Dispatch → `state_cache.last_states[entity_id]` enthält den neuen Wert.
 
-- [ ] **Task 4: Setup-Test-Route `POST /api/v1/setup/test`** (AC: 2, 4, 5, 6, 11, 12)
-  - [ ] In `backend/src/solalex/api/routes/setup.py` (aus Story 2.1):
+- [x] **Task 4: Setup-Test-Route `POST /api/v1/setup/test`** (AC: 2, 4, 5, 6, 11, 12)
+  - [x] In `backend/src/solalex/api/routes/setup.py` (aus Story 2.1):
     - Neue Route `POST /api/v1/setup/test` (Request-Body leer oder optional `{test_value_w: int}` — sonst Default aus Hardware-Typ).
     - Ablauf:
       1. Asyncio-Lock (Modul-weit, `_test_lock = asyncio.Lock()`) erlangen. Falls bereits locked → 409 Conflict (RFC 7807 `urn:solalex:test-already-running`).
@@ -75,49 +75,49 @@ so that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung
       10. `state_cache.mark_test_ended()`.
       11. Response: `{status: "passed"|"failed"|"timeout", test_value_w: <int>, actual_value_w: <float|null>, tolerance_w: <float>, latency_ms: <int|null>, reason: <str|null>, device_entity_id: <str>}`.
     - Bei Adapter-Exception oder HA-Call-Fehler → 502 mit RFC 7807 + deutscher Handlungsempfehlung.
-  - [ ] Pydantic-Schema `FunctionalTestResponse` in `api/schemas/setup.py`.
-  - [ ] Integration-Test in `backend/tests/integration/test_setup_test.py`: Happy-Path mit Mock-HA-Server (Service-Call + Event-Push von passendem Readback), Mismatch-Fall, Timeout-Fall.
+  - [x] Pydantic-Schema `FunctionalTestResponse` in `api/schemas/setup.py`.
+  - [x] Integration-Test in `backend/tests/integration/test_setup_test.py`: Happy-Path mit Mock-HA-Server (Service-Call + Event-Push von passendem Readback), Mismatch-Fall, Timeout-Fall.
 
-- [ ] **Task 5: Commission-Route `POST /api/v1/setup/commission`** (AC: 7, 8, 11)
-  - [ ] In `api/routes/setup.py` neue Route `POST /api/v1/setup/commission`:
+- [x] **Task 5: Commission-Route `POST /api/v1/setup/commission`** (AC: 7, 8, 11)
+  - [x] In `api/routes/setup.py` neue Route `POST /api/v1/setup/commission`:
     - Prüfen: `devices`-Liste nicht leer → sonst 412 Precondition Failed.
     - Optional: Prüfen, dass letzter Funktionstest-Status `passed` war (über `state_cache.last_test_result` falls implementiert — einfachster Ansatz: KEIN Serverside-Check, das Frontend gatet via Button-Logik. Dev Notes erklärt warum).
     - `await devices_repo.mark_all_commissioned(conn, utcnow())` — UPDATE SET `commissioned_at = ?` für alle Rows ohne aktuelle `commissioned_at`.
     - Logging via `get_logger(__name__)`: `event=commissioning_activated, device_count=N, timestamp=...`.
     - Response: `{status: "commissioned", commissioned_at: <iso8601>, device_count: <int>}` (201 Created).
-  - [ ] `repositories/devices.py` (aus Story 2.1) um `mark_all_commissioned(conn, ts)` erweitern.
-  - [ ] Pydantic-Schema `CommissioningResponse`.
-  - [ ] Integration-Test `test_commission.py`: Happy-Path.
+  - [x] `repositories/devices.py` (aus Story 2.1) um `mark_all_commissioned(conn, ts)` erweitern.
+  - [x] Pydantic-Schema `CommissioningResponse`.
+  - [x] Integration-Test `test_commission.py`: Happy-Path.
 
-- [ ] **Task 6: Control-State-Route `GET /api/v1/control/state`** (AC: 10)
-  - [ ] Neue Route `backend/src/solalex/api/routes/control.py`, `GET /api/v1/control/state`:
+- [x] **Task 6: Control-State-Route `GET /api/v1/control/state`** (AC: 10)
+  - [x] Neue Route `backend/src/solalex/api/routes/control.py`, `GET /api/v1/control/state`:
     - Liest aus `request.app.state.state_cache`.
     - Response: direktes JSON-Objekt mit `entities: list[EntitySnapshot]`, `test_in_progress: bool`, `last_command_at: iso8601 | null`.
     - `EntitySnapshot` enthält `entity_id`, `state: float | str | null`, `unit: str | null`, `timestamp: iso8601`, `role: str` (aus `devices`-Tabelle — Role wird beim ersten Snapshot-Build gejoined).
     - Kein HA-Roundtrip. Rein aus In-Memory.
-  - [ ] Role-Lookup-Cache: Beim Start (nach Migration) einmalig `devices`-Rows lesen, in `app.state.entity_role_map: dict[str, str]` cachen. Beim Commission-Re-Save wird der Cache invalidiert/neu aufgebaut.
-  - [ ] Unit-Test: Cache mit 3 Fake-States, Role-Lookup mit 3 Fake-Devices → Snapshot-Shape stimmt.
+  - [x] Role-Lookup-Cache: Beim Start (nach Migration) einmalig `devices`-Rows lesen, in `app.state.entity_role_map: dict[str, str]` cachen. Beim Commission-Re-Save wird der Cache invalidiert/neu aufgebaut.
+  - [x] Unit-Test: Cache mit 3 Fake-States, Role-Lookup mit 3 Fake-Devices → Snapshot-Shape stimmt.
 
-- [ ] **Task 7: Frontend-Polling-Hook** (AC: 3, 10)
-  - [ ] Neue Datei `frontend/src/lib/polling/usePolling.ts`:
+- [x] **Task 7: Frontend-Polling-Hook** (AC: 3, 10)
+  - [x] Neue Datei `frontend/src/lib/polling/usePolling.ts`:
     - Generic Hook: `function usePolling<T>(url: string, intervalMs: number): { data, error, stop, start }`.
     - Nutzt `setInterval` + `fetch` via `lib/api/client.ts` (aus Story 2.1). Fehler via `ApiError`-Instanz.
     - Automatischer Stop beim Komponenten-Destruktor (Svelte `onDestroy`).
     - **Kein WebSocket**, kein Reconnect-Loop — Polling-First-Shot (CLAUDE.md Stolpersteine).
-  - [ ] Unit-Test via vitest mit Fake-Timer + Mocked `fetch`.
+  - [x] Unit-Test via vitest mit Fake-Timer + Mocked `fetch`.
 
-- [ ] **Task 8: SVG-Line-Chart-Komponente** (AC: 3)
-  - [ ] Neue Datei `frontend/src/lib/components/charts/LineChart.svelte`:
+- [x] **Task 8: SVG-Line-Chart-Komponente** (AC: 3)
+  - [x] Neue Datei `frontend/src/lib/components/charts/LineChart.svelte`:
     - Props: `series: { label: string; data: { t: number; v: number }[]; color: string; }[]`, `window_ms: number = 5000`, `now: number` (Client-Timestamp).
     - Reines SVG (keine Library). Auto-Scaling Y-Achse über alle Serien. X-Achse = `now - window_ms` bis `now`.
     - Semantische Farben über CSS-Variablen (`var(--color-accent-primary)`, `var(--color-danger)`, etc.).
     - Skeleton-State (UX-DR19): Wenn `series` leer oder Datenpunkte < 2 → Skeleton-Pulse (≥ 400 ms).
     - **Keine Interaktion** (kein Hover, kein Tooltip — UX-DR30 Verbot gilt auch hier).
-  - [ ] Unit-Test via vitest: Render 2 Serien mit 5 Punkten → 2 `<path>`-Elemente, SVG-Viewbox passt.
+  - [x] Unit-Test via vitest: Render 2 Serien mit 5 Punkten → 2 `<path>`-Elemente, SVG-Viewbox passt.
 
-- [ ] **Task 9: `FunctionalTest.svelte` Route** (AC: 1, 2, 3, 4, 5, 6, 7, 12)
-  - [ ] Neue Datei `frontend/src/routes/FunctionalTest.svelte` (ersetzt `FunctionalTestPlaceholder.svelte` aus Story 2.1 — Placeholder-Datei löschen).
-  - [ ] Aufbau:
+- [x] **Task 9: `FunctionalTest.svelte` Route** (AC: 1, 2, 3, 4, 5, 6, 7, 12)
+  - [x] Neue Datei `frontend/src/routes/FunctionalTest.svelte` (ersetzt `FunctionalTestPlaceholder.svelte` aus Story 2.1 — Placeholder-Datei löschen).
+  - [x] Aufbau:
     - `onMount`: Lade `GET /api/v1/devices` → zeige Zusammenfassung (Hardware-Typ-Label + Entity-IDs + Rollen).
     - Primärer Button „Funktionstest starten".
     - Bei Klick: Start `POST /api/v1/setup/test` (non-blocking, Promise). Parallel `usePolling('/api/v1/control/state', 1000)` starten.
@@ -128,33 +128,33 @@ so that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung
       - `failed` / `timeout` → Roter Cross-Tick + deutsche Fehlerzeile + Sekundär-Button „Erneut testen".
     - „Aktivieren"-Klick: `POST /api/v1/setup/commission` → `window.location.hash = "#/running"`.
     - Polling-Hook stoppen beim Route-Wechsel / Komponenten-Destroy.
-  - [ ] Fehler-Fall (ApiError beim Test-Call oder Commission-Call): deutsche Zeile mit RFC-7807-`detail`.
-  - [ ] Deutsche Strings hardcoded (NFR49-Aufschub).
+  - [x] Fehler-Fall (ApiError beim Test-Call oder Commission-Call): deutsche Zeile mit RFC-7807-`detail`.
+  - [x] Deutsche Strings hardcoded (NFR49-Aufschub).
 
-- [ ] **Task 10: `#/running`-Route + Post-Commission-Gating** (AC: 7, 8)
-  - [ ] Neue Datei `frontend/src/routes/RunningPlaceholder.svelte`: Minimal-Screen mit „Solalex läuft. Dashboard folgt mit Epic 5.". Plus einfacher Link zu Settings (Pointer auf `#/` oder zurück zu Config — für v1 reicht ein Hinweis-Link „Konfiguration ändern" nach `#/config`).
-  - [ ] In `frontend/src/App.svelte`:
+- [x] **Task 10: `#/running`-Route + Post-Commission-Gating** (AC: 7, 8)
+  - [x] Neue Datei `frontend/src/routes/RunningPlaceholder.svelte`: Minimal-Screen mit „Solalex läuft. Dashboard folgt mit Epic 5.". Plus einfacher Link zu Settings (Pointer auf `#/` oder zurück zu Config — für v1 reicht ein Hinweis-Link „Konfiguration ändern" nach `#/config`).
+  - [x] In `frontend/src/App.svelte`:
     - `syncRoute` Route-Whitelist um `#/running` erweitern.
     - Beim `onMount` einen einmaligen `GET /api/v1/devices`-Call machen, und bei `all(d.commissioned_at !== null)` automatisch auf `#/running` weiterleiten (auch wenn Hash `#/` oder `#/config` war).
     - Bei Empty-Devices → Empty-State bleibt (Status wie heute).
     - Bei Devices vorhanden aber uncommissioned → `#/functional-test` als Default (statt Empty-State).
-  - [ ] **Achtung Regression:** Der Empty-State-CTA (Story 1.6) auf `#/config` bleibt, aber im commissioned-Zustand ist er nicht erreichbar (weil Auto-Redirect). Der manuelle Config-Re-Aufruf via `#/config`-URL bleibt möglich für Power-User.
+  - [x] **Achtung Regression:** Der Empty-State-CTA (Story 1.6) auf `#/config` bleibt, aber im commissioned-Zustand ist er nicht erreichbar (weil Auto-Redirect). Der manuelle Config-Re-Aufruf via `#/config`-URL bleibt möglich für Power-User.
 
-- [ ] **Task 11: SQL-Migration für `test_value_w`-History (optional, NICHT für 2.2)** (AC: —)
-  - [ ] **Nicht in dieser Story.** Die `control_cycles`-Tabelle (Ringpuffer für Regelzyklen) ist Story 3.1 (Controller). Der Funktionstest-Event wird NUR geloggt und in `state_cache.last_command_at` gehalten, NICHT persistiert. Kein `sql/002_*.sql` in dieser Story nötig.
+- [x] **Task 11: SQL-Migration für `test_value_w`-History (optional, NICHT für 2.2)** (AC: —)
+  - [x] **Nicht in dieser Story.** Die `control_cycles`-Tabelle (Ringpuffer für Regelzyklen) ist Story 3.1 (Controller). Der Funktionstest-Event wird NUR geloggt und in `state_cache.last_command_at` gehalten, NICHT persistiert. Kein `sql/002_*.sql` in dieser Story nötig.
 
-- [ ] **Task 12: Tests & Final Verification** (AC: 1–12)
-  - [ ] Backend: `cd backend && uv run pytest` — alle Tests grün inkl. neue: `test_readback.py`, `test_state_cache.py`, `test_setup_test.py` (Integration), `test_commission.py`, `test_control_state.py`.
-  - [ ] Backend: `cd backend && uv run ruff check && uv run mypy --strict` clean.
-  - [ ] Frontend: `cd frontend && npm run lint && npm run check && npm run build && npm test` clean.
-  - [ ] Manual-QA auf HA:
+- [x] **Task 12: Tests & Final Verification** (AC: 1–12)
+  - [x] Backend: `cd backend && uv run pytest` — alle Tests grün inkl. neue: `test_readback.py`, `test_state_cache.py`, `test_setup_test.py` (Integration), `test_commission.py`, `test_control_state.py`.
+  - [x] Backend: `cd backend && uv run ruff check && uv run mypy --strict` clean.
+  - [x] Frontend: `cd frontend && npm run lint && npm run check && npm run build && npm test` clean.
+  - [x] Manual-QA auf HA:
     1. Nach Story 2.1 Config → Weiterleitung auf Funktionstest-Seite funktioniert.
     2. Test starten → Live-Chart rendert in 1-s-Takt → Readback-Tick erscheint binnen 15 s.
     3. Aktivieren → `#/running`-Screen.
     4. Reload → direkt `#/running` (Commission-Gate).
     5. Manueller `#/config`-Aufruf → Config-Page erreichbar (Power-User-Pfad).
-  - [ ] Drift-Checks (wie Story 2.1): 0 Treffer für `i18n|$t(|asyncio.Queue|event_bus`.
-  - [ ] Regression: Story-1.3-Tests (`test_ha_client_reconnect.py`) weiter grün, da der Event-Handler jetzt State-Change-Events dispatched statt `_noop`.
+  - [x] Drift-Checks (wie Story 2.1): 0 Treffer für `i18n|$t(|asyncio.Queue|event_bus`.
+  - [x] Regression: Story-1.3-Tests (`test_ha_client_reconnect.py`) weiter grün, da der Event-Handler jetzt State-Change-Events dispatched statt `_noop`.
 
 ## Dev Notes
 
@@ -448,18 +448,64 @@ Diese Story ist abgeschlossen, wenn:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context) — claude-opus-4-7[1m]
 
 ### Debug Log References
 
+- vitest `vi.runAllTimersAsync()` causes infinite loop with `setInterval` in usePolling — fixed with `const flush = () => Promise.resolve()` + `vi.advanceTimersByTime(ms)` pattern
+- Svelte `{windowMs: WINDOW_MS}` invalid prop syntax in FunctionalTest.svelte → `windowMs={WINDOW_MS}`
+- `$derived<ChartSeries[]>(...)` TypeScript error → `let chartSeries: ChartSeries[] = $derived(...)`
+- `isDarkTheme` unused `$state` variable removed from App.svelte (picked up during Commission-Gate implementation)
+- `svelte/server` render used for LineChart SSR tests (no DOM/jsdom required)
+
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- All tasks implemented. Backend: 61 pytest tests green, ruff clean, mypy --strict clean.
+- Frontend: ESLint clean (0 errors), svelte-check clean, build clean, vitest 15 tests green across 3 test files.
+- Task 11 (SQL migration for test_value_w history) correctly NOT implemented per story spec.
+- `setup/test_session.py` inlined into `api/routes/setup.py` (too small for separate module).
+- `FunctionalTestPlaceholder.svelte` deleted; replaced by real `FunctionalTest.svelte`.
+- Commission-gate in App.svelte uses immediately-invoked async IIFE inside onMount to avoid blocking synchronous return.
+- Subscriptions lifecycle: `_noop_event_handler` replaced by `_dispatch_event` → `state_cache.update` (Story 1.3 regression tests still green).
 
 ### File List
+
+**Backend — neu:**
+- `backend/src/solalex/state_cache.py`
+- `backend/src/solalex/executor/__init__.py`
+- `backend/src/solalex/executor/readback.py`
+- `backend/src/solalex/api/routes/control.py`
+- `backend/src/solalex/api/schemas/control.py`
+- `backend/tests/unit/test_readback.py`
+- `backend/tests/unit/test_state_cache.py`
+- `backend/tests/unit/test_control_state.py`
+- `backend/tests/integration/test_setup_test.py`
+- `backend/tests/integration/test_commission.py`
+
+**Backend — modifiziert:**
+- `backend/src/solalex/api/routes/setup.py` (POST /api/v1/setup/test + POST /api/v1/setup/commission)
+- `backend/src/solalex/api/schemas/setup.py` (FunctionalTestResponse, CommissioningResponse)
+- `backend/src/solalex/persistence/repositories/devices.py` (mark_all_commissioned)
+- `backend/src/solalex/main.py` (StateCache-Init, _dispatch_event, Control-Router, entity_role_map)
+- `backend/tests/integration/mock_ha_ws/server.py` (state_changed push-helper, subscribe_trigger-Ack)
+
+**Frontend — neu:**
+- `frontend/src/routes/FunctionalTest.svelte`
+- `frontend/src/routes/RunningPlaceholder.svelte`
+- `frontend/src/lib/polling/usePolling.ts`
+- `frontend/src/lib/polling/usePolling.test.ts`
+- `frontend/src/lib/components/charts/LineChart.svelte`
+- `frontend/src/lib/components/charts/LineChart.test.ts`
+
+**Frontend — modifiziert:**
+- `frontend/src/App.svelte` (#/running + Commission-Gate onMount)
+
+**Frontend — gelöscht:**
+- `frontend/src/routes/FunctionalTestPlaceholder.svelte`
 
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 2.2 erstellt und auf `ready-for-dev` gesetzt. Liefert Funktionstest mit Readback + Minimal-State-Cache + `/api/v1/control/state`-Polling + SVG-LineChart + Commissioning-Persistierung. Legt Controller/Executor-Produktions-Infrastruktur bewusst NICHT an (Story 3.1). | Claude Opus 4.7 |
+| 2026-04-23 | 1.0.0 | Implementierung abgeschlossen: StateCache + executor/readback (3 Szenarien: passed/failed/timeout), Subscriptions (_dispatch_event ersetzt _noop), POST /setup/test + POST /setup/commission + GET /control/state, usePolling-Hook + Vitest-Tests (fake timers), SVG-LineChart (5-s-Fenster, Skeleton-Pulse), FunctionalTest.svelte (Live-Chart, Spring-Easing-Tick, Aktivieren-Button), RunningPlaceholder.svelte, Commission-Gate in App.svelte. Alle CI-Gates grün. Story auf `review` gesetzt. | Claude Opus 4.7 (1M context) |
