@@ -65,15 +65,6 @@
   --shadow-2: 0 4px 12px rgb(17 24 39 / 10%), 0 2px 4px rgb(17 24 39 / 6%);
 }
 
-:root[data-theme='dark'] {
-  --color-bg: #0b0f19;
-  --color-surface: #1a1f2e;
-  --color-text: #f3f4f6;
-  --color-text-secondary: #9ca3af;
-  --color-accent-primary: #22dfbf;
-  --color-accent-warning: #f35b3a;
-}
-
 html,
 body,
 #app {
