@@ -637,7 +637,7 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
 
 - **FR41:** Solalex nutzt in allen UI-Flächen (Dashboard, Setup-Wizard, Diagnose-Tab, Config) durchgängig das ALKLY-Design-System: ALKLY-Farben als Primär-/Sekundär-/Akzent-Palette, DM Sans als Schrift, einheitliche Spacing-/Radius-/Elevation-Tokens.
 - **FR42:** Solalex erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solalex by ALKLY").
-- **FR43:** UI ist im HA-Ingress-Frame eingebettet und adaptiert HA-Theme-Modi (Dark/Light-Mode-Umschaltung ohne Bruch der ALKLY-Farbidentität).
+- **FR43:** UI ist im HA-Ingress-Frame eingebettet und rendert konsistent im ALKLY-Light-Look. **Keine HA-Theme-Adaption in v1** (Amendment 2026-04-23: Dark-Mode aus Scope gestrichen; Revisit in v1.5 möglich).
 
 ## Non-Functional Requirements
 
@@ -685,7 +685,6 @@ Wenn Solo-Dev-Bandbreite nicht reicht, wird in dieser Reihenfolge gekippt:
   - Mikrointeraktionen (Transitions, Hover-States, Loading-Feedback) für wahrnehmbare Qualität
   - Max. eine primäre Aktion pro Bildschirm — keine UI-Überfrachtung
   - Responsive Layouts (Desktop + Tablet-Breite im HA-Ingress)
-  - HA-Dark-/Light-Mode-Unterstützung ohne Bruch der ALKLY-Farbidentität
   - **Messbar:** ≥ 4 von 5 Beta-Testern geben explizit Feedback „sieht hochwertig aus" oder vergleichbar (Woche-7-Tally)
 - **Pull nicht Push:** Keine proaktiven Benachrichtigungen außerhalb des Dashboards (kein E-Mail, kein Push, kein HA-Notification).
 - **Fakten bei Zahlen, Charakter bei Tun:** Strikt getrennt in Copy-Richtlinien. Glossar verbindlich: Akku (nicht Batterie/Speicher), Wechselrichter/WR (bei Erstnennung ausgeschrieben), Smart Meter, Setup-Wizard.

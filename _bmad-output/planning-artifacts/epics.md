@@ -12,6 +12,9 @@ amendments:
   - date: '2026-04-22'
     title: 'Scope- und Komplexitäts-Reduktion (16 Cuts)'
     summary: 'Epic 2 Wizard 7→4 Schritte; 3 Adapter Day-1 (Hoymiles + Marstek + Shelly); keine JSON-Templates; Epic 3 Controller-Mono-Modul + persistenter Rate-Limiter; Epic 5 REST-Polling statt WS; Epic 6 1 Backup-Slot + Backup-File-Replace-Rollback; Epic 7 Story 7.3 (Signatur) gestrichen; Story 1.7 (i18n) auf v2. Details im Amendment-Log am Ende.'
+  - date: '2026-04-23'
+    title: 'Epic 2 — Wizard entfernt, Config-Page mit manuellem Entity-Dropdown'
+    summary: 'Epic 2 auf 3 schlanke Stories reduziert: Config-Page (Hardware-Typ + get_states-Dropdown), Funktionstest mit Readback, Disclaimer + Aktivieren. Auto-Detection (FR8) und Live-Werte (FR9) auf v1.5 verschoben. Adapter-Modul-Interface bleibt vollständig — detect() wird in der UI-Journey in v1 nicht aufgerufen.'
 ---
 
 # Solalex - Epic Breakdown
@@ -325,9 +328,9 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 | FR4 | Epic 7 | Installations-Disclaimer als sichtbare Checkbox |
 | FR5 | Epic 7 | Monatliche Lizenz-Verifikation mit 14-Tage-Grace |
 | FR6 | Epic 7 | Rabatt-Code-Einlösung (Blueprint-Migration) |
-| FR7 | Epic 2 | Drei Hardware-Pfade im Wizard (Hoymiles/Anker/Manuell) |
-| FR8 | Epic 2 | Auto-Detection kompatibler HA-Entities |
-| FR9 | Epic 2 | Live-Werte neben jedem erkannten Sensor |
+| FR7 | Epic 2 | Hardware-Typ-Auswahl + manuelle Entity-Zuweisung per get_states-Dropdown |
+| FR8 | **v1.5 / deferred** | Auto-Detection kompatibler HA-Entities (Pattern-Matching) |
+| FR9 | **v1.5 / deferred** | Live-Werte neben Sensor-Dropdowns in Config-Page |
 | FR10 | **v1.5 / deferred** | Lautloses Überspringen des Akku-Schritts (aus MVP verschoben) |
 | FR11 | Epic 2 | Funktionstest mit Readback vor Commissioning |
 | FR12 | **v1.5 / deferred** | Blueprint-Automation-Import (aus MVP verschoben, war bereits kippbar) |
@@ -384,17 +387,17 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 
 **Cross-cutting concerns begründet hier:** Container-Isolation (NFR13), SUPERVISOR_TOKEN-Auth (NFR14), HA-WS-Reconnect mit exponentiellem Backoff (NFR29), Design-System-Foundation mit **CSS Custom Properties als Single-Source** (NFR26, UX-DR1–UX-DR7), Multi-Arch-Build via GitHub Actions (NFR32), Ressourcen-Budget Pi 4 (NFR5, NFR6), lokale DM-Sans-Font-Pipeline inkl. OFL.txt (UX-DR2). *Story 1.7 (i18n-Foundation) entfällt in v1 — siehe Amendment 2026-04-22.*
 
-### Epic 2: Setup-Wizard & Hardware-Onboarding (4-Schritt-Wizard)
+### Epic 2: Hardware-Konfiguration & Funktionstest
 
-**User-Outcome:** Nutzer schließt den Wizard in < 10 Min ab. Hardware ist auto-detektiert (Hoymiles/OpenDTU, Marstek Venus, Shelly 3EM), Live-Werte sind bestätigt, der Funktionstest hat per Closed-Loop-Readback bewiesen, dass Steuerung funktioniert. Zustand danach: „Solalex weiß, was er steuert." *Hinweis: „Aktivieren" am Ende des Wizards bedeutet Commissioning (Inbetriebnahme), nicht Lizenz-Aktivierung — die Lizenz-Schale kommt in Epic 7.*
+**User-Outcome:** Nutzer öffnet die Config-Page, wählt Hardware-Typ, pickt seine Entities aus einem get_states-Dropdown, führt den Funktionstest durch — Closed-Loop-Readback beweist, dass die Steuerung funktioniert. Zustand danach: „Solalex weiß, was er steuert."
 
-**Amendment 2026-04-22:** Wizard **7 → 4 Schritte** konsolidiert, **3 Adapter** Day-1 (kein Anker/Generic), **hardcoded Entity-Mappings** in Adapter-Modulen (kein JSON-Template-Layer).
+**Amendment 2026-04-23:** Wizard (4-Schritt-Flow + Auto-Detection) entfernt. Ersetzt durch eine schlanke Hardware-Konfigurationsseite mit manuellem Entity-Dropdown (get_states-Scan populiert Optionen, Nutzer wählt selbst). Ermöglicht frühen Funktionstest ohne UI-Overhead. Adapter-Modul-Interface bleibt vollständig — `detect()` wird in der UI-Journey in v1 nicht aufgerufen.
 
-**FRs covered (MVP):** FR7, FR8, FR9, FR11
+**FRs covered (MVP):** FR7 (angepasst), FR11
 
-**Explicitly deferred nach v1.5:** FR10 (lautloses Überspringen Akku-Schritt — trivial in 4-Schritt-Wizard, bleibt v1.5-Polish), FR12 (Blueprint-Automation-Import)
+**Explicitly deferred nach v1.5:** FR8 (Auto-Detection / Pattern-Matching), FR9 (Live-Werte neben Dropdowns), FR10, FR12
 
-**Cross-cutting concerns begründet hier:** Adapter-Modul-Pattern (Amendment — kein JSON-Schema), Closed-Loop-Readback im Funktionstest, Wizard-UX-Regime „linear, 1 Aktion pro Screen" (UX-DR29), Funktionstest-Dramaturgie mit Live-Chart (UX-DR17), Auto-Detection-Performance ≤ 5 s (NFR3), Tastatur-Navigation für Wizard (NFR46, UX-DR26).
+**Cross-cutting concerns begründet hier:** Adapter-Modul-Pattern (kein JSON-Schema), Closed-Loop-Readback im Funktionstest, get_states-Scan als Entity-Dropdown-Basis.
 
 ### Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
 
@@ -652,123 +655,75 @@ So that ich sofort weiß: Solalex ist da und wartet auf mich.
 
 ---
 
-## Epic 2: Setup-Wizard & Hardware-Onboarding
+## Epic 2: Hardware-Konfiguration & Funktionstest
 
-Nutzer schließt den Wizard in < 10 Min ab. Hardware ist auto-detektiert (Hoymiles/OpenDTU/Anker/Marstek/Shelly), Live-Werte sind bestätigt, der Funktionstest hat per Closed-Loop-Readback bewiesen, dass Steuerung funktioniert. „Aktivieren" am Ende des Wizards bedeutet Commissioning (Inbetriebnahme), nicht Lizenz-Aktivierung — die Lizenz-Schale kommt in Epic 7.
+Nutzer öffnet die Config-Page, wählt Hardware-Typ, pickt seine Entities aus einem get_states-Dropdown, führt den Funktionstest durch — Closed-Loop-Readback beweist, dass die Steuerung funktioniert. Zustand danach: „Solalex weiß, was er steuert." *Hinweis: „Aktivieren" am Ende bedeutet Commissioning (Inbetriebnahme), nicht Lizenz-Aktivierung — die Lizenz-Schale kommt in Epic 7.*
 
-### Story 2.1: Wizard-Shell mit 4 Schritten und zwei Hardware-Pfaden (Linear, 1 Aktion pro Screen)
+**Amendment 2026-04-23:** Wizard (4-Schritt-Flow + Auto-Detection) entfernt. Ersetzt durch eine schlanke Hardware-Konfigurationsseite. Adapter-Modul-Interface bleibt vollständig — `detect()` wird in der UI-Journey in v1 nicht aufgerufen. Auto-Detection und Live-Werte auf v1.5 verschoben.
+
+### Story 2.1: Hardware Config Page — Typ-Auswahl + Entity-Dropdown
 
 As a Nutzer,
-I want einen klar strukturierten 4-Schritt-Wizard mit zwei Einstiegs-Pfaden (Hoymiles/OpenDTU, Marstek Venus) und genau einer primären Aktion pro Screen,
-So that ich ohne Nachdenken den richtigen Weg durch mein Setup finde.
-
-**Amendment 2026-04-22:** Wizard von 7 auf 4 Schritte konsolidiert; Smart-Meter + Battery-Config leben als Sub-Cards innerhalb Schritt 2 „Detection+Config". Manueller/Generic-Pfad auf v1.5 verschoben.
-
-**Die 4 Schritte:**
-1. **Hardware-Auswahl** — Hoymiles/OpenDTU · Marstek Venus
-2. **Detection + Config** — Auto-Detection mit Live-Werten, Smart-Meter + Battery als aufklappbare Sub-Cards innerhalb dieses Schritts, Min/Max-SoC-Eingabe + Nacht-Entlade-Zeitfenster hier (wenn Akku im Setup)
-3. **Funktionstest** — Live-Chart + Readback (Story 2.3)
-4. **Disclaimer + Activation** — Installations-Disclaimer + (wenn Epic 7 verfügbar) LemonSqueezy-Kauf-Flow + Aktivieren-Button
+I want eine einfache Konfigurationsseite, auf der ich meinen Hardware-Typ wähle und meine Entities aus einem Dropdown zuweise,
+So that Solalex weiß, welche HA-Entities er steuern soll — ohne dass ich Entity-IDs manuell eintippen muss.
 
 **Acceptance Criteria:**
 
 **Given** die UI zeigt den Empty-State
-**When** der Nutzer „Setup starten" klickt
-**Then** der Wizard öffnet bildschirmfüllend im HA-Ingress-Frame
+**When** der Nutzer „Konfigurieren" klickt
+**Then** die Hardware-Konfigurationsseite wird geöffnet
 
-**Given** Schritt 1 des Wizards
-**When** er rendert
-**Then** genau zwei Hardware-Pfad-Karten werden angezeigt: „Hoymiles / OpenDTU" und „Marstek Venus"
+**Given** die Hardware-Konfigurationsseite öffnet
+**When** sie rendert
+**Then** läuft ein `get_states`-Scan gegen HA; die Response populiert Entity-Dropdowns je Klasse (WR-Limit-Entity, Smart-Meter-Power-Entity, Akku-SoC-Entity)
 
-**Given** ein Wizard-Screen
-**When** er rendert
-**Then** maximal eine primäre Aktion ist sichtbar
+**Given** der Nutzer wählt einen Hardware-Typ (Hoymiles/OpenDTU oder Marstek Venus)
+**When** er ein Entity-Dropdown öffnet
+**Then** zeigt das Dropdown alle HA-Entities aus dem `get_states`-Scan mit Entity-ID + `friendly_name`
 
-**Given** Schritt 2 (Detection + Config)
-**When** ein Akku erkannt wird
-**Then** die Battery-Sub-Card klappt auf mit Min/Max-SoC-Eingabe (Default 15 % / 95 %) und optionalem Nacht-Entlade-Zeitfenster (20:00–06:00 Default)
+**Given** der Nutzer wählt Marstek Venus (Akku)
+**When** die Konfigurationsseite rendert
+**Then** erscheinen Min/Max-SoC-Felder (Defaults: 15 % / 95 %) + optionales Nacht-Entlade-Zeitfenster (Default 20:00–06:00)
 
-**Given** Schritt 2 (Detection + Config)
-**When** kein Akku erkannt wird
-**Then** die Battery-Sub-Card bleibt lautlos ausgeblendet (kein toter Schritt)
-
-**Given** der Nutzer ist im Wizard
-**When** er mit der Tastatur navigiert
-**Then** alle Schritte und Entscheidungen sind voll per Tab/Enter/Pfeiltasten bedienbar
-
-**Given** der Nutzer unterbricht den Wizard (Browser schließen, HA-Reload)
-**When** er Solalex erneut öffnet
-**Then** der Wizard-Fortschritt wird aus SQLite wiederhergestellt und setzt an der letzten bestätigten Stelle fort
-
-**Given** der Nutzer will zurück
-**When** er auf „Zurück" klickt
-**Then** der vorherige Schritt wird ohne Datenverlust wieder angezeigt
-
-### Story 2.2: Auto-Detection mit Adapter-Modul-Pattern & Live-Werten
-
-As a Nutzer,
-I want dass Solalex meine Hardware im Wizard automatisch erkennt und mir Live-Werte neben jedem Sensor anzeigt,
-So that ich per Wiedererkennung bestätige („Das bin ich.") statt kryptische Entity-IDs zu wählen.
-
-**Amendment 2026-04-22:** Adapter-Module mit hardcoded Entity-Pattern-Listen statt JSON-Template-Loader. 3 Day-1-Adapter: Hoymiles (`adapters/hoymiles.py`), Marstek Venus (`adapters/marstek_venus.py`), Shelly 3EM (`adapters/shelly_3em.py`). Live-Werte via 1-s-Polling auf `/api/v1/control/state`, kein WebSocket-Channel in v1.
-
-**Acceptance Criteria:**
-
-**Given** der Wizard ist bei Schritt 2 „Detection + Config"
-**When** der Nutzer auf den gewählten Pfad klickt (Hoymiles oder Marstek)
-**Then** Solalex führt einen `get_states`-Scan gegen HA aus und matcht die Response gegen die Adapter-Module (`adapters/<vendor>.detect(states)`)
-
-**Given** die Adapter-Module
-**When** sie beim Startup registriert werden
-**Then** Day-1-Adapter für Hoymiles (OpenDTU), Marstek Venus 3E/D und Shelly 3EM sind als Python-Module geladen; jedes Modul exportiert `detect()`, `build_set_limit_command()`, `build_set_charge_command()` (wo anwendbar), `parse_readback()`, `get_rate_limit_policy()`, `get_readback_timing()` gemäß `adapters/base.py` Abstract-Interface
-
-**Given** ein Adapter-Modul
-**When** es aufgerufen wird
-**Then** es enthält hardcoded Entity-Patterns (z. B. `number.opendtu_*_limit_nonpersistent_absolute` für Hoymiles), Steuerung-Semantik, Default-Regelungs-Parameter (Deadband, Rate-Limit, EEPROM-Intervall) und Readback-Timing (Timeout-Fenster, sync/async-Readback-Modus)
+**Given** der Nutzer wählt Hoymiles/OpenDTU oder Marstek Venus
+**When** er die Konfiguration speichert
+**Then** ist Shelly 3EM als optionaler Smart-Meter-Typ zusätzlich konfigurierbar
 
 **Given** Anker Solix + Generic HA Entity
 **When** ein Nutzer diese Hardware hat
-**Then** wird er auf v1.5 verwiesen (Landing-Page + Wartelisten-Signal); in v1 werden diese Pfade nicht angeboten
+**Then** wird er auf v1.5 verwiesen; in v1 werden diese Pfade nicht angeboten
 
-**Given** eine `get_states`-Response mit kompatiblen Entities
-**When** der Scan läuft
-**Then** die Auto-Detection-Latenz ist ≤ 5 s
+**Given** die Adapter-Module beim Startup registriert werden
+**When** die Applikation startet
+**Then** Day-1-Adapter für Hoymiles (OpenDTU), Marstek Venus 3E/D und Shelly 3EM sind als Python-Module geladen; jedes Modul exportiert `detect()`, `build_set_limit_command()`, `build_set_charge_command()` (wo anwendbar), `parse_readback()`, `get_rate_limit_policy()`, `get_readback_timing()` gemäß `adapters/base.py` Abstract-Interface
 
-**Given** eine erkannte Entity
-**When** der Wizard sie listet
-**Then** ein Live-Wert neben dem Entity-Namen wird angezeigt (z. B. „AC-Leistung: 412 W") und aktualisiert sich per 1-s-Polling auf `/api/v1/control/state`
-
-**Given** ein Nutzer sieht die erkannten Entities
-**When** er eine bestätigt
-**Then** ein einziger Klick („Das bin ich") reicht als Zustimmung, keine Dropdown-Auswahl von Entity-IDs
-
-**Given** keine kompatiblen Entities werden gefunden
-**When** der Scan abgeschlossen ist
-**Then** ein Handlungsvorschlag wird angezeigt („Keine Hardware erkannt — prüfe deine HA-Integration. Anker und manueller Pfad folgen in v1.5."), kein nackter Fehler
+**Given** der Nutzer klickt „Speichern"
+**When** alle Pflichtfelder (Hardware-Typ + WR-Limit-Entity) gesetzt sind
+**Then** wird die Konfiguration in SQLite gespeichert und der Nutzer zur Funktionstest-Seite weitergeleitet
 
 **Given** das Adapter-Modul-Interface `adapters/base.py`
 **When** ein neuer Adapter (v1.5+) hinzukommt
-**Then** nur ein neues Python-Modul wird in `adapters/` abgelegt und in der statischen Registry (`ADAPTERS = {...}`) eingetragen — kein JSON-Template, keine Loader-Änderung nötig
+**Then** nur ein neues Python-Modul in `adapters/` + Eintrag in der statischen Registry (`ADAPTERS = {...}`) — kein JSON-Template, keine Loader-Änderung nötig
 
-### Story 2.3: Funktionstest mit Live-Chart-Dramaturgie & Commissioning
+### Story 2.2: Funktionstest mit Readback & Commissioning
 
 As a Nutzer vor der Inbetriebnahme,
-I want einen sichtbaren Funktionstest, in dem Solalex testweise mein WR-Limit oder meinen Akku-Setpoint setzt und mir den Effekt live zeigt,
+I want einen sichtbaren Funktionstest, in dem Solalex testweise mein WR-Limit oder meinen Akku-Setpoint setzt und mir das Ergebnis zeigt,
 So that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung bei mir funktioniert.
 
 **Acceptance Criteria:**
 
-**Given** der Wizard hat alle Konfigurations-Schritte abgeschlossen
+**Given** die Konfiguration aus Story 2.1 ist gespeichert
 **When** der Nutzer „Funktionstest starten" klickt
 **Then** Solalex setzt testweise das WR-Limit (Drossel-Setup) oder einen Akku-Setpoint (Speicher-Setup)
 
 **Given** der Funktionstest läuft
 **When** er rendert
-**Then** ein Live-Chart mit 5-Sekunden-Fenster zeigt WR-Limit-Verlauf, Netz-Einspeisung und SoC parallel
+**Then** ein Live-Chart mit 5-Sekunden-Fenster zeigt WR-Limit-Verlauf, Netz-Einspeisung und SoC parallel (via 1-s-Polling auf `/api/v1/control/state`)
 
 **Given** ein gesetzter Steuerbefehl
 **When** Solalex per Readback-Pattern prüft
-**Then** ein Checkmark-Tick mit Spring-Easing erscheint bei Bestätigung; bei ausbleibender Bestätigung innerhalb Timeout-Schwelle erscheint ein roter Cross-Tick
+**Then** ein Checkmark-Tick erscheint bei Bestätigung innerhalb des Adapter-Timeouts; bei ausbleibender Bestätigung erscheint ein roter Cross-Tick
 
 **Given** der Funktionstest läuft
 **When** er beginnt
@@ -784,7 +739,27 @@ So that ich vor der Aktivierung mit eigenen Augen bestätige, dass die Steuerung
 
 **Given** der Commissioning-Status ist gesetzt
 **When** der Nutzer Solalex wieder öffnet
-**Then** der Wizard startet nicht mehr (Empty-State verschwindet), Solalex steht im Regel-Modus
+**Then** die Config-Page/Funktionstest-Flow erscheint nicht mehr, Solalex steht im Regel-Modus
+
+### Story 2.3: Disclaimer + Aktivieren
+
+As a Nutzer,
+I want einen expliziten Installations-Disclaimer vor der Aktivierung,
+So that ich bewusst bestätige, dass ich die Verantwortung für die Steuerung meiner Anlage übernehme.
+
+**Acceptance Criteria:**
+
+**Given** der Funktionstest war erfolgreich
+**When** der Nutzer „Weiter" klickt
+**Then** ein Installations-Disclaimer wird als sichtbare Checkbox-Seite angezeigt (Text ist Pflicht-Lesen, Checkbox ist nicht vorangekreuzt)
+
+**Given** die Disclaimer-Checkbox
+**When** der Nutzer sie nicht angekreuzt hat
+**Then** ist der „Aktivieren"-Button deaktiviert
+
+**Given** die Disclaimer-Checkbox ist angekreuzt
+**When** der Nutzer „Aktivieren" klickt
+**Then** wird der Commissioning-Status in SQLite gesetzt; Epic 7 ergänzt hier den LemonSqueezy-Kauf-Flow ohne diese Story zu refactorn
 
 ---
 
@@ -939,7 +914,7 @@ So that ich nie einen Modus manuell einstellen muss und im Grenzbereich (Akku-kn
 
 **Acceptance Criteria:**
 
-**Given** die Wizard-Konfiguration aus Epic 2
+**Given** die Hardware-Konfiguration aus Epic 2
 **When** Solalex startet
 **Then** die Regelungs-Strategie wird automatisch aus dem Hardware-Regime abgeleitet: nur WR → Drossel, WR+Akku → Speicher (mit Drossel als Fallback), WR+Multi-Akku → Multi-Modus
 
@@ -1554,7 +1529,7 @@ So that ich explizit zustimme und weiß, dass ich keine Hardware-Schadens-Garant
 
 **Acceptance Criteria:**
 
-**Given** der Wizard hat den Funktionstest (Story 2.3) erfolgreich abgeschlossen
+**Given** der Funktionstest (Story 2.2) erfolgreich abgeschlossen und Commissioning gesetzt
 **When** der Nutzer zur Aktivierung gelangt
 **Then** ein Disclaimer-Screen wird vor dem „Aktivieren"-Button angezeigt
 
@@ -1691,6 +1666,27 @@ So that bei Support-Anfragen sofort klar ist, ob der Grund ein Lizenz-Problem is
 
 ## Amendment-Log
 
+### 2026-04-23 — Epic 2: Wizard entfernt, Config-Page mit manuellem Entity-Dropdown
+
+| Epic / Story | Änderung |
+|---|---|
+| **Epic 2 (List-Summary)** | Titel geändert: „Setup-Wizard & Hardware-Onboarding" → „Hardware-Konfiguration & Funktionstest" |
+| **Epic 2 (Detail)** | Vollständig neu geschrieben: 3 Stories statt bisheriger Wizard-Struktur |
+| **Story 2.1 (neu)** | Hardware Config Page: Hardware-Typ-Auswahl + get_states-Dropdown-Zuweisung. Kein Auto-Detection-Aufruf in der UI-Journey. |
+| **Story 2.2 (neu)** | Funktionstest mit Readback & Commissioning (inhaltlich = alter Story 2.3) |
+| **Story 2.3 (neu)** | Disclaimer + Aktivieren (inhaltlich = bisheriger Wizard-Schritt 4, minimal) |
+| **FR7** | Angepasst: „Drei Hardware-Pfade im Wizard" → „Hardware-Typ-Auswahl + manuelle Entity-Zuweisung per get_states-Dropdown" |
+| **FR8** | Auf v1.5 verschoben: Auto-Detection (Pattern-Matching) entfällt in v1-UI-Journey |
+| **FR9** | Auf v1.5 verschoben: Live-Werte neben Dropdowns |
+
+**Rationale:** Früher Funktionstest ohne Wizard-Overhead. `adapter.detect()` wird in v1 nicht aufgerufen — das Interface bleibt vollständig für v1.5.
+
+**Neue v1.5-Kandidaten (ergänzt):**
+- FR8 Auto-Detection mit Pattern-Matching
+- FR9 Live-Werte neben Entity-Dropdowns
+
+---
+
 ### 2026-04-22 — Scope- und Komplexitäts-Reduktion (16 Cuts)
 
 Angleichung an Architecture-Amendment 2026-04-22. Auswirkung auf Epics:
@@ -1720,6 +1716,7 @@ Angleichung an Architecture-Amendment 2026-04-22. Auswirkung auf Epics:
 | **Epic 2** | Wizard 7 → 4 Schritte; 3 Adapter Day-1; hardcoded Entity-Mappings statt JSON-Templates |
 | **Story 2.1** | 2 Hardware-Pfade, 4 Schritte (Hardware → Detection+Config → Funktionstest → Activation), Smart-Meter + Battery als Sub-Cards in Schritt 2 |
 | **Story 2.2** | Adapter-Module statt JSON-Loader; Live-Werte via 1-s-Polling |
+
 | **Epic 3** | Controller-Mono-Modul mit Enum-Dispatch; direkte Funktionsaufrufe; persistenter Rate-Limiter |
 | **Story 3.1** | AC umgeschrieben für Mono-Modul + Direct-Calls + persistent Rate-Limit |
 | **Story 3.2 / 3.3 / 3.4** | Anker-Referenzen entfernt (Marstek als Day-1-Kernsegment) |

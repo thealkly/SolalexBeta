@@ -28,7 +28,7 @@ date: '2026-04-20'
 
 Solalex ist kein Dashboard, das Zahlen zeigt, und keine App, die sich konfigurieren lässt. Solalex ist ein unsichtbarer Regler mit einem sichtbaren Beweis — eine Maschine, die ab Sekunde 1 autonom arbeitet, eingebettet im HA-Ingress-Frame, und dem Nutzer einmal am Abend mit genau einer Zahl sagt: „Das hat's dir heute gebracht."
 
-Die UI läuft als HA-Ingress-embedded Web-App (FastAPI + Svelte) auf Desktop und Tablet in der HA-Sidebar. Sie muss sich in HA-Dark/Light-Mode einfügen, ohne die ALKLY-Identität zu verlieren. Und sie muss fühlbar cooler wirken als jedes Hersteller-App, jedes EVCC-Dashboard und jede generische SmartHome-Oberfläche — weil PV als Domain mehr emotionale Aufladung verträgt: es geht um das eigene Haus, eigenes Geld, eigene Autarkie.
+Die UI läuft als HA-Ingress-embedded Web-App (FastAPI + Svelte) auf Desktop und Tablet in der HA-Sidebar. Sie rendert in v1 konsistent im ALKLY-Light-Look (Dark-Mode gestrichen, Amendment 2026-04-23). Und sie muss fühlbar cooler wirken als jedes Hersteller-App, jedes EVCC-Dashboard und jede generische SmartHome-Oberfläche — weil PV als Domain mehr emotionale Aufladung verträgt: es geht um das eigene Haus, eigenes Geld, eigene Autarkie.
 
 Kern-Designprinzipien:
 - **Ergebnis vor Technik** — Euro vor kWh, Ersparnis vor Watt.

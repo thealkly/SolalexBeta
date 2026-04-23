@@ -1,6 +1,6 @@
 # Story 1.2: Landing-Page-Voraussetzungs-Hinweis + HA-Versions-Range
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -74,7 +74,7 @@ so that ich kein fehlgeschlagenes Setup erlebe und die Voraussetzungen vorher ke
 
 _Code-Review vom 2026-04-23 (3 parallele Layer: Blind Hunter, Edge Case Hunter, Acceptance Auditor). Acceptance-Auditor bestätigt AC 1/2/3 inhaltlich erfüllt._
 
-- [ ] [Review][Patch] **Story-1-1-Patches separat vor Story-1-2 committen** — `panel_title: Solalex → Solalex by ALKLY` und neue `schema: {}` / `options: {}` in `addon/config.yaml` sind laut Story-1-1-Completion-Log Review-Patches aus 1-1. Saubere Git-Historie herstellen: die drei Zeilen aus dem 1-2-Arbeitsbaum isoliert committen (Referenz auf 1-1), bevor die Story-1-2-Dateien committed werden. [addon/config.yaml:1,17,28-29]
+- [x] [Review][Defer] **Story-1-1-Patches separat vor Story-1-2 committen** — `panel_title: Solalex → Solalex by ALKLY` und neue `schema: {}` / `options: {}` in `addon/config.yaml` sind laut Story-1-1-Completion-Log Review-Patches aus 1-1. [addon/config.yaml:1,17,28-29] — deferred 2026-04-23 (Cycle 2), Reason: zu spät committed (Changes bereits auf `main`, Git-Historie-Rewrite nicht mehr reibungsfrei möglich); rückwirkend als akzeptierter Scope-Bleed zu Story 1.1 dokumentiert.
 - [x] [Review][PRD-Amendment] **OS-only-Cut trifft PRD FR2 und Epic 1 Story 1.2** — abgehakt am 2026-04-23 via `/bmad-correct-course` (Sprint Change Proposal 2026-04-23). PRD FR2, PRD Launch-Gates, PRD Journey 3, PRD Journey Requirements Summary, Epic-1-FR2-Inventory, Epic-1-Story-1.1-AC, Epic-1-Story-1.2-AC 1+2 wurden auf „Home Assistant OS"-Wording reduziert. Story 1.2 entblockt für `done`-Promotion.
 - [x] [Review][Patch] OS-only-Cut in DOCS.md, voraussetzungen.md, README.md und Story-1-2-Spec (AC 1, AC 2, Task 3, File-Spec, Anti-Patterns) vereinheitlicht — gefixt 2026-04-23
 - [x] [Review][Patch] `## Voraussetzungen`-Block + `## Unterstützte HA-Versionen`-Block in DOCS.md vereinheitlicht (keine Widersprüche mehr) [addon/DOCS.md:14-32] — gefixt (D3 via Variante 3 aufgelöst: Duplikation akzeptiert, beide Blöcke harmonisiert)
@@ -84,6 +84,17 @@ _Code-Review vom 2026-04-23 (3 parallele Layer: Blind Hunter, Edge Case Hunter, 
 - [x] [Review][Defer] Kein CI-Gate für Versions-Range-Konsistenz (`homeassistant:` ≤ Minimum ≤ „getestet bis") — deferred, strukturelles Gate-Thema für v1.5
 
 _Dismissed (12) als Noise/Spec-konform: Tabelle+Emojis in voraussetzungen.md (Spec-mandated), README-Link-Bruch (README ≠ DOCS-Kanal), Tabellen-Alignment-Delimiter ohne `:` (Spec-Muster), Frontmatter-Keys Dead-Metadata (Spec als „dokumentative Hints"), Glossar-Alias HAOS (Spec verbietet), „best-effort"-Mehrdeutigkeit (wörtlich aus FR2), Feld-Reihenfolge `homeassistant:` (Spec-konform), Trailing-Whitespace/EOF-Newline (pre-commit grün), Tabellen-Spalten-Kosmetik, Debug-Log „21 Top-Level-Keys" (1-1-Context), ⚠️-Emoji-Breite (GFM rendert sauber)._
+
+#### Review Cycle 2 — 2026-04-23 (zweiter Durchgang, 3 parallele Layer)
+
+- [x] [Review][Defer] **Frontend-H1 und FastAPI-`title` zeigen noch „Solalex" statt „Solalex by ALKLY"** — `panel_title` wurde in `addon/config.yaml:17` auf „Solalex by ALKLY" aktualisiert, aber [frontend/src/App.svelte:31](../../frontend/src/App.svelte#L31) und [backend/src/solalex/main.py:88](../../backend/src/solalex/main.py#L88) halten weiterhin den kurzen „Solalex"-Titel. Branding-Konsistenz ist out-of-scope für Story 1.2 (doc-only), gehört zu Story 1.5 (HA-Sidebar-Registrierung mit Alkly-Branding) — deferred.
+- [x] [Review][Dismiss-Bestätigung] **German-Quote-Typography (`„…"` mit ASCII-Closing)** in `addon/DOCS.md:16` und `addon/CHANGELOG.md:17` folgt der etablierten Repo-Konvention (CLAUDE.md nutzt selben Pattern) — dismissed, keine Inkonsistenz zum Projekt.
+- [x] [Review][Dismiss-Bestätigung] **Install-Warning-Semantik vs. Hard-Block** (Runtime-Crash-Sorge auf HA < 2026.4.0) — Spec-definiert als Soft-Warning, Runtime-Crash ist spekulativ und durch Story 1.3 auf 2026.4.x validiert — dismissed.
+- [x] [Review][Dismiss-Bestätigung] **Pre-Release-HA-Version-Vergleich** (2026.4.0b0 triggert Warning) — HA-Supervisor-Verhalten, Lag-Toleranz deckt es ab — dismissed.
+- [x] [Review][Dismiss-Bestätigung] **Supervised-Migration-Path fehlt** — keine existierenden Installs (Pre-Beta), nicht anwendbar — dismissed.
+- [x] [Review][Dismiss-Bestätigung] **Changelog-Merge-Konflikt unter `0.1.0 — TBD`** — 0.1.0 ist WIP-Bucket, Workflow-Concern, kein Code-Issue — dismissed.
+
+_Status offener `[ ]`-Items: Der Story-1-1-Patch-Separation-Punkt (`panel_title` + `schema: {}` + `options: {}` im 1.2-Arbeitsbaum) bleibt unresolved und ist das einzige `decision_needed`-Finding aus diesem Zyklus._
 
 ## Dev Notes
 

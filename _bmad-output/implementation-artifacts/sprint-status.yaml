@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-23 (Story 1.2 review → done: Cycle-2-Review abgeschlossen, Scope-Bleed als defer akzeptiert)
+# last_updated: 2026-04-23 (Story 1.7 review → done: Code-Review durchgelaufen, v2-Blueprint ergaenzt, Defer-Dokumentation komplett)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-23
+last_updated: 2026-04-23 (Story 2.1 in-progress, Epic-2-Keys auf Amendment-2026-04-23-Stand)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -48,22 +48,25 @@ development_status:
   1-1-add-on-skeleton-mit-custom-repository-multi-arch-build: done
   1-2-landing-page-voraussetzungs-hinweis-ha-versions-range: done
   1-3-ha-websocket-foundation-mit-reconnect-logik: done
-  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: in-progress
-  1-5-ha-sidebar-registrierung-mit-alkly-branding: in-progress
-  1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: in-progress
-  1-7-i18n-foundation-mit-locales-de-json: review
+  1-4-alkly-design-system-foundation-tokens-lokale-dm-sans-pipeline: review
+  1-5-ha-sidebar-registrierung-mit-alkly-branding: review
+  1-6-ha-ingress-frame-mit-dark-light-adaption-und-empty-state: review
+  # Note: Story 1.7 auf v2 verschoben (Amendment 2026-04-22); Story-File existiert, Status bleibt erhalten
+  1-7-i18n-foundation-mit-locales-de-json: done
   epic-1-retrospective: optional
 
   # Epic 2: Setup-Wizard & Hardware-Onboarding
-  epic-2: backlog
-  2-1-wizard-shell-mit-drei-hardware-pfaden-linear-1-aktion-pro-screen: backlog
-  2-2-auto-detection-mit-device-template-system-live-werten: backlog
-  2-3-funktionstest-mit-live-chart-dramaturgie-commissioning: backlog
+  epic-2: in-progress
+  # Key aktualisiert: Amendment 2026-04-23 — Config-Page statt 4-Schritt-Wizard
+  2-1-hardware-config-page-typ-auswahl-entity-dropdown: in-progress
+  # Key aktualisiert: Amendment 2026-04-23 — Funktionstest + Commissioning kombiniert
+  2-2-funktionstest-mit-readback-commissioning: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
   epic-3: backlog
-  3-1-core-controller-pipeline-sensor-policy-executor-event-source-readback-rate-limit: backlog
+  # Key aktualisiert: Amendment 2026-04-22 — Mono-Modul + persistenter Rate-Limiter explizit
+  3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: backlog
   3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: backlog
   3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
   3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
@@ -96,16 +99,18 @@ development_status:
   # Epic 6: Updates, Backup & Add-on-Lifecycle
   epic-6: backlog
   6-1-auto-update-via-ha-add-on-store: backlog
-  6-2-backup-rotation-vor-jedem-update: backlog
-  6-3-manueller-rollback-pfad-mit-automatischer-backup-wiederherstellung: backlog
+  # Key aktualisiert: Amendment 2026-04-22 — 5-Slot-Rotation → 1 Slot (atomisch via VACUUM INTO)
+  6-2-1-slot-backup-vor-jedem-update-atomisch-via-vacuum-into: backlog
+  # Key aktualisiert: Amendment 2026-04-22 — Alembic-Downgrade → Backup-File-Replace beim Start
+  6-3-rollback-via-backup-file-replace-beim-start-der-vorherigen-add-on-version: backlog
   6-4-ha-version-kompatibilitaets-matrix-in-addon-yaml: backlog
   epic-6-retrospective: optional
 
   # Epic 7: Lizenzierung & Commercial Activation
+  # Note: Story 7.3 gestrichen (Amendment 2026-04-22) — kryptografische Signatur auf v1.5 verschoben
   epic-7: backlog
   7-1-installations-disclaimer-als-sichtbare-checkbox-vor-aktivierung: backlog
   7-2-lemonsqueezy-kauf-flow-im-wizard-rabatt-code-einloesung: backlog
-  7-3-lizenz-signatur-verifikation-beim-start: backlog
   7-4-monatliche-re-validation-mit-14-tage-graceful-period: backlog
   7-5-lizenz-status-integration-in-diagnose-panel-epic-4: backlog
   epic-7-retrospective: optional

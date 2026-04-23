@@ -1,4 +1,4 @@
-# Solalex — Add-on Dokumentation
+# Solalex by ALKLY — Add-on Dokumentation
 
 Diese Datei ist die offizielle In-HA-Dokumentation des Add-ons. Der HA-Supervisor
 rendert sie im Add-on-Detail-View.
@@ -8,7 +8,7 @@ rendert sie im Add-on-Detail-View.
 1. **Einstellungen → Add-ons → Add-on-Store** öffnen.
 2. Oben rechts **⋮ → Repositories**.
 3. URL eintragen: `https://github.com/alkly/solalex`
-4. Nach dem Refresh erscheint Solalex in der Liste. **Installieren**.
+4. Nach dem Refresh erscheint **Solalex by ALKLY** in der Liste. **Installieren**.
 5. Nach Start öffnet sich der Setup-Wizard im Ingress-Frame.
 
 ## Voraussetzungen

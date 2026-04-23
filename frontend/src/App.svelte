@@ -7,6 +7,12 @@
 
   const healthUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/health`;
 
+  const statusLabels: Record<'unknown' | 'ok' | 'error', string> = {
+    unknown: 'unbekannt',
+    ok: 'verbunden',
+    error: 'Fehler',
+  };
+
   function normalizeRoute(hash: string): string {
     const route = hash.replace(/^#/, '').trim();
     if (route === '' || route === '/') {
@@ -44,7 +50,7 @@
     }
 
     const classHint = `${html.className} ${body.className}`.toLowerCase();
-    if (classHint.includes('dark')) {
+    if (/(^| )dark( |$)/.test(classHint)) {
       return 'dark';
     }
 
@@ -54,6 +60,7 @@
   function applyTheme(): void {
     const mode = resolveThemeMode();
     isDarkTheme = mode === 'dark';
+    if (document.documentElement.getAttribute('data-theme') === mode) return;
     document.documentElement.setAttribute('data-theme', mode);
   }
 
@@ -70,27 +77,38 @@
     ensureDefaultRoute();
     syncRoute();
     applyTheme();
-    ping();
+    void ping();
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleMediaChange = () => applyTheme();
     const handleHashChange = () => syncRoute();
-    const observer = new window.MutationObserver(() => applyTheme());
+    const observer = new MutationObserver(() => applyTheme());
 
     window.addEventListener('hashchange', handleHashChange);
     mediaQuery.addEventListener('change', handleMediaChange);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
+    let pingAttempts = 0;
+    const pingRetryInterval = setInterval(async () => {
+      if (backendStatus === 'ok' || pingAttempts >= 3) {
+        clearInterval(pingRetryInterval);
+        return;
+      }
+      pingAttempts++;
+      await ping();
+    }, 5000);
+
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
       mediaQuery.removeEventListener('change', handleMediaChange);
       observer.disconnect();
+      clearInterval(pingRetryInterval);
     };
   });
 </script>
 
-<main class="app-shell" data-route={currentRoute} data-theme-mode={isDarkTheme ? 'dark' : 'light'}>
+<main class="app-shell" data-route={currentRoute}>
   <section class="empty-state-card">
     <header class="empty-state-header">
       <p class="eyebrow">Solalex</p>
@@ -105,7 +123,7 @@
       <a class="setup-button" href="#/wizard">Setup starten</a>
       <div class="meta">
         <span class="status-label">Backend:</span>
-        <span class="status-value" data-state={backendStatus}>{backendStatus}</span>
+        <span class="status-value" data-state={backendStatus}>{statusLabels[backendStatus]}</span>
       </div>
     </div>
   </section>
@@ -117,9 +135,9 @@
     </div>
 
     <nav class="footer-links" aria-label="Weiterfuehrende Links">
-      <a href="https://discord.com" target="_blank" rel="noreferrer">Discord</a>
-      <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
-      <a href="#/privacy">Privacy</a>
+      <a href="https://alkly.de/discord/" target="_blank" rel="noreferrer">Discord</a>
+      <a href="https://alkly.de" target="_blank" rel="noreferrer">Alkly</a>
+      <a href="https://alkly.de/macherwerkstatt/" target="_blank" rel="noreferrer">Macherwerkstatt</a>
     </nav>
 
     <span class="status-chip local-badge">100 % lokal</span>
