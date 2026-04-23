@@ -114,6 +114,40 @@ class HaWebSocketClient:
         self._subscriptions.append(payload)
         return msg_id
 
+    async def get_states(self) -> list[dict[str, Any]]:
+        """Fetch all HA entity states in one request.
+
+        Uses the same pending-future multiplexing as :meth:`call_service`.
+        Raises :class:`RuntimeError` if HA reports ``success=false``.
+        Raises :class:`TimeoutError` if no response arrives within the
+        module-level ``_RESULT_TIMEOUT_S``.
+        """
+        if self._ws is None:
+            raise RuntimeError("client not connected")
+        msg_id = self._next_id
+        self._next_id += 1
+
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[dict[str, Any]] = loop.create_future()
+        self._pending_results[msg_id] = future
+
+        await self._ws.send(json.dumps({"id": msg_id, "type": "get_states"}))
+        try:
+            result = await asyncio.wait_for(future, timeout=_RESULT_TIMEOUT_S)
+        except TimeoutError:
+            log.warning(
+                "ha_ws_get_states_timeout",
+                extra={"last_message_id": msg_id},
+            )
+            raise
+        finally:
+            self._pending_results.pop(msg_id, None)
+
+        if not result.get("success"):
+            error = result.get("error", {})
+            raise RuntimeError(f"get_states failed: {error}")
+        return list(result.get("result") or [])
+
     async def call_service(
         self,
         domain: str,

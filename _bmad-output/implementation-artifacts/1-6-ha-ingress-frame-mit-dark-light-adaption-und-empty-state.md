@@ -1,6 +1,6 @@
 # Story 1.6: HA-Ingress-Frame mit Dark/Light-Adaption und Empty-State
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -48,19 +48,19 @@ so that ich sofort weiss: Solalex ist da und wartet auf mich.
 
 ### Review Findings
 
-- [ ] [Review][Decision] Cross-Frame-Theme: MutationObserver im Ingress-iframe sieht keine DOM-Mutationen im HA-Elterndokument — HA-eigener Theme-Toggle propagiert nicht in den iframe; nur OS-Level matchMedia greift als Fallback [frontend/src/App.svelte:75-80]
-- [ ] [Review][Decision] ping() einmaliger Fetch auf Mount, kein Polling — CLAUDE.md fordert usePolling-Hook in lib/polling/; Hook-Infrastruktur existiert noch nicht [frontend/src/App.svelte:73]
-- [ ] [Review][Decision] Footer-Links Discord/GitHub sind Placeholder-URLs (discord.com/github.com statt Projekt-URLs) — AC 5 erfordert funktionierende Links [frontend/src/App.svelte:119-121]
-- [ ] [Review][Decision] Footer-Avatar ist CSS-Text-Badge "AK" statt Bild-Avatar — Spec sagt "24px runder Alex-Avatar" (Bild/Foto-Konnotation unklar) [frontend/src/App.svelte:116]
-- [ ] [Review][Patch] #/privacy-Link ist Dead-Navigation: syncRoute() redirectet sofort zurück zu #/ (nur '/' und '/wizard' erlaubt) [frontend/src/App.svelte:122]
-- [ ] [Review][Patch] MutationObserver Feedback-Loop: applyTheme() setzt data-theme via setAttribute, Observer beobachtet exakt dieses Attribut — Guard `if (currentValue === mode) return` vor setAttribute fehlt [frontend/src/App.svelte:57-60]
-- [ ] [Review][Patch] #00120f hardcoded als Textfarbe in .setup-button — nicht als Token definiert, Kontrast bricht bei Brand-Anpassung [frontend/src/app.css:183]
-- [ ] [Review][Patch] --spacing-N Tokennamen weichen von Spec (--space-N) ab und kollidieren mit Tailwind-4-Spacing-Namespace (überschreiben p-1/m-1/gap-1 etc.) [frontend/src/app.css:53-58]
-- [ ] [Review][Patch] data-theme-mode-Attribut auf <main> wird von keinem CSS-Selektor referenziert — Dead Markup [frontend/src/App.svelte:90]
-- [ ] [Review][Patch] window.MutationObserver — window.-Prefix unnötig und inkonsistent mit allen anderen DOM-Aufrufen im File [frontend/src/App.svelte:78]
-- [ ] [Review][Patch] classHint.includes('dark') Substring-Match zu weit (trifft 'sidebar-dark-theme', 'not-dark' etc.) — Word-Boundary-Regex erforderlich [frontend/src/App.svelte:50]
-- [ ] [Review][Patch] backendStatus-Enum ('unknown'/'ok'/'error') wird als englischer String im UI gerendert — Deutsche Labels erforderlich per CLAUDE.md [frontend/src/App.svelte:107-108]
-- [ ] [Review][Patch] index.html <body class="bg-slate-50 text-slate-900"> überschreibt tokenbasiertes Dark-Mode-Styling (Klassen-Selektor schlägt Element-Selektor; Dark-Mode-Background funktioniert nicht) [frontend/index.html:13]
+- [x] [Review][Decision→Defer] Cross-Frame-Theme: MutationObserver im Ingress-iframe sieht keine DOM-Mutationen im HA-Elterndokument — akzeptiert als Known-Limitation v1; matchMedia (OS-Level) als Fallback [frontend/src/App.svelte] — deferred
+- [x] [Review][Decision→Patch] ping() einmaliger Fetch → setInterval-Retry (5 s, max 3 Versuche, Stop bei 'ok') implementiert [frontend/src/App.svelte:76-83] — fixed
+- [x] [Review][Decision→Patch] Footer-Links Discord/GitHub ersetzt durch echte ALKLY-URLs; Macherwerkstatt-Link hinzugefügt [frontend/src/App.svelte:107-111] — fixed
+- [x] [Review][Decision→Dismiss] Footer-Avatar Text-Badge "AK" akzeptiert — kein Bild-Avatar erforderlich — dismissed
+- [x] [Review][Patch] #/privacy Dead-Navigation entfernt; Footer-Links auf alkly.de/* aktualisiert [frontend/src/App.svelte] — fixed
+- [x] [Review][Patch] MutationObserver Feedback-Loop behoben: Guard `if (getAttribute === mode) return` vor setAttribute [frontend/src/App.svelte:62] — fixed
+- [x] [Review][Patch] #00120f → `var(--color-button-text)` (Token in @theme definiert) [frontend/src/app.css] — fixed
+- [x] [Review][Patch] --spacing-N → --space-N umbenannt (Spec-konform, Tailwind-4-Namespace-Kollision beseitigt) [frontend/src/app.css] — fixed
+- [x] [Review][Patch] data-theme-mode Dead-Attribut von `<main>` entfernt [frontend/src/App.svelte:93] — fixed
+- [x] [Review][Patch] window.MutationObserver → MutationObserver [frontend/src/App.svelte:78] — fixed
+- [x] [Review][Patch] classHint.includes('dark') → /(^| )dark( |$)/.test(classHint) — Word-Boundary-Regex [frontend/src/App.svelte:55] — fixed
+- [x] [Review][Patch] backendStatus-Enum → statusLabels-Map mit deutschen Labels ('unbekannt'/'verbunden'/'Fehler') [frontend/src/App.svelte:9-13] — fixed
+- [x] [Review][Patch] index.html `<body class="bg-slate-50 text-slate-900">` → `<body>` — Tailwind-Override entfernt [frontend/index.html:13] — fixed
 - [x] [Review][Defer] Doppeltes hashchange-Event bei ensureDefaultRoute() + syncRoute() auf initialem Load — harmlos, begrenzt, kein sichtbarer Bug [frontend/src/App.svelte:68-71] — deferred, pre-existing
 - [x] [Review][Defer] color-mix() ohne Browser-Fallback — HA nutzt Chromium-Engine, kein praktisches Problem [frontend/src/app.css] — deferred, pre-existing
 - [x] [Review][Defer] Dark-Mode-Token-Overrides außerhalb @theme-Block — funktioniert für var()-Nutzung im aktuellen Code; Tailwind-Utilities erst betroffen bei zukünftiger Verwendung [frontend/src/app.css:67-74] — deferred, pre-existing

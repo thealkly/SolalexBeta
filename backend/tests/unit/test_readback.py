@@ -1,0 +1,130 @@
+"""Unit tests for the readback verification module."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
+
+import pytest
+
+from solalex.adapters.base import DeviceRecord, ReadbackTiming
+from solalex.executor.readback import verify_readback
+from solalex.state_cache import StateCache
+
+
+def _device(entity_id: str = "number.test_limit") -> DeviceRecord:
+    return DeviceRecord(
+        id=1,
+        type="hoymiles",
+        role="wr_limit",
+        entity_id=entity_id,
+        adapter_key="hoymiles",
+    )
+
+
+def _timing(timeout_s: float = 0.05) -> ReadbackTiming:
+    """Very short timeout for fast unit tests."""
+    return ReadbackTiming(timeout_s=timeout_s, mode="sync")
+
+
+@pytest.mark.asyncio
+async def test_readback_passed() -> None:
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    cache.set_last_command_at(cmd_ts)
+
+    # State timestamp is after the command.
+    state_ts = cmd_ts + timedelta(seconds=1)
+    await cache.update("number.test_limit", "50", {}, state_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "passed"
+    assert result.actual_value_w == 50.0
+    assert result.latency_ms is not None
+
+
+@pytest.mark.asyncio
+async def test_readback_failed_out_of_tolerance() -> None:
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    cache.set_last_command_at(cmd_ts)
+    state_ts = cmd_ts + timedelta(seconds=1)
+    await cache.update("number.test_limit", "200", {}, state_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "failed"
+    assert result.actual_value_w == 200.0
+
+
+@pytest.mark.asyncio
+async def test_readback_timeout_no_state() -> None:
+    cache = StateCache()
+    cache.set_last_command_at(datetime.now(tz=UTC))
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "timeout"
+    assert result.actual_value_w is None
+
+
+@pytest.mark.asyncio
+async def test_readback_tolerance_floor_10w() -> None:
+    """For expected=5 W, tolerance should be 10 W (not 0.25 W)."""
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    cache.set_last_command_at(cmd_ts)
+    state_ts = cmd_ts + timedelta(seconds=1)
+    # 5 W commanded, 13 W actual → diff=8 W. With floor tolerance=10 W → passed.
+    await cache.update("number.test_limit", "13", {}, state_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=5,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.tolerance_w == 10.0
+    assert result.status == "passed"
+
+
+@pytest.mark.asyncio
+async def test_readback_stale_state_is_timeout() -> None:
+    """State that predates the command should count as timeout."""
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    # State is BEFORE the command.
+    state_ts = cmd_ts - timedelta(seconds=1)
+    await cache.update("number.test_limit", "50", {}, state_ts)
+    cache.set_last_command_at(cmd_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "timeout"

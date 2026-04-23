@@ -102,7 +102,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 
 - **FR41:** Solalex nutzt in allen UI-Flächen (Dashboard, Setup-Wizard, Diagnose-Tab, Config) durchgängig das ALKLY-Design-System: ALKLY-Farben als Primär-/Sekundär-/Akzent-Palette, DM Sans als Schrift, einheitliche Spacing-/Radius-/Elevation-Tokens.
 - **FR42:** Solalex erscheint im HA-Sidebar mit ALKLY-Branding (Icon + Name „Solalex by ALKLY").
-- **FR43:** UI ist im HA-Ingress-Frame eingebettet und adaptiert HA-Theme-Modi (Dark/Light-Mode-Umschaltung ohne Bruch der ALKLY-Farbidentität).
+- **FR43:** UI ist im HA-Ingress-Frame eingebettet und rendert konsistent im ALKLY-Light-Look. **Keine HA-Theme-Adaption in v1** (Amendment 2026-04-23: Dark-Mode gestrichen; Revisit v1.5).
 
 ### NonFunctional Requirements
 
@@ -145,7 +145,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 
 - **NFR24:** Setup-Ziel ≥ 80 % der Nutzer schließen Setup in < 10 Min ab (Launch).
 - **NFR25:** Dashboard-Kernaussage (Euro-Wert) in < 2 s erfassbar ohne Scrollen, ohne Interaktion.
-- **NFR26:** Durchgängiges ALKLY-Design-System (Farb-Tokens, DM Sans, einheitliche Spacing/Radius/Elevation), Mikrointeraktionen, max. 1 primäre Aktion pro Bildschirm, responsive Layouts, HA-Dark/Light-Mode-Unterstützung; messbar: ≥ 4 von 5 Beta-Testern geben Feedback „sieht hochwertig aus".
+- **NFR26:** Durchgängiges ALKLY-Design-System (Farb-Tokens, DM Sans, einheitliche Spacing/Radius/Elevation), Mikrointeraktionen, max. 1 primäre Aktion pro Bildschirm, responsive Layouts; messbar: ≥ 4 von 5 Beta-Testern geben Feedback „sieht hochwertig aus". *(Dark-Mode gestrichen Amendment 2026-04-23)*
 - **NFR27:** Pull nicht Push — keine proaktiven Benachrichtigungen außerhalb des Dashboards (kein E-Mail, kein Push, kein HA-Notification).
 - **NFR28:** Fakten bei Zahlen, Charakter bei Tun — strikt getrennt; Glossar verbindlich: Akku (nicht Batterie/Speicher), Wechselrichter/WR (bei Erstnennung ausgeschrieben), Smart Meter, Setup-Wizard.
 
@@ -242,7 +242,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 - ~~i18n-Ready ab v1~~ **gestrichen** — hardcoded deutsche Strings, i18n-Refactor ab v2
 - **Lizenz-Gated Startup via LemonSqueezy-Online-Check** (Epic Lizenz). *Keine kryptografische Signatur in v1.*
 - **Backup vor jedem Update (1 Slot, atomisch via `VACUUM INTO`)** (Epic Updates). *Von „letzte 5 Stände" auf 1 reduziert.*
-- ALKLY-Design-System (CSS Custom Properties als Single-Source, Dark/Light-konform) (alle UI-Epics)
+- ALKLY-Design-System (CSS Custom Properties als Single-Source, Light-only in v1) (alle UI-Epics) *(Dark-Mode gestrichen Amendment 2026-04-23)*
 - **Direkte Funktionsaufrufe im Backend-Control-Flow** (kein Event-Bus, kein Pub/Sub) — Controller ruft KPI und State-Cache direkt auf
 - **REST + 1-s-Polling** für Live-Dashboard-Updates (Epic 5) statt WebSocket — WS als v1.5-Upgrade-Pfad
 
@@ -266,7 +266,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 
 **Design-Token-System & Foundation**
 
-- **UX-DR1:** Design-Token-System aufbauen: ALKLY-Farbpalette (Teal/Rot) mit **modus-spezifischer Saturation** für Dark/Light (Teal im Dark mit mehr Glow, Rot im Light mit mehr Sättigung), Primär/Sekundär/Akzent-Rollen.
+- **UX-DR1:** Design-Token-System aufbauen: ALKLY-Farbpalette (Teal/Rot), Primär/Sekundär/Akzent-Rollen. **Light-only Token-Layer in v1** — keine modus-spezifische Saturation (Amendment 2026-04-23: Dark-Mode gestrichen).
 - **UX-DR2:** DM-Sans-WOFF2-Font-Pipeline lokal im Add-on-Container (4 Weights: Regular/Medium/Semibold/Bold, Latin + Latin-Extended Subset, ~120 kB total) — **keine externen CDN-Requests**, kein `preconnect` auf Google Fonts.
 - **UX-DR3:** Spacing-Raster auf 8px-Basis, Radius-Tokens (16px für Cards), 2-Ebenen-Shadow-System, alles als CSS-Custom-Properties.
 - **UX-DR4:** Semantische CSS-Klassen statt Hard-Coded-Werte durchgängig (z. B. `.text-hero`, `.status-chip`, `.energy-ring`).
@@ -275,7 +275,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 
 - **UX-DR5:** Responsive Layout-System mit 3 Breakpoints (420px Mobile-HA-App / 768px Tablet / 1200px+ Desktop), **Desktop-canonical entworfen**, dann runterskaliert (Bruch mit Mobile-First-Bias des bestehenden internen DS).
 - **UX-DR6:** Navigation adaptiv: Bottom-Nav unter 1024px, Left-Nav ab 1024px (identische 4 Reiter Home/Geräte/Statistik/Einstellungen).
-- **UX-DR7:** Dark/Light-Mode-Adaption via HA-Theme-Detection ohne Bruch der ALKLY-Identität.
+- ~~**UX-DR7:** Dark/Light-Mode-Adaption via HA-Theme-Detection ohne Bruch der ALKLY-Identität.~~ **v1-Cut (Amendment 2026-04-23)** — entfällt, Kandidat für v1.5.
 
 **Kern-Komponenten (reusable UI components)**
 
@@ -307,7 +307,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 **Accessibility**
 
 - **UX-DR26:** Tastatur-Navigation für alle Wizard-Schritte voll funktional.
-- **UX-DR27:** Farbkontrast-Audit ≥ WCAG 2.1 AA für Text auf Hintergrund in beiden Theme-Modi (Dark + Light).
+- **UX-DR27:** Farbkontrast-Audit ≥ WCAG 2.1 AA für Text auf Hintergrund im Light-Mode. *(Dark-Mode gestrichen Amendment 2026-04-23)*
 
 **Special Routes / View-Regie**
 
@@ -364,7 +364,7 @@ This document provides the complete epic and story breakdown for **Solalex**, de
 | FR40 | Epic 6 | HA-Version-Range in `addon/config.yaml` deklariert |
 | FR41 | Epic 1 | Durchgängiges ALKLY-Design-System |
 | FR42 | Epic 1 | ALKLY-Branding im HA-Sidebar |
-| FR43 | Epic 1 | HA-Ingress-Frame mit Dark/Light-Mode-Adaption |
+| FR43 | Epic 1 | HA-Ingress-Frame mit statischem Light-Look (Dark-Mode gestrichen, Amendment 2026-04-23) |
 
 **Coverage:** 41 / 43 FRs im MVP-Scope abgedeckt · 2 FRs (FR10, FR12) explizit nach v1.5 verschoben ✓
 
@@ -558,8 +558,7 @@ So that alle späteren UI-Stories auf einem konsistenten visuellen Fundament auf
 
 **Given** eine Komponente referenziert ein Farb-Token
 **When** sie rendert
-**Then** Primär-/Sekundär-/Akzent-Farben (ALKLY-Teal, ALKLY-Rot) sind als CSS Custom Properties verfügbar
-**And** Dark-Mode-Varianten (Teal mit Glow) und Light-Mode-Varianten (Rot mit Sättigung) sind getrennt definiert
+**Then** Primär-/Sekundär-/Akzent-Farben (ALKLY-Teal, ALKLY-Rot) sind als CSS Custom Properties im Light-Look verfügbar *(Dark-Mode-Varianten gestrichen, Amendment 2026-04-23)*
 
 **Given** eine Komponente setzt Padding oder Margin
 **When** sie rendert
@@ -607,10 +606,12 @@ So that ich Solalex in meiner gewohnten HA-Navigation wiederfinde.
 **When** der Nutzer ihn klickt
 **Then** der Solalex-UI-Frame öffnet im HA-Panel
 
-### Story 1.6: HA-Ingress-Frame mit Dark/Light-Adaption und Empty-State
+### Story 1.6: HA-Ingress-Frame mit statischem Light-Look und Empty-State
+
+*(Amendment 2026-04-23: „Dark/Light-Adaption" gestrichen — UI rendert ausschließlich im ALKLY-Light-Look)*
 
 As a Solalex-Nutzer,
-I want beim ersten Öffnen einen sauber gerenderten Begrüßungsscreen in HA-Theme-konformem Dark- oder Light-Mode mit ALKLY-Identität,
+I want beim ersten Öffnen einen sauber gerenderten Begrüßungsscreen im ALKLY-Light-Look,
 So that ich sofort weiß: Solalex ist da und wartet auf mich.
 
 **Acceptance Criteria:**
@@ -620,16 +621,6 @@ So that ich sofort weiß: Solalex ist da und wartet auf mich.
 **Then** die Svelte-App wird im HA-Ingress-iframe vollständig gerendert
 **And** die TTFD ist < 2 s
 
-**Given** HA ist im Dark-Mode
-**When** Solalex-UI rendert
-**Then** Hintergrund, Text und Akzente nutzen Dark-Mode-Token-Varianten
-**And** Teal hat den Dark-Mode-Glow ohne bleiche Zonen
-
-**Given** HA ist im Light-Mode
-**When** Solalex-UI rendert
-**Then** Light-Mode-Token-Varianten werden genutzt
-**And** Rot behält seine Warnkraft-Sättigung
-
 **Given** Empty-State (Wizard noch nicht abgeschlossen)
 **When** die UI rendert
 **Then** ein Begrüßungs-Screen zeigt Solalex-Titel, kurze Einleitung und einen primären „Setup starten"-Button
@@ -637,10 +628,6 @@ So that ich sofort weiß: Solalex ist da und wartet auf mich.
 **Given** der Footer
 **When** das Dashboard oder der Empty-State rendert
 **Then** ein 24-px-runder Alex-Avatar + „Made by Alex Kly · Discord · GitHub · Privacy"-Links + dezentes „100 % lokal"-Badge sind sichtbar
-
-**Given** die UI
-**When** der Nutzer das HA-Theme wechselt
-**Then** Solalex-UI adaptiert ohne Reload und ohne Farbbruch
 
 ### Story 1.7: ~~i18n-Foundation mit `locales/de.json`~~ — **Auf v2 verschoben (Amendment 2026-04-22)**
 

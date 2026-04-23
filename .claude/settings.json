@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s --max-time 15 \"https://api.github.com/repos/googlefonts/dm-fonts/contents?ref=v1.002\")",
+      "Bash(curl -s --max-time 15 \"https://api.github.com/repos/googlefonts/dm-fonts/contents/Sans?ref=v1.002\")",
+      "Bash(curl -s --max-time 15 \"https://api.github.com/repos/googlefonts/dm-fonts/contents/Sans/Exports?ref=v1.002\")",
+      "Bash(mkdir -p /tmp/dmsans_fetch)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 14_0\\) AppleWebKit/605.1.15 \\(KHTML, like Gecko\\) Version/17.0 Safari/605.1.15\" \"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap\")",
+      "Bash(git -C /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment log --oneline -8)",
+      "Bash(/tmp/dmsans_fetch/venv/bin/pip install *)",
+      "Bash(/tmp/dmsans_fetch/venv/bin/python -c \"import fontTools; print\\('OK', fontTools.__version__\\)\")",
+      "Bash(curl -sL --max-time 30 -o dmsans.zip \"https://fonts.google.com/download?family=DM%20Sans\")",
+      "Bash(unzip -l dmsans.zip)",
+      "Bash(curl -sL -o OFL.txt \"https://raw.githubusercontent.com/googlefonts/dm-fonts/v1.002/Sans/LICENSE.txt\")",
+      "Bash(cp /tmp/dmsans_fetch/DMSans-Regular.woff2 /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/static/fonts/)",
+      "Bash(cp /tmp/dmsans_fetch/DMSans-Medium.woff2 /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/static/fonts/)",
+      "Bash(cp /tmp/dmsans_fetch/DMSans-SemiBold.woff2 /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/static/fonts/)",
+      "Bash(cp /tmp/dmsans_fetch/DMSans-Bold.woff2 /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/static/fonts/)",
+      "Bash(cp /tmp/dmsans_fetch/OFL.txt /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/static/fonts/)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"\\(exit $?\\)\")",
+      "Read(//dev/**)",
+      "Bash(grep -r '$t\\(' frontend/src)",
+      "Bash(xargs cat *)",
+      "Bash(awk '{sum+=$1} END {print \"Total bytes:\", sum}')",
+      "Bash(npm test *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  }
+}

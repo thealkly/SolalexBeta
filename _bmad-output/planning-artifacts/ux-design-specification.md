@@ -53,7 +53,7 @@ Vier Personas prägen die UX-Entscheidungen (aus PRD-Journeys destilliert):
 
 **1. HA-Ingress-Frame ist eine fremde Box.** Wir haben kein volles Browserfenster, keine URL-Kontrolle, HA-Sidebar steht links. Breite variiert stark: Desktop 1200px+, Tablet 768px, Mobile-HA-App 420px. Das bestehende interne Design-System ist Mobile-First (420px). Für v1 brauchen wir ein responsives System mit drei klaren Breakpoints (420 / 768 / 1200+) und einer Layout-Shift-Logik, die auf Desktop nicht wie eine hochgezogene Mobile-App wirkt.
 
-**2. Dark/Light-Mode-Adaption mit ALKLY-Farbidentität.** HA erzwingt Theme-Wechsel. Solalex darf dabei nicht bleich werden. Teal und Rot müssen als Tokens mit modus-spezifischer Saturation definiert werden — Teal im Dark-Mode braucht etwas mehr Glow, Rot im Light-Mode braucht etwas mehr Sättigung, damit Kontrast-Wahrnehmung identisch bleibt.
+**2. ~~Dark/Light-Mode-Adaption mit ALKLY-Farbidentität~~ — v1-Cut (Amendment 2026-04-23).** Solalex rendert in v1 ausschließlich im ALKLY-Light-Look, unabhängig vom HA-Theme-Signal. Kein `[data-theme="dark"]`-Override, kein MutationObserver. Dark-Mode ist Kandidat für v1.5.
 
 **3. Setup-Wizard vs. Daily-Dashboard — zwei UX-Regime.** Der Wizard ist linear, bildschirmfüllend, fokussiert, eine primäre Aktion pro Screen. Das Dashboard ist parallel, modular, glanz-orientiert, mehrere parallele Informations-Zonen. Beide dürfen sich nicht fremd anfühlen, aber auch nicht identisch sein. Einheitliche Tokens, unterschiedliche Komposition.
 
@@ -109,7 +109,7 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 | Input-Primat | Dual — Touch (Tablet vom Sofa) und Maus/Tastatur (Desktop am Arbeitsplatz) |
 | Breakpoints | 420 (Mobile-HA-App) / 768 (Tablet) / 1200+ (Desktop) |
 | Offline-Verhalten | Voll funktional — HA-Verbindung ist lokal, LemonSqueezy nur einmal/Monat |
-| Theme-Adaption | HA-Dark/Light-Mode respektieren, ALKLY-Identität in beiden halten |
+| Theme-Adaption | Statischer ALKLY-Light-Look; keine HA-Theme-Adaption in v1 (Amendment 2026-04-23) |
 | Browser-Matrix | Chromium-basiert (HA Companion-Apps), Safari (iPad), Firefox — keine IE/Legacy |
 | Assets | 100% lokal: DM Sans als WOFF2 im Container, SVG-Icons inline, keine externen Requests |
 | Notifications | Keine. Pull, nicht Push. HA-Notifications sind bewusst nicht genutzt |
@@ -144,7 +144,7 @@ Die sekundäre Interaktion ist der Setup-Wizard: einmalig, dramaturgisch aufgela
 
 **Moment 5: Modus-Wechsel als sichtbarer Beweis der Intelligenz.** Ring-Farbe-Shift, Badge-Rotation, kurze Status-Zeile. Zeigt: Solalex denkt. Wenn versteckt, bleibt Solalex Blackbox.
 
-**Moment 6: Dark-Mode-Umschaltung ohne Bruch.** Teal behält Lebendigkeit, Rot behält Warnkraft, keine bleichen Zonen. Schlechter Dark-Mode zerstört das „hochwertig"-Empfinden in einer Sekunde.
+~~**Moment 6: Dark-Mode-Umschaltung ohne Bruch.**~~ — **v1-Cut (Amendment 2026-04-23).** Entfällt, da Dark-Mode nicht Teil von v1.
 
 ### Experience Principles
 

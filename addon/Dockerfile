@@ -59,7 +59,7 @@ RUN chmod a+x /etc/services.d/solalex/run /etc/services.d/solalex/finish
 LABEL io.hass.name="Solalex" \
       io.hass.description="Sekundengenaue Nulleinspeisung & Akku-Pool-Steuerung" \
       io.hass.type="addon" \
-      io.hass.version="0.1.0" \
+      io.hass.version="0.1.0-beta.0" \
       io.hass.arch="amd64|aarch64" \
       maintainer="ALKLY <info@alkly.de>"
 

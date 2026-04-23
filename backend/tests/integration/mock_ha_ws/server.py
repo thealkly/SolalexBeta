@@ -9,6 +9,8 @@ mid-session drop and observe the reconnect/re-subscribe path.
 
 from __future__ import annotations
 
+import contextlib
+import datetime
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -31,6 +33,8 @@ class MockHaServer:
     connections_seen: int = 0
     subscriptions_per_connection: list[list[dict[str, Any]]] = field(default_factory=list)
     active_connections: set[ServerConnection] = field(default_factory=set)
+    # Configurable mock state list returned for get_states requests.
+    mock_states: list[dict[str, Any]] = field(default_factory=list)
     _server: Any = None
     host: str = "127.0.0.1"
     port: int = 0
@@ -69,7 +73,18 @@ class MockHaServer:
             async for raw in ws:
                 msg = json.loads(raw)
                 msg_type = msg.get("type")
-                if msg_type in {"subscribe_trigger", "subscribe_events"}:
+                if msg_type == "get_states":
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": msg["id"],
+                                "type": "result",
+                                "success": True,
+                                "result": self.mock_states,
+                            }
+                        )
+                    )
+                elif msg_type in {"subscribe_trigger", "subscribe_events"}:
                     my_bucket.append(msg)
                     await ws.send(
                         json.dumps(
@@ -102,6 +117,44 @@ class MockHaServer:
         for ws in list(self.active_connections):
             await ws.close(code=1011, reason="test-triggered")
         self.active_connections.clear()
+
+    async def push_state_changed(
+        self,
+        entity_id: str,
+        state: str,
+        attributes: dict[str, Any] | None = None,
+        sub_id: int = 1,
+    ) -> None:
+        """Push a subscribe_trigger-shaped state_changed event to all clients.
+
+        Used by integration tests to simulate HA reporting a new entity state
+        after a service call (happy-path readback scenario).
+        """
+        if attributes is None:
+            attributes = {}
+        ts = datetime.datetime.now(datetime.UTC).isoformat()
+        payload = {
+            "id": sub_id,
+            "type": "event",
+            "event": {
+                "variables": {
+                    "trigger": {
+                        "platform": "state",
+                        "entity_id": entity_id,
+                        "to_state": {
+                            "entity_id": entity_id,
+                            "state": state,
+                            "attributes": attributes,
+                            "last_changed": ts,
+                            "last_updated": ts,
+                        },
+                    }
+                }
+            },
+        }
+        for ws in list(self.active_connections):
+            with contextlib.suppress(Exception):
+                await ws.send(json.dumps(payload))
 
 
 @asynccontextmanager

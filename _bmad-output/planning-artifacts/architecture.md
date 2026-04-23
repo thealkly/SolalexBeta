@@ -158,7 +158,7 @@ npm i svelte-spa-router
 - Tailwind CSS v4 über `@tailwindcss/vite` Plugin
 - ALKLY-Design-Tokens als **CSS Custom Properties (Single-Source)** in `frontend/src/app.css`
 - DM Sans lokal als WOFF2 im Container unter `frontend/static/fonts/` (inkl. `OFL.txt`)
-- Dark/Light-Mode via HA-Theme-Adaption + Token-Layer mit modus-spezifischer Saturation
+- **Light-only Token-Layer** in v1 — kein Dark-Mode-Override, keine HA-Theme-Adaption *(Amendment 2026-04-23: Dark-Mode gestrichen)*
 - **Keine TypeScript-Token-Duplikate** (`frontend/src/lib/tokens/*.ts` entfällt)
 
 **Build Tooling:**
@@ -372,7 +372,6 @@ async def on_sensor_update(self, event: SensorEvent) -> None:
 - Svelte 5 Runes (`$state`, `$derived`, `$effect`) primär innerhalb Komponenten
 - Svelte-Stores (`writable`) nur für Cross-View-Subscriptions:
   - `stateSnapshot` — gepollter `/api/v1/control/state`-Snapshot (1-s-Takt)
-  - `theme` — HA-Dark/Light-Signal
   - `license` — aktives Feature-Gating (grace/valid/drosseled)
 - **Kein WebSocket-Stream-Store** (WS ist nicht in v1).
 
@@ -388,7 +387,7 @@ function usePolling<T>(url: string, intervalMs: number): Readable<T | null> { ..
 
 Der `stateSnapshot`-Store nutzt diesen Hook im Dashboard-Scope; Wizard und Diagnose-Views benutzen normale One-Shot-Fetches.
 
-**Design-Token-Layer:** Tailwind 4 Config + **CSS Custom Properties als Single-Source** in `frontend/src/app.css`. ALKLY-Tokens (`--color-accent-primary`, `--font-sans`, `--radius-card`, …) in `:root` + modus-spezifisch in `[data-theme="dark"]`. HA-Theme-Signal triggert Attribut-Setzen am `<html>`-Tag.
+**Design-Token-Layer:** Tailwind 4 Config + **CSS Custom Properties als Single-Source** in `frontend/src/app.css`. ALKLY-Tokens (`--color-accent-primary`, `--font-sans`, `--radius-card`, …) ausschließlich in `:root`. **Kein `[data-theme="dark"]`-Override in v1, kein HA-Theme-Signal-Subscriber** *(Amendment 2026-04-23: Dark-Mode gestrichen)*.
 
 **Kein `lib/tokens/*.ts`.** Keine TypeScript-Duplikation der Tokens. Komponenten referenzieren Tokens über Tailwind-Klassen oder `var(--...)` direkt.
 

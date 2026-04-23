@@ -25,6 +25,12 @@ export default [
         document: 'readonly',
         console: 'readonly',
         fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        MutationObserver: 'readonly',
+        Response: 'readonly',
       },
     },
     rules: {

@@ -116,6 +116,7 @@ Kein `print()`. Kein `logging.getLogger()` direkt. Kein `logging.info()` ohne Wr
 - **Keine i18n-Infrastruktur in v1.** Deutsche Strings hardcoded in Svelte-Komponenten.
 - **Kein `/data/templates/`-Verzeichnis.** Adapter sind Python-Module im Image.
 - **Keine 5-Slot-Backup-Rotation.** Ein Slot reicht.
+- **Kein Dark-Mode in v1.** Kein `[data-theme="dark"]`-Override, kein MutationObserver für HA-Theme, kein `matchMedia`-Theme-Subscribe. Light-only Token-Layer. (Amendment 2026-04-23)
 
 ---
 
@@ -214,6 +215,8 @@ solalex/
 - Wenn Du Controller in Submodule splittest (`drossel.py`, `speicher.py`, …) — **STOP**. Ein `controller.py` mit Enum-Dispatch.
 - Wenn Du ein Monorepo-Workspace-`pyproject.toml` auf Root anlegst — **STOP**. Nur `backend/pyproject.toml` + `frontend/package.json`.
 - Wenn Du `lib/tokens/colors.ts` (o. ä.) im Frontend anlegst — **STOP**. CSS Custom Properties in `app.css`.
+- Wenn Du `[data-theme='dark']`-Overrides oder einen HA-Theme-Observer/Subscriber baust — **STOP**. Dark-Mode gestrichen (Amendment 2026-04-23), Light-only in v1.
+- Wenn Du einen `theme`-Store (`lib/stores/theme.ts`) oder `applyTheme`/`resolveThemeMode`-Funktion schreibst — **STOP**. Kein Theme-Switching in v1.
 
 ---
 
@@ -232,7 +235,7 @@ Kein OpenAPI-Diff-Check (keine Generator-Pipeline). Kein Alembic-Head-Check (kei
 
 ## Referenzdokumente
 
-- **Architecture (Autorität):** `_bmad-output/planning-artifacts/architecture.md` — Amendment 2026-04-22
+- **Architecture (Autorität):** `_bmad-output/planning-artifacts/architecture.md` — Amendment 2026-04-22, Amendment 2026-04-23 (Dark-Mode-Cut)
 - **PRD:** `_bmad-output/planning-artifacts/prd.md`
 - **Epics:** `_bmad-output/planning-artifacts/epics.md`
 - **UX-Spec:** `_bmad-output/planning-artifacts/ux-design-specification.md`
