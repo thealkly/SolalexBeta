@@ -4,6 +4,7 @@
   import Config from './routes/Config.svelte';
   import DisclaimerActivation from './routes/DisclaimerActivation.svelte';
   import FunctionalTest from './routes/FunctionalTest.svelte';
+  import PreSetupDisclaimer from './routes/PreSetupDisclaimer.svelte';
   import RunningPlaceholder from './routes/RunningPlaceholder.svelte';
   import * as client from './lib/api/client.js';
 
@@ -32,7 +33,14 @@
     }
   }
 
-  const VALID_ROUTES = new Set(['/', '/config', '/functional-test', '/running', '/disclaimer']);
+  const VALID_ROUTES = new Set([
+    '/',
+    '/config',
+    '/functional-test',
+    '/running',
+    '/disclaimer',
+    '/activate',
+  ]);
 
   function syncRoute(): void {
     currentRoute = normalizeRoute(window.location.hash);
@@ -63,15 +71,51 @@
       try {
         const devices = await client.getDevices();
         if (ac.signal.aborted) return;
-        if (devices.length === 0) return;
-        const allCommissioned = devices.every((d) => d.commissioned_at !== null);
+        const allCommissioned =
+          devices.length > 0 && devices.every((d) => d.commissioned_at !== null);
         if (allCommissioned) {
-          window.location.hash = '#/running';
-        } else if (currentRoute === '/') {
-          window.location.hash = '#/functional-test';
+          // Commissioned users must not re-enter any wizard step, including
+          // a direct URL hit on `#/disclaimer`, `#/activate` or
+          // `#/functional-test` that would otherwise let them re-fire
+          // commissioning. (Review P1 of Story 2.3 — AC 7 gate-lücke.)
+          const wizardRoutes = new Set([
+            '/',
+            '/disclaimer',
+            '/activate',
+            '/functional-test',
+            '/config',
+          ]);
+          if (wizardRoutes.has(currentRoute)) {
+            window.location.hash = '#/running';
+          }
+          return;
         }
+        // Pre-setup disclaimer gate (Story 2.3a AC 1, 7): uncommissioned users
+        // must accept the pre-setup disclaimer before any other wizard step.
+        // Applies to direct URL hits on `#/config`, `#/functional-test`, and
+        // `#/activate` as well as to the root route — only `#/disclaimer`
+        // itself is excluded to avoid a redirect loop.
+        const preAccepted =
+          localStorage.getItem('solalex_pre_disclaimer_accepted') === '1';
+        if (!preAccepted && currentRoute !== '/disclaimer') {
+          window.location.hash = '#/disclaimer';
+          return;
+        }
+        if (!preAccepted) return;
+        if (devices.length === 0) return;
+        // Uncommissioned: only auto-forward from the default route so a user
+        // who typed `#/config` manually while the fetch was in-flight doesn't
+        // get yanked away after we resolve. Review Finding P11.
+        if (currentRoute !== '/') return;
+        window.location.hash = '#/functional-test';
       } catch {
-        // Backend not yet ready — stay on current route
+        // Backend unreachable — surface via the status chip instead of
+        // showing the "Setup starten" welcome card as if the backend had
+        // confirmed no devices (Review Finding P12). The ping retry loop
+        // below keeps trying, so the user recovers automatically when the
+        // backend comes back up.
+        if (ac.signal.aborted) return;
+        backendStatus = 'error';
       }
     })();
 
@@ -102,6 +146,8 @@
   {:else if currentRoute === '/functional-test'}
     <FunctionalTest />
   {:else if currentRoute === '/disclaimer'}
+    <PreSetupDisclaimer />
+  {:else if currentRoute === '/activate'}
     <DisclaimerActivation />
   {:else if currentRoute === '/running'}
     <RunningPlaceholder />

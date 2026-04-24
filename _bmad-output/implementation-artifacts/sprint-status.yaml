@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.3 → done; 3.1 → done; 2.3a gespawnt aus 2.3-Review D1; 5.1 → 5.1a + 5.1b gesplittet)
+last_updated: 2026-04-24 (Story 2.3 → done; 3.1 → done; 2.3a → review; 5.1 → 5.1a + 5.1b gesplittet)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -65,7 +65,7 @@ development_status:
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
   2-3-disclaimer-aktivieren: done
   # Neu: gespawnt aus 2.3-Code-Review Decision D1 (2026-04-24) — Disclaimer muss vor Setup kommen, nicht am Ende
-  2-3a-pre-setup-disclaimer-gate: ready-for-dev
+  2-3a-pre-setup-disclaimer-gate: review
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung

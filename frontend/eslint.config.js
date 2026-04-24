@@ -33,6 +33,7 @@ export default [
         Response: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
+        localStorage: 'readonly',
       },
     },
     rules: {

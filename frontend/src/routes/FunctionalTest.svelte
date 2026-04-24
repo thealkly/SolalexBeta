@@ -53,7 +53,10 @@
       const cutoff = ts - WINDOW_MS - 500;
       const next: Record<string, { t: number; v: number }[]> = { ...chartPoints };
       for (const entity of snapshot.entities) {
-        if (entity.state === null) continue;
+        // Guard against HA sentinels ("unavailable", "unknown") which the
+        // backend serialises as strings — pushing those into the chart
+        // would poison yRange with NaN and blank the SVG path.
+        if (typeof entity.state !== 'number' || !Number.isFinite(entity.state)) continue;
         const prev = next[entity.entity_id] ?? [];
         next[entity.entity_id] = [...prev, { t: ts, v: entity.state }].filter(
           (p) => p.t >= cutoff,
@@ -134,7 +137,6 @@
     {#if testPhase === 'running'}
       <section class="ft-card">
         <div class="running-indicator">
-          <span class="spinner" aria-hidden="true"></span>
           <span>Test läuft…</span>
         </div>
         <div class="chart-wrap">
@@ -151,7 +153,7 @@
         {#if testResult?.latency_ms !== null && testResult?.latency_ms !== undefined}
           <p class="result-sub">Latenz: {testResult.latency_ms} ms</p>
         {/if}
-        <button class="continue-button" onclick={() => { window.location.hash = '#/disclaimer'; }}>Weiter zum Disclaimer</button>
+        <button class="continue-button" onclick={() => { window.location.hash = '#/activate'; }}>Weiter zum Disclaimer</button>
       </section>
     {:else if testPhase === 'failed' || testPhase === 'timeout'}
       <section class="ft-card result-card result-failed">
@@ -270,22 +272,6 @@
     font-size: 0.9rem;
     color: var(--color-text-secondary);
     margin-bottom: var(--space-2);
-  }
-
-  .spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
-    border-top-color: var(--color-accent-primary);
-    border-radius: 50%;
-    animation: spin 700ms linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   .chart-wrap {
