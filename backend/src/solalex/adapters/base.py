@@ -116,3 +116,13 @@ class AdapterBase(ABC):
     @abstractmethod
     def get_readback_timing(self) -> ReadbackTiming:
         """Return timeout and mode for readback verification."""
+
+    def get_limit_range(self, device: DeviceRecord) -> tuple[int, int]:
+        """Return the (min_w, max_w) hardware range for write commands.
+
+        Default: conservative ``(0, 10_000)`` watts. Subclasses override with
+        vendor-specific ranges. Read-only adapters raise
+        :class:`NotImplementedError`.
+        """
+        del device
+        return (0, 10_000)

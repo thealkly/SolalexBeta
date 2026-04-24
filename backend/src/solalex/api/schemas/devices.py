@@ -14,11 +14,11 @@ class HardwareConfigRequest(BaseModel):
     hardware_type: Literal["hoymiles", "marstek_venus"]
     wr_limit_entity_id: str = Field(..., min_length=1)
     battery_soc_entity_id: str | None = None
-    min_soc: int = Field(15, ge=5, le=50)
-    max_soc: int = Field(95, ge=50, le=100)
+    min_soc: int = Field(15, ge=5, le=40)
+    max_soc: int = Field(95, ge=51, le=100)
     night_discharge_enabled: bool = True
-    night_start: str = Field("20:00", pattern=r"^\d{2}:\d{2}$")
-    night_end: str = Field("06:00", pattern=r"^\d{2}:\d{2}$")
+    night_start: str = Field("20:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    night_end: str = Field("06:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     grid_meter_entity_id: str | None = None
 
     @model_validator(mode="after")
@@ -27,10 +27,21 @@ class HardwareConfigRequest(BaseModel):
             raise ValueError(
                 f"max_soc ({self.max_soc}) muss mehr als 10 % über min_soc ({self.min_soc}) liegen"
             )
-        if self.hardware_type == "marstek_venus" and not self.battery_soc_entity_id:
-            raise ValueError(
-                "battery_soc_entity_id ist Pflicht bei Hardware-Typ 'marstek_venus'"
-            )
+        if self.hardware_type == "marstek_venus":
+            if not self.battery_soc_entity_id:
+                raise ValueError(
+                    "battery_soc_entity_id ist Pflicht bei Hardware-Typ 'marstek_venus'"
+                )
+            if self.battery_soc_entity_id == self.wr_limit_entity_id:
+                raise ValueError(
+                    "Akku-SoC-Entity und Lade-Entity dürfen nicht identisch sein — "
+                    "bitte separate HA-Entities zuweisen"
+                )
+            if self.night_discharge_enabled and self.night_start == self.night_end:
+                raise ValueError(
+                    "Nacht-Entlade-Fenster darf nicht leer sein — "
+                    "Start- und Endzeit müssen sich unterscheiden"
+                )
         return self
 
 
@@ -51,6 +62,7 @@ class DeviceResponse(BaseModel):
     entity_id: str
     adapter_key: str
     config_json: str
+    last_write_at: datetime | None
     commissioned_at: datetime | None
     created_at: datetime
     updated_at: datetime

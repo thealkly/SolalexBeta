@@ -66,7 +66,7 @@ class MarstekVenusAdapter(AdapterBase):
 
     def parse_readback(self, state: HaState) -> int | None:
         try:
-            return int(float(state.state))
+            return round(float(state.state))
         except (ValueError, TypeError):
             return None
 
@@ -75,6 +75,12 @@ class MarstekVenusAdapter(AdapterBase):
 
     def get_readback_timing(self) -> ReadbackTiming:
         return ReadbackTiming(timeout_s=30.0, mode="sync")
+
+    def get_limit_range(self, device: DeviceRecord) -> tuple[int, int]:
+        # Marstek Venus 3E charge window per datasheet. TODO(3.4): pull the
+        # actual cap from device.config once the Speicher story exposes it.
+        del device
+        return (0, 2500)
 
 
 ADAPTER = MarstekVenusAdapter()

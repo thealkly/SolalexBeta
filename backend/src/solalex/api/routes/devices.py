@@ -7,6 +7,7 @@ POST /api/v1/devices  — save (replace) hardware configuration.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 
@@ -20,9 +21,8 @@ from solalex.common.logging import get_logger
 from solalex.config import get_settings
 from solalex.persistence.db import connection_context
 from solalex.persistence.repositories.devices import (
-    delete_all,
     list_devices,
-    upsert_device,
+    replace_all,
 )
 
 _logger = get_logger(__name__)
@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
 
 
 def _to_response(record: DeviceRecord) -> DeviceResponse:
+    now = datetime.now(tz=UTC)
     return DeviceResponse(
         id=record.id or 0,
         type=record.type,
@@ -37,9 +38,10 @@ def _to_response(record: DeviceRecord) -> DeviceResponse:
         entity_id=record.entity_id,
         adapter_key=record.adapter_key,
         config_json=record.config_json,
+        last_write_at=record.last_write_at,
         commissioned_at=record.commissioned_at,
-        created_at=record.created_at or __import__("datetime").datetime.utcnow(),
-        updated_at=record.updated_at or __import__("datetime").datetime.utcnow(),
+        created_at=record.created_at or now,
+        updated_at=record.updated_at or now,
     )
 
 
@@ -116,9 +118,7 @@ async def save_devices(
         )
 
     async with connection_context(db_path) as conn:
-        await delete_all(conn)
-        for row in rows:
-            await upsert_device(conn, row)
+        await replace_all(conn, rows)
 
     _logger.info("devices_saved", extra={"device_count": len(rows), "hardware_type": body.hardware_type})
 

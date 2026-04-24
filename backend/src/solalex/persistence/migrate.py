@@ -23,14 +23,22 @@ def _migration_files() -> list[Path]:
     return sorted(_SQL_DIR.glob("[0-9][0-9][0-9]_*.sql"))
 
 
+def _parse_prefix(path: Path) -> int:
+    """Extract the NNN_ numeric prefix from a migration filename."""
+    m = re.match(r"^(\d+)_", path.name)
+    if m is None:
+        raise RuntimeError(f"Migration file does not match NNN_*.sql pattern: {path.name}")
+    return int(m.group(1))
+
+
 def _check_contiguous(files: list[Path]) -> None:
     """Raise RuntimeError if file numbers have gaps or duplicates."""
-    numbers = []
-    for f in files:
-        m = re.match(r"^(\d+)_", f.name)
-        if m is None:
-            raise RuntimeError(f"Migration file does not match NNN_*.sql pattern: {f.name}")
-        numbers.append(int(m.group(1)))
+    numbers = [_parse_prefix(f) for f in files]
+    if len(set(numbers)) != len(numbers):
+        raise RuntimeError(
+            f"Duplicate migration numeric prefixes detected: {numbers}. "
+            "Every migration file needs a unique NNN_ prefix."
+        )
     expected = list(range(1, len(numbers) + 1))
     if numbers != expected:
         raise RuntimeError(
@@ -61,26 +69,41 @@ async def run(db_path: Path) -> None:
             row = await cur.fetchone()
         current_version = int(row[0]) if row else 0
 
+        max_file_version = _parse_prefix(files[-1]) if files else 0
+        if current_version > max_file_version:
+            raise RuntimeError(
+                f"Database schema_version={current_version} is ahead of the highest "
+                f"migration file ({max_file_version}). This usually means a migration "
+                f"file was deleted — recover it from git before restarting."
+            )
+
         applied = 0
-        for idx, sql_file in enumerate(files, start=1):
-            if idx <= current_version:
+        for sql_file in files:
+            version = _parse_prefix(sql_file)
+            if version <= current_version:
                 continue
             sql = sql_file.read_text(encoding="utf-8")
-            # executescript commits any pending transaction before running;
-            # each migration file is its own atomic unit.
+            # NOTE: executescript commits any pending transaction before running
+            # and cannot be wrapped in BEGIN/COMMIT. Each migration file must be
+            # written so that it is self-contained (its own BEGIN/COMMIT if
+            # multi-statement atomicity is required).
             await conn.executescript(sql)
             await conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)",
-                (str(idx),),
+                (str(version),),
             )
             await conn.commit()
+            current_version = version
             _logger.info(
                 "migration_applied",
-                extra={"file": sql_file.name, "schema_version": idx},
+                extra={"file": sql_file.name, "schema_version": version},
             )
             applied += 1
 
         if applied == 0:
             _logger.info("migration_up_to_date", extra={"schema_version": current_version})
         else:
-            _logger.info("migration_complete", extra={"applied": applied, "schema_version": current_version + applied})
+            _logger.info(
+                "migration_complete",
+                extra={"applied": applied, "schema_version": current_version},
+            )

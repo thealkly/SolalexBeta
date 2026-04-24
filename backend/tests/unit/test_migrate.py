@@ -7,7 +7,12 @@ from pathlib import Path
 import aiosqlite
 import pytest
 
+from solalex.persistence.migrate import _migration_files
 from solalex.persistence.migrate import run as run_migration
+
+
+def _expected_head() -> int:
+    return len(_migration_files())
 
 
 async def _get_schema_version(db_path: Path) -> int:
@@ -30,7 +35,7 @@ async def _table_exists(db_path: Path, table: str) -> bool:
 async def test_migration_applies_001(tmp_path: Path) -> None:
     db = tmp_path / "test.db"
     await run_migration(db)
-    assert await _get_schema_version(db) == 1
+    assert await _get_schema_version(db) == _expected_head()
     assert await _table_exists(db, "meta")
     assert await _table_exists(db, "devices")
 
@@ -40,7 +45,7 @@ async def test_migration_idempotent(tmp_path: Path) -> None:
     db = tmp_path / "test.db"
     await run_migration(db)
     await run_migration(db)  # second run must be a no-op
-    assert await _get_schema_version(db) == 1
+    assert await _get_schema_version(db) == _expected_head()
 
 
 @pytest.mark.asyncio

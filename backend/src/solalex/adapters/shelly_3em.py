@@ -70,5 +70,8 @@ class Shelly3EmAdapter(AdapterBase):
     def get_readback_timing(self) -> ReadbackTiming:
         return ReadbackTiming(timeout_s=10.0, mode="sync")
 
+    def get_limit_range(self, device: DeviceRecord) -> tuple[int, int]:
+        raise NotImplementedError("Shelly 3EM is read-only — no write range")
+
 
 ADAPTER = Shelly3EmAdapter()

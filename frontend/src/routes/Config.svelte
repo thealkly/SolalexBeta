@@ -28,7 +28,16 @@
   let canSave = $derived(
     hardwareType !== null &&
       wrLimitEntityId !== '' &&
-      (hardwareType !== 'marstek_venus' || batterySocEntityId !== ''),
+      (hardwareType !== 'marstek_venus' || batterySocEntityId !== '') &&
+      (!useSmartMeter || gridMeterEntityId !== ''),
+  );
+
+  let allEntitiesEmpty = $derived(
+    !loading &&
+      !loadError &&
+      wrLimitEntities.length === 0 &&
+      powerEntities.length === 0 &&
+      socEntities.length === 0,
   );
 
   onMount(async () => {
@@ -104,6 +113,14 @@
       <p>{loadError}</p>
     </div>
   {:else}
+    {#if allEntitiesEmpty}
+      <div class="error-block">
+        <p>
+          Home Assistant hat keine passenden Entities geliefert. Prüfe, ob Hoymiles/Marstek/Shelly
+          als Integrationen eingerichtet sind, und lade die Seite neu.
+        </p>
+      </div>
+    {/if}
     <section class="config-section">
       <h2>Hardware-Typ</h2>
       <div class="type-tiles">
@@ -173,7 +190,7 @@
                   type="number"
                   bind:value={minSoc}
                   min="5"
-                  max="50"
+                  max="40"
                   class="number-input"
                 />
                 <span class="field-unit">%</span>
@@ -185,7 +202,7 @@
                 <input
                   type="number"
                   bind:value={maxSoc}
-                  min="50"
+                  min="51"
                   max="100"
                   class="number-input"
                 />
@@ -242,9 +259,15 @@
         {:else}
           <p class="hint">
             Wähle zuerst
-            {hardwareType === 'marstek_venus'
-              ? 'Ladeleistungs-Entity und Akku-SoC-Entity'
-              : 'WR-Limit-Entity'}.
+            {#if useSmartMeter && gridMeterEntityId === ''}
+              {hardwareType === 'marstek_venus'
+                ? 'Ladeleistungs-Entity, Akku-SoC-Entity und Smart-Meter-Entity'
+                : 'WR-Limit-Entity und Smart-Meter-Entity'}.
+            {:else}
+              {hardwareType === 'marstek_venus'
+                ? 'Ladeleistungs-Entity und Akku-SoC-Entity'
+                : 'WR-Limit-Entity'}.
+            {/if}
           </p>
         {/if}
         {#if saveError}
