@@ -164,11 +164,6 @@ class Controller:
         if self._state_cache.test_in_progress or device.commissioned_at is None:
             return
 
-        # Mirror the active mode into the state cache exactly once per processed
-        # event so the polling endpoint (Story 5.1a) can surface the regulator
-        # mode without dipping into Controller internals.
-        self._state_cache.update_mode(self._current_mode.value)
-
         t0 = time.monotonic()
         now = self._now_fn()
 
@@ -432,6 +427,12 @@ class Controller:
                 extra={"device_id": device_id, "source": source},
             )
         else:
+            # Mirror the active mode into the state cache exactly once per
+            # persisted cycle so the polling endpoint (Story 5.1a) can
+            # surface the regulator mode. Placed at the cycle call-site per
+            # AC 11 so events that never produce a control_cycles row do not
+            # bump the UI heartbeat.
+            self._state_cache.update_mode(self._current_mode.value)
             await kpi_record(row)
 
     async def _safe_dispatch(self, decision: PolicyDecision, pipeline_ms: int) -> None:
@@ -494,6 +495,10 @@ class Controller:
             return
 
         if result is not None:
+            # Cycle row was persisted by executor.dispatch() — mirror the
+            # active mode (Story 5.1a AC 11, same heartbeat semantics as
+            # _record_noop_cycle).
+            self._state_cache.update_mode(self._current_mode.value)
             await kpi_record(result.cycle)
 
     async def _write_failsafe_cycle(
@@ -538,6 +543,11 @@ class Controller:
             )
 
         if persisted:
+            # Fail-safe cycle row was persisted — mirror the mode so the
+            # polling heartbeat stays fresh even when dispatch fails
+            # (Story 5.1a AC 11). Guard via persisted so a silent
+            # insert failure does not bump the UI heartbeat.
+            self._state_cache.update_mode(self._current_mode.value)
             try:
                 await kpi_record(row)
             except Exception:

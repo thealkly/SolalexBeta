@@ -21,6 +21,7 @@
   let snapshot = $state<StateSnapshot | null>(null);
   let gridBuffer = $state<{ t: number; v: number }[]>([]);
   let readbackBuffer = $state<{ t: number; v: number }[]>([]);
+  let targetBuffer = $state<{ t: number; v: number }[]>([]);
   let nowTs = $state(Date.now());
 
   const polling = usePolling(client.getStateSnapshot, 1000);
@@ -38,20 +39,10 @@
       });
     }
     if (wrLimit) {
-      const snap = snapshot;
-      const targetPoints = snap
-        ? snap.recent_cycles
-            .filter((c) => c.device_id === wrLimit.id && c.target_value_w !== null)
-            .map((c) => ({
-              t: new Date(c.ts).getTime(),
-              v: c.target_value_w as number,
-            }))
-            .filter((p) => Number.isFinite(p.t))
-        : [];
       series.push({
         label: 'Target-Limit',
         color: 'var(--color-accent-primary)',
-        data: targetPoints,
+        data: targetBuffer,
       });
       series.push({
         label: 'Readback',
@@ -65,11 +56,14 @@
   const activeRateLimit = $derived.by(() => {
     const snap = snapshot;
     if (!snap) return null;
+    // Math.min — the UI labels this as the *next* write (soonest unlock).
+    // Math.max would surface the device furthest from being writable, which
+    // contradicts the hint and makes short-cooldown devices invisible.
     const active = snap.rate_limit_status
       .map((r) => r.seconds_until_next_write)
       .filter((s): s is number => typeof s === 'number' && s > 0);
     if (active.length === 0) return null;
-    return Math.max(...active);
+    return Math.min(...active);
   });
 
   const recentCycles = $derived(snapshot?.recent_cycles.slice(0, 10) ?? []);
@@ -93,6 +87,20 @@
         const entry = snap.entities.find((e) => e.entity_id === wrLimit.entity_id);
         if (entry && typeof entry.state === 'number' && Number.isFinite(entry.state)) {
           readbackBuffer = [...readbackBuffer, { t: ts, v: entry.state }].filter(
+            (p) => p.t >= cutoff,
+          );
+        }
+        // Buffer the latest dispatch target at client-receive time so the
+        // Target-Limit series stays aligned with grid/readback (both use
+        // Date.now()), not the original cycle timestamp. Without this the
+        // series is invisible whenever the newest cycle is older than
+        // WINDOW_MS (common with Hoymiles' 60 s rate-limit) and suffers
+        // from NTP skew between browser and HA host.
+        const latestTarget = snap.recent_cycles.find(
+          (c) => c.device_id === wrLimit.id && c.target_value_w !== null,
+        )?.target_value_w;
+        if (typeof latestTarget === 'number' && Number.isFinite(latestTarget)) {
+          targetBuffer = [...targetBuffer, { t: ts, v: latestTarget }].filter(
             (p) => p.t >= cutoff,
           );
         }
@@ -179,7 +187,7 @@
         <p class="cycles-empty">Noch keine Zyklen erfasst.</p>
       {:else}
         <ul class="cycle-list" aria-label="Letzte Regelzyklen">
-          {#each recentCycles as cycle (cycle.ts + '-' + cycle.device_id)}
+          {#each recentCycles as cycle (cycle.id)}
             <li class="cycle-row">
               <span class="cycle-ts">{formatRelative(cycle.ts)}</span>
               <span class="cycle-source" data-source={cycle.source}>
@@ -348,9 +356,19 @@
     color: var(--color-accent-primary);
   }
 
+  /* AC 4: distinct neutral grey for manual vs blue-tinged slate for
+     ha_automation so users can tell them apart at a glance.
+     --color-neutral-muted = gray-500 neutral; --color-brand-ink = slate-900
+     (cool blue-gray). No new tokens added — Amendment 2026-04-22 keeps
+     app.css as the single-source. */
+  .cycle-source[data-source='manual'] {
+    background: color-mix(in srgb, var(--color-neutral-muted) 18%, var(--color-surface) 82%);
+    color: var(--color-neutral-muted);
+  }
+
   .cycle-source[data-source='ha_automation'] {
-    background: color-mix(in srgb, var(--color-text) 12%, var(--color-surface) 88%);
-    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-brand-ink) 14%, var(--color-surface) 86%);
+    color: var(--color-brand-ink);
   }
 
   .cycle-readback {

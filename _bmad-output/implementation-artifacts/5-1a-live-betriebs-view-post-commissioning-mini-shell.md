@@ -160,7 +160,34 @@ so that ich Vertrauen gewinne, dass die Regelung arbeitet, bevor Epic 4 (Diagnos
   - [x] Drift-Check: `grep -rE "WebSocket|EventSource" frontend/src/routes/Running.svelte` → 0 Treffer (nur REST-Polling).
   - [x] Manual-Smoke lokal im HA-Add-on mit einem Shelly 3EM + OpenDTU-WR — Alex führt aus, kein Blocker für Review (wie Story 3.2 Task 8).
 
-## Dev Notes
+### Review Findings (2026-04-24)
+
+Adversarielles Review via `bmad-code-review` (Blind Hunter + Edge Case Hunter + Acceptance Auditor). Triage: 10 `patch` (inkl. D1→P10 aufgelöst 2026-04-24), 1 `defer`, 15 dismissed.
+
+**Resolved Decisions:**
+
+- D1 (Idle-Semantik zur Laufzeit) — aufgelöst 2026-04-24 zu Option 3: Backend-seitige Override im Endpoint basierend auf Heartbeat aus `recent_cycles[0].ts` mit 15-s-Grace-Window. Wird als Patch **P10** umgesetzt.
+
+**Patch (unchecked — Fix ohne Rückfrage möglich):**
+
+- [ ] [Review][Patch] **P1 [HIGH] — `activeRateLimit` zeigt `Math.max`, Label sagt „Nächster Write"** [`frontend/src/routes/Running.svelte`] — AC 5 (Blind+Edge). Bei zwei Devices mit 5 s / 55 s Rest zeigt UI „Nächster Write in 55 s" statt 5 s. Fix: `Math.max` → `Math.min`.
+- [ ] [Review][Patch] **P2 [HIGH] — Target-Limit-Serie unsichtbar & Clock-Skew-Misalignment** [`frontend/src/routes/Running.svelte`] — AC 2 (Blind+Edge). `targetPoints` nutzt `new Date(c.ts).getTime()` (Server-UTC); `gridBuffer`/`readbackBuffer` nutzen `Date.now()` beim Empfang. Rate-Limit 60 s → typische Cycle-Timestamps sind > 5 s alt → Target-Linie nie sichtbar. Zusätzlich: NTP-Skew zwischen Browser & HA-Host verschiebt Target horizontal gegen die anderen zwei Serien. Fix: Target-Wert bei jedem Poll-Tick mit `Date.now()` buffern (analog grid/readback); „letzter Dispatch-`target_value_w`" aus AC 2 wird so als stehende Horizontal-Referenz gerendert.
+- [ ] [Review][Patch] **P3 [MEDIUM] — `int(remaining)` truncation → 1-s-Lücke im Countdown** [`backend/src/solalex/api/routes/control.py:163-165`] — AC 5 (Edge). Bei `remaining ∈ (0, 1)` liefert `int(remaining) == 0`; Frontend-Filter `s > 0` schluckt das Signal. Fix: `math.ceil(remaining)` statt `int(...)`.
+- [ ] [Review][Patch] **P4 [MEDIUM] — `RecentCycle.mode/source/readback_status` als `str` statt `Literal`** [`backend/src/solalex/api/schemas/control.py:33-39`, `frontend/src/lib/api/types.ts`] — AC 13 (Edge). Repository-Layer nutzt `Literal`; Pydantic-Schema an API-Boundary entfernt die Narrow-Type-Garantie. DB-Wert abseits der erlaubten Strings landet ohne Validierung in der Response; Frontend-Badges fallen stumm auf die Default-Klasse. Fix: Literal in `RecentCycle` + TS-Union in `types.ts` spiegeln.
+- [ ] [Review][Patch] **P5 [MEDIUM] — Frontend-Tests testen weder 3-Serien noch 10-Einträge-Cap** [`frontend/src/routes/Running.test.ts`] — AC 14 (Auditor). Backend-Test deckt 10-Cap ab, Frontend explizit gefordert. Fix: Assertion für `ChartSeries`-Array mit 3 Einträgen (grid/target/readback); Render-Test mit 11 Cycles → 10 `<li>`-Einträge.
+- [ ] [Review][Patch] **P6 [MEDIUM] — `source`-Badge-Farben nicht AC-konform** [`frontend/src/routes/Running.svelte` (Style `.cycle-source`)] — AC 4 (Auditor). Nur `solalex` (teal) hat distinkte Farbe; `manual` fällt auf Default-Grau, `ha_automation` ist nur marginal dunkleres Grau. AC fordert `solalex=teal`, `manual=grau`, `ha_automation=blaugrau`. Fix: `[data-source='manual']` + `[data-source='ha_automation']` mit distinkten Token-Werten.
+- [ ] [Review][Patch] **P7 [LOW] — `datetime.fromisoformat` ValueError wird geschluckt** [`backend/src/solalex/api/routes/control.py:153-157`] — CLAUDE.md Regel 5 (Blind). Fail-open beim Rate-Limit ohne Log-Breadcrumb. Fix: `_logger.exception("unreadable last_write_at ...")` im `except`.
+- [ ] [Review][Patch] **P8 [LOW] — Controller mirrort Modus vor Cycle-Write, nicht am Cycle-Call-Site** [`backend/src/solalex/controller.py:164-170`] — AC 11 (Blind+Auditor). Spec sagt „direkt vor oder nach `state_cache.update(...)` — genau ein Call-Site in `_record_noop_cycle` / `_safe_dispatch`". Aktuell: direkt nach Early-Exit-Guards, also auch für Events die nie einen `control_cycles`-Row schreiben. Fix: `update_mode`-Call in `_record_noop_cycle` und `_safe_dispatch` vor/nach dem jeweiligen `state_cache.update(...)` platzieren.
+- [ ] [Review][Patch] **P9 [LOW] — Cycle-`{#each}`-Key kann kollidieren** [`frontend/src/routes/Running.svelte`] — AC 4 (Blind+Edge). Key `cycle.ts + '-' + cycle.device_id` kollidiert bei zwei Cycles desselben Device im selben Sekunden-Bucket. Fix: Cycle-`id` in `RecentCycle` aufnehmen (bereits PK in DB) oder Index-Fallback als Sekundär-Key.
+- [ ] [Review][Patch] **P10 [LOW] — Idle-Override im Endpoint bei Heartbeat-Gap** [`backend/src/solalex/api/routes/control.py`] — AC 3, D1-Resolution. Wenn `recent_cycles` leer ist oder `recent_cycles[0].ts` älter als 15 s (Grace-Window = 15× Polling-Intervall), dann `current_mode = "idle"` im Response-Payload overriden — unabhängig vom State-Cache-Wert. Kein Controller-Change, kein neuer Query (Daten bereits im Endpoint-Scope). Zusätzlich ein Test-Case in `test_control_state.py`: stale recent_cycles (20 s alt) → Response `current_mode == "idle"` obwohl StateCache noch `"drossel"` mirrort.
+
+**Deferred:**
+
+- [x] [Review][Defer] **DF1 [MEDIUM] — Polling-Fehler werden nicht im UI sichtbar** [`frontend/src/routes/Running.svelte`] — deferred auf Epic 4 / Story 4.3 (Verbindungs-Status-Panel). `usePolling.error` wird nicht subscribed → stiller Stale-Snapshot bei Backend-Ausfall. Out-of-Scope für 5.1a-Mini-Shell; Story 4.3 deckt das System-weit ab.
+
+**Dismissed (15 — Rauschen, defensiv, spec-konform oder Pre-Existing):**
+
+- aiosqlite row_factory Speculation (global gesetzt via `connection_context`); `$effect`-subscribe-Timing (vernachlässigbar, LineChart.skeleton deckt ab); `targetPoints` nicht vor-gefiltert (LineChart-intern gehandhabt); Rate-Limit-Countdown-Refresh-Cadence (1 Hz-Polling reicht); `update_mode`-ohne-Lock (CPython-GIL garantiert Atomicity bei String-Assignment); `formatRelative`-Future-Timestamp (kosmetisch); Empty-State-Duplizierung Chart-Hint + Liste-Hint (spec-mandated — AC 7); `db_conn_factory is None`-Fallback (defensiv test-freundlich); naive-datetime-UTC-Annahme (spiegelt `executor/rate_limiter.py`); `SELECT FROM devices` ohne `commissioned_at`-Filter (keine UI-Konsequenz); Battery-only-Setup ohne Target-Serie (AC 2 explizit); `testInProgress`-stale-Buffer (LineChart filtert per `cutoff`); `main.py`-Mod gegen „NICHT anfassen"-Liste (Spec war ungenau, Change ist notwendig); Test in `tests/unit/` statt `tests/integration/` (File-List stimmt, Reklassifikations-Churn); `error-block` Warning-Rot (Device-Load-Fehler, nicht Empty-State AC 7).
 
 ### Architektur-Bezugspunkte (Pflichtlektüre)
 

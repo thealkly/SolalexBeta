@@ -153,6 +153,7 @@ def test_control_state_recent_cycles_returns_last_ten(
     assert cycles[0]["target_value_w"] == 110
     assert cycles[-1]["target_value_w"] == 101
     assert set(cycles[0].keys()) == {
+        "id",
         "ts",
         "device_id",
         "mode",
@@ -162,6 +163,10 @@ def test_control_state_recent_cycles_returns_last_ten(
         "readback_status",
         "latency_ms",
     }
+    # id is the stable {#each} key on the frontend — each cycle must expose
+    # a unique integer (P9 regression guard).
+    ids = [c["id"] for c in cycles]
+    assert len(set(ids)) == len(ids)
 
 
 def test_control_state_rate_limit_countdown_active(

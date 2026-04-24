@@ -11,6 +11,7 @@ Reads from ``app.state.state_cache`` + the SQLite ``control_cycles`` and
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
@@ -24,15 +25,24 @@ from solalex.api.schemas.control import (
     RecentCycle,
     StateSnapshot,
 )
+from solalex.common.logging import get_logger
 from solalex.persistence.repositories import control_cycles
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractAsyncContextManager
 
+_logger = get_logger(__name__)
+
 router = APIRouter(prefix="/api/v1/control", tags=["control"])
 
 _RECENT_CYCLES_LIMIT = 10
+
+# If the most recent cycle is older than this window, the regulator is
+# considered idle in the polling payload regardless of the StateCache
+# mirror — covers the gap that ``Mode`` has no ``idle`` enum value and
+# therefore never flips back once the controller processed its first event.
+_IDLE_HEARTBEAT_WINDOW_S = 15.0
 
 
 @router.get("/state", response_model=StateSnapshot)
@@ -87,6 +97,8 @@ async def get_control_state(request: Request) -> StateSnapshot:
 
         recent_cycles = [
             RecentCycle(
+                # ``list_recent`` always returns persisted rows — id is never None.
+                id=cast(int, row.id),
                 ts=row.ts,
                 device_id=row.device_id,
                 mode=row.mode,
@@ -99,14 +111,45 @@ async def get_control_state(request: Request) -> StateSnapshot:
             for row in raw_cycles
         ]
 
+    current_mode = _resolve_current_mode(
+        cache_mode=snap.current_mode,
+        recent_cycles=recent_cycles,
+        now=datetime.now(tz=UTC),
+    )
+
     return StateSnapshot(
         entities=entities,
         test_in_progress=snap.test_in_progress,
         last_command_at=snap.last_command_at,
-        current_mode=snap.current_mode,
+        current_mode=current_mode,
         recent_cycles=recent_cycles,
         rate_limit_status=rate_limit_status,
     )
+
+
+def _resolve_current_mode(
+    *,
+    cache_mode: str,
+    recent_cycles: list[RecentCycle],
+    now: datetime,
+) -> str:
+    """Override ``cache_mode`` to ``idle`` when the regulator has gone quiet.
+
+    The Controller's ``Mode`` enum has no ``idle`` value, so the StateCache
+    mirror only emits ``idle`` at process startup. Without this override the
+    chip would be stuck on the last active mode forever after the first
+    cycle — including during HA reconnects or sensor stalls. We treat
+    ``recent_cycles[0].ts`` as the regulator heartbeat: newer than
+    ``_IDLE_HEARTBEAT_WINDOW_S`` = active, older or missing = idle.
+    """
+    if not recent_cycles:
+        return "idle"
+    latest_ts = recent_cycles[0].ts
+    if latest_ts.tzinfo is None:
+        latest_ts = latest_ts.replace(tzinfo=UTC)
+    if (now - latest_ts).total_seconds() > _IDLE_HEARTBEAT_WINDOW_S:
+        return "idle"
+    return cache_mode
 
 
 async def _load_rate_limit_status(
@@ -144,12 +187,25 @@ def _seconds_until_next_write(
     adapter_registry: dict[str, AdapterBase],
     now: datetime,
 ) -> int | None:
-    """Return the remaining cooldown in whole seconds, or ``None`` if inactive."""
+    """Return the remaining cooldown in whole seconds, or ``None`` if inactive.
+
+    Rounds up with ``math.ceil`` — ``int(0.4)`` would truncate to 0 and the
+    frontend filter (``s > 0``) would then drop the last sub-second of the
+    cooldown window, leaving a 1 s gap where the UI hint disappears before
+    the device is actually writable again.
+    """
     if last_write_raw is None:
         return None
     try:
         last_write_at = datetime.fromisoformat(str(last_write_raw))
     except ValueError:
+        # Corrupt or unexpected format — log and fail open so the UI hint
+        # disappears rather than rendering a garbage countdown. CLAUDE.md
+        # Regel 5 forbids swallowing exceptions without a breadcrumb.
+        _logger.exception(
+            "rate_limit_last_write_parse_failed",
+            extra={"adapter_key": adapter_key, "raw": repr(last_write_raw)},
+        )
         return None
     if last_write_at.tzinfo is None:
         last_write_at = last_write_at.replace(tzinfo=UTC)
@@ -162,4 +218,4 @@ def _seconds_until_next_write(
     remaining = (ready_at - now).total_seconds()
     if remaining <= 0:
         return None
-    return int(remaining)
+    return math.ceil(remaining)

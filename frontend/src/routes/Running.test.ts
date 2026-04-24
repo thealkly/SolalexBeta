@@ -35,8 +35,11 @@ function device(overrides: Partial<DeviceResponse>): DeviceResponse {
   };
 }
 
+let _cycleIdCounter = 0;
 function cycle(overrides: Partial<RecentCycle> = {}): RecentCycle {
+  _cycleIdCounter += 1;
   return {
+    id: _cycleIdCounter,
     ts: '2026-04-24T12:00:00Z',
     device_id: 1,
     mode: 'drossel',
@@ -74,6 +77,7 @@ describe('Running — Live-Betriebs-View', () => {
   beforeEach(() => {
     getDevicesMock.mockReset();
     getStateSnapshotMock.mockReset();
+    _cycleIdCounter = 0;
   });
 
   afterEach(() => {
@@ -158,5 +162,120 @@ describe('Running — Live-Betriebs-View', () => {
     await flushPolling();
 
     expect(screen.queryByText(/Nächster Write/)).toBeNull();
+  });
+
+  it('surfaces the soonest cooldown (Math.min) when multiple devices are rate-limited', async () => {
+    // P1 regression: prior Math.max would show 55 s here and hide the fact
+    // that the wr_limit device unlocks in 5 s.
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit' }),
+      device({ id: 2, role: 'bat_ctrl' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        // Seed a fresh cycle so the endpoint's idle-override (>15 s) would
+        // not kick in — but the test does not hit the backend, so we only
+        // need the client-side min selection to work.
+        recent_cycles: [cycle({ device_id: 1, target_value_w: 100 })],
+        rate_limit_status: [
+          { device_id: 1, seconds_until_next_write: 5 },
+          { device_id: 2, seconds_until_next_write: 55 },
+        ],
+      }),
+    );
+
+    render(Running);
+    await flushPolling();
+
+    expect(screen.getByText(/Nächster Write in 5 s/)).toBeTruthy();
+    expect(screen.queryByText(/Nächster Write in 55 s/)).toBeNull();
+  });
+
+  it('caps the cycles list at ten entries even when the payload carries more', async () => {
+    // AC 14: even if the backend ever ships more than 10 cycles the UI must
+    // stay bounded. Exercises the `.slice(0, 10)` guard in `recentCycles`.
+    const eleven = Array.from({ length: 11 }, (_, i) =>
+      cycle({
+        device_id: 1,
+        target_value_w: 100 + i,
+        readback_status: 'passed',
+        latency_ms: 10 + i,
+      }),
+    );
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({ current_mode: 'drossel', recent_cycles: eleven }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const rows = container.querySelectorAll('.cycle-list .cycle-row');
+    expect(rows.length).toBe(10);
+  });
+
+  it('renders three chart series (grid / target / readback) when all data flows', async () => {
+    // AC 14: chart rendert mit 3 Serien. The LineChart only draws a <path>
+    // for series with ≥ 2 points, so we need two polling ticks to fill the
+    // grid / readback buffers alongside the target buffer that gets fed
+    // from recent_cycles at each tick.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      getDevicesMock.mockResolvedValue([
+        device({ id: 1, role: 'wr_limit', entity_id: 'number.wr_limit' }),
+        device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+      ]);
+      getStateSnapshotMock.mockResolvedValue(
+        snapshot({
+          current_mode: 'drossel',
+          entities: [
+            {
+              entity_id: 'sensor.shelly_power',
+              state: -123,
+              unit: 'W',
+              role: 'grid_meter',
+              timestamp: '2026-04-24T12:00:00Z',
+            },
+            {
+              entity_id: 'number.wr_limit',
+              state: 200,
+              unit: 'W',
+              role: 'wr_limit',
+              timestamp: '2026-04-24T12:00:00Z',
+            },
+          ],
+          recent_cycles: [cycle({ device_id: 1, target_value_w: 310 })],
+        }),
+      );
+
+      const { container } = render(Running);
+      // First tick — fires immediately from polling.start().
+      await flushPolling();
+      // Second tick — triggers the setInterval callback.
+      await vi.advanceTimersByTimeAsync(1000);
+      await flushPolling();
+
+      const paths = container.querySelectorAll('svg.line-chart path');
+      expect(paths.length).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the skeleton chart pulse and both empty-state hints on a fresh snapshot', async () => {
+    // AC 7: skeleton pulse + "Regler wartet ..." + "Noch keine Zyklen ..."
+    // must all be visible before the first event lands — no spinners, no
+    // error-red. The chart-skeleton class is driven by LineChart's own
+    // showSkeleton derive (no ≥ 2 points yet).
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    expect(container.querySelector('.chart-skeleton')).toBeTruthy();
+    expect(screen.getByText(/Regler wartet auf erstes Sensor-Event/)).toBeTruthy();
+    expect(screen.getByText(/Noch keine Zyklen erfasst/)).toBeTruthy();
   });
 });

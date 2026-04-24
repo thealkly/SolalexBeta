@@ -31,7 +31,8 @@
       "Bash(git diff *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(git -C /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment log --oneline -20)"
     ],
     "additionalDirectories": [
       "/tmp",

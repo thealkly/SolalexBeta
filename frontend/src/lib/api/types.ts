@@ -64,14 +64,18 @@ export interface EntitySnapshot {
   timestamp: string | null;
 }
 
+export type CycleSource = 'solalex' | 'manual' | 'ha_automation';
+export type CycleReadbackStatus = 'passed' | 'failed' | 'timeout' | 'vetoed' | 'noop';
+
 export interface RecentCycle {
+  id: number;
   ts: string;
   device_id: number;
-  mode: string;
-  source: string;
+  mode: ControlMode;
+  source: CycleSource;
   sensor_value_w: number | null;
   target_value_w: number | null;
-  readback_status: string | null;
+  readback_status: CycleReadbackStatus | null;
   latency_ms: number | null;
 }
 
