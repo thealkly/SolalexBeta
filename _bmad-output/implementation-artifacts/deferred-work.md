@@ -172,7 +172,9 @@ Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story
 - **Manual-QA (AC 1/7/10) ungeprüft, Sprint-Status vorab auf `review`** — Task-5-Checkbox in der Story bleibt bewusst `[ ]`; von Alex auf echter HA-Instanz zu verifizieren, kein automatisierter E2E-Stack in v1.
 - **Kein Test für `App.svelte`-Gate-Logik** (`frontend/src/App.svelte:63-140`) — Die sicherheitsrelevanteste Neulogik (Commissioned-Redirect + Pre-Disclaimer-Gate + Route-Fallback) hat Null-Coverage. Wenn v1.5 jsdom + @testing-library/svelte einführt, wäre der Gate der Top-Kandidat für die erste interaktive Testsuite — Teilmenge von Decision D1.
 
-## Deferred from: code review of story-2-1-hardware-config-page — Skipped-in-Batch items (2026-04-24 Status-Cleanup)
+## Deferred from: hotfix RunningPlaceholder „Konfiguration ändern"-Link entfernt (2026-04-24)
+
+- **Post-Commissioning Hardware-Re-Config-Flow fehlt** (`frontend/src/routes/RunningPlaceholder.svelte`, `frontend/src/lib/gate.ts`) — Der „Konfiguration ändern"-Link aus Story 2.2 wurde entfernt, weil der Gate aus Story 2.3a (P1+P2) commissionierte User von `/config` zurück auf `/running` redirected (`/config` ist Teil von `WIZARD_ROUTES`). Konsequenz: User können nach Commissioning ihre Hardware-Auswahl, Entity-Mappings, Min/Max-SoC und Nacht-Fenster nicht mehr ändern, ohne `localStorage` und Devices manuell zu löschen. Story 5.1b plant nur Settings-Tab-Platzhalter (AC: „Folgt in v1.5"), kein echter Edit-Flow. Folge-Story für v1.5 oder Epic 5+: dedizierter „Settings → Hardware ändern"-Flow inkl. Controller-Pause während Edit + Re-Test-Auslösung. Bis dahin ist Re-Setup nur via Add-on-Reinstall / DB-Reset möglich.
 
 Beim Review am 2026-04-23 bewusst aus dem Patch-Batch ausgelassen (siehe Story-2.1-Review-Findings, Abschnitt „Patch"). Damals auf Folge-Stories punted, heute beim Status-Cleanup formal nach deferred-work.md verschoben, weil die Ziel-Stories (3.1) inzwischen `done` sind und die Items sonst durchrutschen würden.
 

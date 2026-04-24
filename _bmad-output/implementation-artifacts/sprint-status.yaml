@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet)
+last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet; 5.1a → ready-for-dev nach Story-Scaffold)
 
 project: SolalexDevelopment
 project_key: NOKEY
