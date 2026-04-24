@@ -1,6 +1,6 @@
 # Story 2.2: Funktionstest mit Readback & Commissioning
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -503,9 +503,56 @@ Claude Opus 4.7 (1M context) — claude-opus-4-7[1m]
 **Frontend — gelöscht:**
 - `frontend/src/routes/FunctionalTestPlaceholder.svelte`
 
+### Review Findings
+
+Code-Review 2026-04-24 (Opus 4.7 mit Blind Hunter / Edge Case Hunter / Acceptance Auditor). Alle 12 AC gelten als erfüllt; Kategorie „Scope & Constraint Violations": keine STOP-Conditions verletzt. Findings nach Priorität:
+
+- [x] [Review][Patch] Naive-Datetime-Crash in Readback-Stale-Check — `_parse_ts` normalisiert immer auf UTC-aware; `readback._as_utc` behandelt naive Timestamps defensiv.
+- [x] [Review][Patch] `test_in_progress` bleibt dauerhaft `true` — try/finally um Service-Call + Readback in `setup.py`, `mark_test_ended` garantiert erreicht.
+- [x] [Review][Patch] `verify_readback` schläft immer die volle `wait_s` — Poll-Loop (250 ms) mit Early-Exit auf Fresh-State; `latency_ms` misst echte Zeit.
+- [x] [Review][Patch] Readback-Timestamp-Vergleich schlägt bei HA-Clock-Drift fehl — 2 s Negativ-Toleranz via `_CLOCK_DRIFT_TOLERANCE_S`; Test `test_readback_small_clock_drift_still_passes` dokumentiert.
+- [x] [Review][Patch] `float(entry.state)` behandelt HA-Sentinels als generischen Fehler — `_HA_UNAVAILABLE_SENTINELS` (`unavailable`/`unknown`/`none`/`""`) → dedizierter Timeout mit „nicht erreichbar"-Meldung.
+- [x] [Review][Patch] Test-Target wählt nicht-schreibbares Device bei Marstek-only-Config — Filter nach Rolle (`wr_limit`/`wr_charge`), sonst 412 mit konkreter Meldung.
+- [x] [Review][Patch] kW/W-Unit-Verwechslung in Entity-Filter — `/entities` akzeptiert nur noch `W` (+ `%`), `kW` ausgeschlossen. Readback blieb unverändert, da Input jetzt bereits in W-Einheit ist.
+- [x] [Review][Patch] `/entities`-UoM-Filter verwirft Entities ohne UoM-Attribut — `str(attrs.get("unit_of_measurement") or "")` behandelt None explizit.
+- [x] [Review][Patch] Spinner-Animation verletzt UX-DR19 — Spinner-Element + `.spinner`-CSS + `@keyframes spin` komplett entfernt; nur Skeleton-Pulse (LineChart) und Phase-Text bleiben.
+- [x] [Review][Patch] LineChart-Achse durch Non-numeric `state` mit NaN vergiftet — `typeof entity.state !== 'number' || !Number.isFinite(…)` Guard im Chart-Push.
+- [x] [Review][Patch] Commission-Gate in `App.svelte` überschreibt User-Navigation — Redirect nur wenn `currentRoute === '/'`; manuelles Öffnen von `#/config` während Fetch bleibt respektiert.
+- [x] [Review][Patch] Commission-Gate bleibt stumm beim Backend-Error — Catch setzt `backendStatus = 'error'`, Status-Chip zeigt den Fehler (statt Welcome-Card zu zeigen).
+- [x] [Review][Patch] `_dispatch_event` Exceptions ohne Entity-Kontext — `extra={"msg_type": ..., "entity_id": locals().get("entity_id")}`.
+- [x] [Review][Patch] `_dispatch_event` dropt Events mit leerem `entity_id` lautlos — Warning-Log `dispatch_event_missing_entity_id`.
+- [x] [Review][Patch] `call_service`-`TimeoutError` produziert leere Fehlermeldung — dedizierter 504-Branch mit deutscher Handlungsempfehlung.
+- [x] [Review][Patch] `mark_all_commissioned`-Response `device_count` lügt — Response gibt `count` zurück (statt `len(devices)`-Fallback).
+- [x] [Review][Patch] `mark_all_commissioned` schreibt `+00:00`-Suffix statt `Z` — `strftime('%Y-%m-%dT%H:%M:%S.%fZ')` auf UTC normalisiert.
+- [x] [Review][Patch] `usePolling.stop()` bricht in-flight `fetchFn` nicht ab — Epoch-Token invalidiert Stale-Responses nach `stop()`/`start()`.
+- [x] [Review][Patch] `usePolling.start()` kann `tick()` doppelt auslösen — `start()` incrementiert Epoch vor erstem Tick, Race-freie Serialisierung.
+- [x] [Review][Patch] Deprecated `asyncio.get_event_loop().run_until_complete(...)` — ersetzt durch `asyncio.run(_populate())`.
+- [x] [Review][Dismiss] TOCTOU-Race bei Test-Lock-Check-then-Acquire — **False Positive.** In asyncio-single-loop gibt es zwischen sync `lock.locked()` und dem sofort folgenden `async with lock` keinen Yield-Point, also auch keinen Race. Kommentar im Code dokumentiert das.
+- [x] [Review][Dismiss] `StateCache.snapshot()` liest `last_states` ohne Lock — **Dismiss.** Im Single-Loop-asyncio-Kontext ist die sync `snapshot()`-Methode atomar relativ zu anderen Coroutinen; `list(dict.values())` kann nicht durch andere Aufgaben unterbrochen werden. Stylistic-Only; kein realer Race.
+- [ ] [Review][Defer] Chart-Datenpunkte pro Tick dupliziert, State-Timestamp ignoriert [frontend/src/routes/FunctionalTest.svelte] — deferred, erfordert Svelte-5-Refactor von `$effect`→`onMount`-Subscribe und Timestamp-basiertes Dedup. Alex als eigene Frontend-Polish-Story vor Epic 5 ziehen.
+- [ ] [Review][Defer] `$effect` in FunctionalTest abonniert Polling-Store neu [frontend/src/routes/FunctionalTest.svelte] — deferred, gehört zu obigem Refactor (gleicher Code-Bereich).
+- [ ] [Review][Defer] Fehlende Integration-Tests in `test_setup_test.py` (AC 2/4/5/12) — deferred, substanzielle Test-Story. Spec fordert 4 Szenarien (Happy, Mismatch, Timeout, Concurrency-409); `push_state_changed`-Helper existiert bereits. Als eigene Test-Coverage-Story.
+- [ ] [Review][Defer] Kein Frontend-Test für Commission-Gate-Redirect — deferred, Test-Coverage-Story zusammen mit obigem.
+- [ ] [Review][Defer] Kein Test für Subscription-Idempotenz — deferred, Test-Coverage-Story zusammen mit obigen.
+- [x] [Review][Defer] `upsert_device` commitet innerhalb der Repo-Funktion [backend/src/solalex/persistence/repositories/devices.py:788-802] — deferred, pre-existing aus Story 2.1 (Repo-Pattern-Thema).
+- [x] [Review][Defer] `config_json` ohne JSON-Validierung vor Insert [backend/src/solalex/persistence/repositories/devices.py:787-802] — deferred, pre-existing aus Story 2.1.
+- [x] [Review][Defer] `/entities`-Endpoint ohne Adapter-spezifische Filterung [backend/src/solalex/api/routes/setup.py:133-155] — deferred, pre-existing aus Story 2.1 (Detection/Filter-Polish v1.5).
+- [x] [Review][Defer] Module-scope `_app_state_cache` wird im Lifespan reassigned [backend/src/solalex/main.py:47, 672] — deferred, betrifft nur Test-Reload-Pfad; `create_app()`-Factory-Refactor post-Beta.
+- [x] [Review][Defer] Subscription-Leak bei Config-Change (veraltete entity_ids beim Reconnect repliziert) [backend/src/solalex/setup/test_session.py] — deferred, Reconcile-Logik gehört zu Story 3.1-Controller-API-Design.
+- [x] [Review][Defer] `ensure_entity_subscriptions` akzeptiert ungenutzten `state_cache`-Parameter [backend/src/solalex/setup/test_session.py:890] — deferred, cosmetic; Signatur wird bei Story 3.1-Controller-Integration ohnehin überarbeitet.
+- [x] [Review][Defer] `StateCache.mark_test_started/ended`/`set_last_command_at` nicht unter Lock [backend/src/solalex/state_cache.py:981-988] — deferred, asyncio-single-thread macht das praktisch folgenlos; Konsistenz-Cleanup bei 3.1.
+- [x] [Review][Defer] Test-Lock-Singleton an Event-Loop gebunden [backend/src/solalex/api/routes/setup.py:99-106] — deferred, Test-Fixture-Thema (Workaround bereits im Code); Refactor zusammen mit `create_app()`-Factory.
+- [x] [Review][Defer] `importlib.reload(main_mod)`-Pattern in Test-Fixtures [backend/tests/integration/test_commission.py:1120, test_setup_test.py:1193, test_control_state.py:1250] — deferred, bereits im 1-1-Review als Smell erfasst; `create_app()`-Factory-Refactor.
+- [x] [Review][Defer] Readback-Tolerance hat keinen Upper-Bound [backend/src/solalex/executor/readback.py:455] — deferred, Spec hard-codiert `max(10.0, expected*0.05)`; Cap-Diskussion für Story 3.2 (Drossel-Policy mit echten Watt-Werten).
+- [x] [Review][Defer] Globales `_app_state_cache` geteilt zwischen mehreren FastAPI-Instanzen [backend/src/solalex/main.py:47] — deferred, rein hypothetisch (HA-Add-on startet Single-Instance); `create_app()`-Factory-Refactor.
+
+**Dismissed (nicht ins Backlog):** 8 Findings — siehe Review-Transkript. Zusammengefasst: (1) Commission-Server-Gate vermeintlich fehlend — Spec Dev Notes verbietet Server-Gate explizit, (2) `test_value_w = 50/300` Magic-Numbers — AC 2 schreibt exakt diese Werte vor, (3) Fehlender Cancel-Button im 15-s-Test — NFR4 hard-cap, akzeptabel, (4) Hash-Routing-XSS — Svelte escapes automatisch, (5) `LineChart` `series=[]`-Default — Typing-Style kein Bug, (6) `HaStateEntry.attributes`-Shared-Ref — `main.py` kopiert via `dict(...)`, (7) `last_command_at` nie zurückgesetzt — wird per Test über `set_last_command_at` gesetzt, (8) `SetpointProvider`-Extraktion (war 3.1, nicht 2.2).
+
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 2.2 erstellt und auf `ready-for-dev` gesetzt. Liefert Funktionstest mit Readback + Minimal-State-Cache + `/api/v1/control/state`-Polling + SVG-LineChart + Commissioning-Persistierung. Legt Controller/Executor-Produktions-Infrastruktur bewusst NICHT an (Story 3.1). | Claude Opus 4.7 |
 | 2026-04-23 | 1.0.0 | Implementierung abgeschlossen: StateCache + executor/readback (3 Szenarien: passed/failed/timeout), Subscriptions (_dispatch_event ersetzt _noop), POST /setup/test + POST /setup/commission + GET /control/state, usePolling-Hook + Vitest-Tests (fake timers), SVG-LineChart (5-s-Fenster, Skeleton-Pulse), FunctionalTest.svelte (Live-Chart, Spring-Easing-Tick, Aktivieren-Button), RunningPlaceholder.svelte, Commission-Gate in App.svelte. Alle CI-Gates grün. Story auf `review` gesetzt. | Claude Opus 4.7 (1M context) |
+| 2026-04-24 | 1.1.0 | Code-Review abgeschlossen (Blind Hunter + Edge Case Hunter + Acceptance Auditor). 12/12 AC erfüllt, keine STOP-Conditions verletzt. 27 Patches (13 high/critical), 11 Defers, 8 Dismissed. Findings siehe Abschnitt „Review Findings". | Claude Opus 4.7 (1M context) |
+| 2026-04-24 | 1.2.0 | Review-Patches angewendet: 20 Patches gefixt (Readback poll-loop + clock-drift + sentinels + naive-dt, try/finally in setup.py, role-basierte Target-Selektion, kW-Filter-Cut, UoM-None-Handling, TimeoutError-504, commission-count-Korrektur, Z-Suffix, usePolling epoch-token, spinner entfernt, numeric guard im Chart, commission-gate race+backend-error, main.py logging enrichment, asyncio.run in Test); 2 Dismissed (TOCTOU + snapshot-lock waren False Positives im asyncio-single-loop-Modell); 5 Deferred (Chart-Refactor, 3× Test-Coverage-Story). Alle 4 CI-Gates grün (Backend 96 Tests + ruff + mypy --strict; Frontend 21 Tests + ESLint + svelte-check + Build). Status → done. | Claude Opus 4.7 (1M context) |

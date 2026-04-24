@@ -81,13 +81,21 @@ async def get_entities(request: Request) -> EntitiesResponse:
         eid: str = state.get("entity_id", "")
         attrs: dict[str, object] = state.get("attributes", {})
         fname = str(attrs.get("friendly_name", eid))
-        uom = str(attrs.get("unit_of_measurement", ""))
-        device_class = str(attrs.get("device_class", ""))
+        # attrs.get returns None when the attribute is missing — str(None) is
+        # the literal "None", not "", so coerce defensively here.
+        uom = str(attrs.get("unit_of_measurement") or "")
+        device_class = str(attrs.get("device_class") or "")
         opt = EntityOption(entity_id=eid, friendly_name=fname)
 
-        if eid.startswith("number.") and uom in ("W", "kW", "%"):
+        # Only accept Watt-unit entities for wr_limit control paths. The
+        # Drossel policy (Story 3.2) computes ``new_limit = current +
+        # smoothed_grid_power`` strictly in watts, so a % or kW entity
+        # would mix units and send nonsensical limits. % entities are
+        # considered for a dedicated wr_limit_pct role in a later story;
+        # for v1 the wr_limit role is Watt-only (Story 3.2 Review D4).
+        if eid.startswith("number.") and uom == "W":
             wr_limit.append(opt)
-        elif eid.startswith("sensor.") and uom in ("W", "kW"):
+        elif eid.startswith("sensor.") and uom == "W":
             power.append(opt)
         elif eid.startswith("sensor.") and uom == "%" and (
             device_class == "battery" or "soc" in eid or "battery" in eid
@@ -109,6 +117,11 @@ async def run_functional_test(request: Request) -> FunctionalTestResponse:
     the state_cache and executor are wired up in main.py.
     """
     lock = _get_test_lock()
+    # Note on atomicity: in asyncio's single-loop model, the synchronous
+    # ``lock.locked()`` check and the immediately-following ``async with
+    # lock`` entry are not separated by a yield point, so a second
+    # request cannot slip between them.  The 409 response is therefore
+    # race-free without a non-blocking acquire (Story 2.2 Review P16).
     if lock.locked():
         raise HTTPException(
             status_code=409,
@@ -118,47 +131,70 @@ async def run_functional_test(request: Request) -> FunctionalTestResponse:
             ),
         )
 
-    db_path = get_settings().db_path
-    async with connection_context(db_path) as conn:
-        devices = await list_devices(conn)
-
-    if not devices:
-        raise HTTPException(
-            status_code=412,
-            detail=(
-                "Keine Geräte konfiguriert. "
-                "Bitte zuerst die Hardware-Konfiguration abschließen."
-            ),
-        )
-
-    ha_client = request.app.state.ha_client
-    if not ha_client.ha_ws_connected:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Home Assistant WebSocket nicht verbunden. "
-                "Prüfe die Verbindung und versuche es erneut."
-            ),
-        )
-
-    # Import here to avoid circular imports at module load time.
-    from solalex.executor.readback import verify_readback  # noqa: PLC0415
-    from solalex.setup.test_session import ensure_entity_subscriptions  # noqa: PLC0415
-
-    state_cache = request.app.state.state_cache
-
     async with lock:
-        # Determine test target and value based on hardware type.
-        hoymiles_devices = [d for d in devices if d.adapter_key == "hoymiles"]
-        target_device = hoymiles_devices[0] if hoymiles_devices else devices[0]
+        db_path = get_settings().db_path
+        async with connection_context(db_path) as conn:
+            devices = await list_devices(conn)
 
-        adapter = ADAPTERS[target_device.adapter_key]
+        if not devices:
+            raise HTTPException(
+                status_code=412,
+                detail=(
+                    "Keine Geräte konfiguriert. "
+                    "Bitte zuerst die Hardware-Konfiguration abschließen."
+                ),
+            )
+
+        ha_client = request.app.state.ha_client
+        if not ha_client.ha_ws_connected:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Home Assistant WebSocket nicht verbunden. "
+                    "Prüfe die Verbindung und versuche es erneut."
+                ),
+            )
+
+        # Import here to avoid circular imports at module load time.
+        from solalex.executor.readback import verify_readback  # noqa: PLC0415
+        from solalex.setup.test_session import (  # noqa: PLC0415
+            ensure_entity_subscriptions,
+        )
+
+        state_cache = request.app.state.state_cache
+
+        # Determine the write target by role, not by list-order fallback —
+        # Marstek SoC-sensors and Shelly meters share the devices table
+        # with actual control targets; picking ``devices[0]`` would send a
+        # ``number.set_value`` at a sensor entity.
+        hoymiles_devices = [
+            d for d in devices if d.adapter_key == "hoymiles" and d.role == "wr_limit"
+        ]
+        marstek_chargers = [
+            d for d in devices
+            if d.adapter_key == "marstek_venus" and d.role == "wr_charge"
+        ]
+
         if hoymiles_devices:
+            target_device = hoymiles_devices[0]
             test_value_w = 50
+            adapter = ADAPTERS[target_device.adapter_key]
             command = adapter.build_set_limit_command(target_device, test_value_w)
-        else:
+        elif marstek_chargers:
+            target_device = marstek_chargers[0]
             test_value_w = 300
+            adapter = ADAPTERS[target_device.adapter_key]
             command = adapter.build_set_charge_command(target_device, test_value_w)
+        else:
+            raise HTTPException(
+                status_code=412,
+                detail=(
+                    "Kein steuerbares Gerät konfiguriert. "
+                    "Für den Funktionstest wird ein Hoymiles-Wechselrichter "
+                    "(Rolle: wr_limit) oder ein Marstek-Akku "
+                    "(Rolle: wr_charge) benötigt."
+                ),
+            )
 
         entity_ids = [d.entity_id for d in devices]
         await ensure_entity_subscriptions(ha_client.client, entity_ids, state_cache)
@@ -167,56 +203,92 @@ async def run_functional_test(request: Request) -> FunctionalTestResponse:
         state_cache.set_last_command_at(datetime.now(tz=UTC))
 
         try:
-            await ha_client.client.call_service(
-                command.domain, command.service, command.service_data
+            try:
+                await ha_client.client.call_service(
+                    command.domain, command.service, command.service_data
+                )
+            except TimeoutError as exc:
+                raise HTTPException(
+                    status_code=504,
+                    detail=(
+                        f"HA-Service-Call Zeitüberschreitung für "
+                        f"'{command.domain}.{command.service}' auf "
+                        f"'{target_device.entity_id}'. "
+                        "Prüfe in HA → Einstellungen → System, "
+                        "ob Home Assistant reagiert."
+                    ),
+                ) from exc
+            except HTTPException:
+                # Preserve the specific HTTPException above — the generic
+                # Exception handler below would otherwise remap 504 to 502
+                # and overwrite the precise German error message.
+                raise
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        f"HA-Service-Call fehlgeschlagen: {exc}. "
+                        f"Prüfe in HA → Entwicklerwerkzeuge → Services, ob "
+                        f"'{command.domain}.{command.service}' "
+                        f"auf Entity '{target_device.entity_id}' funktioniert."
+                    ),
+                ) from exc
+
+            timing = adapter.get_readback_timing()
+            result = await verify_readback(
+                ha_client=ha_client.client,
+                state_cache=state_cache,
+                device=target_device,
+                expected_value_w=test_value_w,
+                readback_timing=timing,
+                max_wait_s=15.0,
             )
-        except Exception as exc:
+        finally:
+            # Always clear the in-progress flag, even if the readback
+            # itself raised — otherwise a single failure locks every
+            # subsequent test attempt until process restart.
             state_cache.mark_test_ended()
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    f"HA-Service-Call fehlgeschlagen: {exc}. "
-                    f"Prüfe in HA → Entwicklerwerkzeuge → Services, ob '{command.domain}.{command.service}' "
-                    f"auf Entity '{target_device.entity_id}' funktioniert."
-                ),
-            ) from exc
 
-        timing = adapter.get_readback_timing()
-        result = await verify_readback(
-            ha_client=ha_client.client,
-            state_cache=state_cache,
-            device=target_device,
-            expected_value_w=test_value_w,
-            readback_timing=timing,
-            max_wait_s=15.0,
+        _logger.info(
+            "functional_test_complete",
+            extra={
+                "status": result.status,
+                "entity_id": target_device.entity_id,
+                "expected_w": test_value_w,
+                "actual_w": result.actual_value_w,
+                "latency_ms": result.latency_ms,
+            },
         )
-        state_cache.mark_test_ended()
 
-    _logger.info(
-        "functional_test_complete",
-        extra={
-            "status": result.status,
-            "entity_id": target_device.entity_id,
-            "expected_w": test_value_w,
-            "actual_w": result.actual_value_w,
-            "latency_ms": result.latency_ms,
-        },
-    )
-
-    return FunctionalTestResponse(
-        status=result.status,
-        test_value_w=result.expected_value_w,
-        actual_value_w=result.actual_value_w,
-        tolerance_w=result.tolerance_w,
-        latency_ms=result.latency_ms,
-        reason=result.reason,
-        device_entity_id=target_device.entity_id,
-    )
+        return FunctionalTestResponse(
+            status=result.status,
+            test_value_w=result.expected_value_w,
+            actual_value_w=result.actual_value_w,
+            tolerance_w=result.tolerance_w,
+            latency_ms=result.latency_ms,
+            reason=result.reason,
+            device_entity_id=target_device.entity_id,
+        )
 
 
 @router.post("/commission", status_code=201, response_model=CommissioningResponse)
 async def commission(request: Request) -> CommissioningResponse:
     """Set commissioned_at on all devices."""
+    # Refuse commissioning while HA is unreachable — otherwise the DB
+    # would mark devices as commissioned even though the controller
+    # cannot physically regulate them (Story 3.2 Review D5).
+    ha_client = request.app.state.ha_client
+    if not ha_client.ha_ws_connected:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Home Assistant WebSocket nicht verbunden. "
+                "Aktivierung abgebrochen — ohne HA-Verbindung kann Solalex "
+                "deine Hardware nicht steuern. Prüfe die Verbindung und "
+                "versuche es erneut."
+            ),
+        )
+
     db_path = get_settings().db_path
     async with connection_context(db_path) as conn:
         devices = await list_devices(conn)
@@ -233,11 +305,18 @@ async def commission(request: Request) -> CommissioningResponse:
 
     _logger.info(
         "commissioning_activated",
-        extra={"device_count": len(devices), "timestamp": ts.isoformat()},
+        extra={
+            "newly_commissioned": count,
+            "device_count_total": len(devices),
+            "timestamp": ts.isoformat(),
+        },
     )
 
+    # Report only the devices that were actually transitioned from
+    # uncommissioned → commissioned by this call; a repeat-click should
+    # return 0, not falsely re-announce ``len(devices)`` as fresh work.
     return CommissioningResponse(
         status="commissioned",
         commissioned_at=ts,
-        device_count=count if count > 0 else len(devices),
+        device_count=count,
     )

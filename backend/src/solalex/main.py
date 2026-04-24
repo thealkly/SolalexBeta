@@ -162,11 +162,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Build entity → role map and devices_by_entity map from the devices table.
     entity_role_map: dict[str, str] = {}
     devices_by_entity: dict[str, DeviceRecord] = {}
+    # v1 allows at most one commissioned device per role (PRD line 223) — the
+    # wizard enforces this upstream and SQLite has no unique constraint, so we
+    # log a warning on collision to surface DB hand-edits or wizard bugs
+    # instead of silently last-writer-wins (Story 3.2 Review P8).
+    devices_by_role: dict[str, DeviceRecord] = {}
     async with connection_context(settings.db_path) as conn:
         devices = await list_devices(conn)
     for device in devices:
         entity_role_map[device.entity_id] = device.role
         devices_by_entity[device.entity_id] = device
+        if device.commissioned_at is not None:
+            existing = devices_by_role.get(device.role)
+            if existing is not None and existing.entity_id != device.entity_id:
+                _logger.warning(
+                    "role_collision",
+                    extra={
+                        "role": device.role,
+                        "prev_entity_id": existing.entity_id,
+                        "new_entity_id": device.entity_id,
+                    },
+                )
+            devices_by_role[device.role] = device
 
     # Initialise the state cache singleton and attach to app.state.
     _app_state_cache = StateCache()
@@ -187,6 +204,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db_conn_factory=_db_conn_factory,
         adapter_registry=ADAPTERS,
         ha_ws_connected_fn=lambda: app.state.ha_client.ha_ws_connected,
+        devices_by_role=devices_by_role,
         mode=Mode.DROSSEL,
     )
     _app_controller = controller

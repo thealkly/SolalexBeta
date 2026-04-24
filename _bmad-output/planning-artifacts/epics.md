@@ -1177,7 +1177,67 @@ So that Alex nicht nachfragen muss, welche Hardware/Firmware ich nutze.
 
 Nutzer öffnet Dashboard und sieht in < 2 s die Euro-Kernaussage. Beleg-KPIs, Regelmodus, Idle-State, Energy-Ring und Flow-Visualisierung machen die Arbeit von Solalex sichtbar.
 
-### Story 5.1: Dashboard-Shell mit Responsive Navigation + Hero-Zone (Euro-Wert als 2-s-Kernaussage)
+### Story 5.1a: Live-Betriebs-View post-Commissioning (Mini-Shell, vorgezogen — Amendment Sprint Change Proposal 2026-04-24)
+
+As a Nutzer direkt nach Klick auf „Aktivieren",
+I want sofort sehen, was Solalex gerade regelt — ein Live-Diagramm, aktueller Modus, letzte Zyklen,
+So that ich Vertrauen gewinne, dass die Regelung arbeitet, bevor Epic 4 (Diagnose) und Story 5.1b (Euro-Hero) fertig sind.
+
+**Scope-Pflock:** Diese Story zieht aus der ursprünglichen Story 5.1 nur den Shell-Grundbestand vor: Route + Live-Chart + Modus-Chip + Mini-Zyklen-Liste. Kein Euro-Wert, kein Energy-Ring, keine Responsive-Nav, keine Charakter-Zeile, kein Bezugspreis-Stepper — das bleibt komplett in Story 5.1b. Ziel: ≤ 2 Dev-Tage. Zeitliche Einordnung: **nach Story 3.2 (Drossel produktiv)**, damit der Chart beim ersten Launch echte Dispatches zeigt.
+
+**Acceptance Criteria:**
+
+**Given** mindestens ein Device mit `commissioned_at IS NOT NULL`
+**When** das Frontend die Ingress-Route öffnet
+**Then** die Route `/live` (oder `/` als Default-Route für commissioned Setups) rendert — non-commissioned Setups bleiben im Wizard-Flow aus Epic 2
+
+**Given** die Live-Betriebs-View
+**When** sie rendert
+**Then** die bereits existierende `LineChart.svelte`-Komponente (aus Story 2.2) rendert mit 5-s-Sliding-Window und drei Serien: Sensor-Wert (grid_meter via Shelly 3EM, Teal/Rot nach Vorzeichen), Target-Wert (letzter Dispatch `target_value_w` aus `control_cycles`, Blau), Readback-Wert (aktueller HW-State via `adapter.parse_readback`, Grau)
+
+**Given** die View rendert
+**When** sie den aktuellen Regel-Modus anzeigt
+**Then** ein Modus-Chip oben zeigt einen von `Drossel | Speicher | Multi | Idle` mit semantischem Icon — Wert stammt aus dem erweiterten `/api/v1/control/state`-Feld `current_mode`
+
+**Given** die View rendert
+**When** sie die Mini-Zyklen-Liste zeigt
+**Then** unter dem Chart werden die letzten 10 Zyklen aus `control_cycles` (via `list_recent(limit=10)`) in einer kompakten Liste dargestellt: Timestamp (relativ, z. B. „vor 3 s"), Source-Badge (`solalex` / `manual` / `ha_automation`), Target-Watts, Readback-Status-Badge (`passed` / `failed` / `vetoed`), Latenz
+
+**Given** der Rate-Limiter blockiert einen Write
+**When** die View den Status anzeigt
+**Then** ein kleiner Hinweis „Nächster Write in X s" rendert — berechnet aus `devices.last_write_at + min_interval_s − now` (Datenfeld `rate_limit_status` im Polling-Payload)
+
+**Given** das Polling
+**When** es läuft
+**Then** `/api/v1/control/state` wird im 1-s-Takt gepollt (bestehender Hook aus 2.2), kein WebSocket, keine externe Chart-Lib (CLAUDE.md-Stolpersteine)
+
+**Given** noch keine `control_cycles`-Einträge (frischer Commissioning, Controller hat noch nicht dispatched)
+**When** die View rendert
+**Then** Chart zeigt Skeleton-Pulse (≥ 400 ms, UX-DR19) mit neutraler Zeile „Regler wartet auf erstes Sensor-Event." — kein Fehlerzustand, kein Spinner
+
+**Given** das Backend
+**When** `/api/v1/control/state` antwortet
+**Then** der Payload enthält zusätzlich zu den bestehenden Feldern: `current_mode: "drossel" | "speicher" | "multi" | "idle"`, `recent_cycles: [...]` (max 10 Einträge, snake_case-JSON, keine Wrapper-Hülle — CLAUDE.md Regel 4), `rate_limit_status: [{ "device_id": int, "seconds_until_next_write": int | null }, ...]`
+
+**Given** der Controller schließt einen Zyklus ab
+**When** er `state_cache.update(...)` aufruft (Story 3.1 AC 11)
+**Then** er ruft zusätzlich `state_cache.update_mode(self._current_mode)` — neues Feld `current_mode` in `StateCache` mit Setter-Methode
+
+**Given** während eines laufenden Funktionstests (Story 2.2, `state_cache.test_in_progress == True`)
+**When** die View rendert
+**Then** statt des Live-Betriebs-Charts wird eine Info-Zeile „Funktionstest läuft — Regelung pausiert" mit Link zur Funktionstest-Route gezeigt
+
+**Given** Unit-Tests
+**When** sie laufen
+**Then** neue Tests: `test_state_snapshot_exposes_current_mode` (Backend, pytest), `test_state_snapshot_includes_recent_cycles` (Backend, pytest), `test_live_view_renders_mode_chip_and_chart` (Frontend, vitest). Coverage ≥ 90 % auf neuen Backend-Code-Pfaden. Alle 4 Hard-CI-Gates grün (ruff, mypy --strict, pytest, SQL-Migrations-Ordering — keine neue Migration)
+
+**Given** diese Story wird gekippt (Notfall-Fallback)
+**When** der Fallback greift
+**Then** nach Commissioning landet der User auf einem statischen Hinweis-Screen „Solalex regelt — detaillierte Ansicht folgt in v1.0" mit Link zur Diagnose-Route (Epic 4, sobald verfügbar)
+
+### Story 5.1b: Dashboard-Hero + Euro-Wert + Responsive Navigation (Rest-Scope nach 5.1a — Amendment Sprint Change Proposal 2026-04-24)
+
+**Preamble:** Story 5.1a (Live-Betriebs-View, vorgezogen) hat bereits den Shell-Grundbestand geliefert (Route, `LineChart.svelte`-Integration, Modus-Chip, Mini-Zyklen-Liste, Skeleton-State). Story 5.1b ergänzt darauf aufbauend die Hero-Zone mit Euro-Wert, Bezugspreis-Transparenz-Overlay, Responsive Bottom-/Left-Nav mit Glass-Effect, Tastatur-Shortcuts und Footer. Die AC-Semantik „Hero-Zone in < 2 s sichtbar" bezieht sich auf die bereits existierende 5.1a-Route — es wird keine neue Route angelegt.
 
 As a Nutzer,
 I want beim Öffnen des Dashboards in weniger als 2 Sekunden eine Euro-Zahl sehen, die mir sagt, was Solalex heute für mich gesteuert hat,

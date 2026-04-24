@@ -65,6 +65,41 @@ class ReadbackTiming:
     mode: Literal["sync", "async"] = "sync"
 
 
+@dataclass(frozen=True)
+class DrosselParams:
+    """Policy parameters consumed by the Drossel mode (controller.py).
+
+    The Drossel policy is hardware-agnostic; vendor-specific tuning (deadband,
+    smoothing window, step clamp) lives here so one Python module per adapter
+    remains the single source of truth (CLAUDE.md Rule 2, Amendment
+    2026-04-22). Defaults are conservative — WR adapters override with
+    hardware-specific values.
+    """
+
+    deadband_w: int = 10
+    min_step_w: int = 5
+    smoothing_window: int = 5
+    limit_step_clamp_w: int = 200
+
+    def __post_init__(self) -> None:
+        # Fail loudly at construction time rather than letting pathological
+        # values produce ZeroDivisionError (smoothing_window=0), a silently
+        # unclamped step (limit_step_clamp_w<=0), or a dead-code min_step
+        # gate (min_step_w<=0). Story 3.2 Review P6 / P7.
+        if self.deadband_w < 0:
+            raise ValueError(f"deadband_w must be >= 0, got {self.deadband_w}")
+        if self.min_step_w < 1:
+            raise ValueError(f"min_step_w must be >= 1, got {self.min_step_w}")
+        if self.smoothing_window < 1:
+            raise ValueError(
+                f"smoothing_window must be >= 1, got {self.smoothing_window}"
+            )
+        if self.limit_step_clamp_w < 1:
+            raise ValueError(
+                f"limit_step_clamp_w must be >= 1, got {self.limit_step_clamp_w}"
+            )
+
+
 @dataclass
 class DeviceRecord:
     """Row from the ``devices`` table — shared domain object."""
@@ -126,3 +161,14 @@ class AdapterBase(ABC):
         """
         del device
         return (0, 10_000)
+
+    def get_drossel_params(self, device: DeviceRecord) -> DrosselParams:
+        """Return the drossel-policy parameter bundle for this device.
+
+        Default is conservative. WR adapters override with hardware specifics
+        (see Hoymiles, Story 3.2). Non-write adapters (e.g. Shelly 3EM) keep
+        the default — the Drossel policy only queries the WR adapter, not the
+        smart-meter adapter, so raising here would be wrong.
+        """
+        del device
+        return DrosselParams()

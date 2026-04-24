@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import * as client from '../lib/api/client.js';
   import { isApiError } from '../lib/api/errors.js';
 
@@ -6,16 +7,49 @@
   let committing = $state(false);
   let errorMessage = $state('');
 
+  let mounted = true;
+  onDestroy(() => {
+    mounted = false;
+  });
+
+  // Clear any stale error once the user unchecks the consent — the previous
+  // message no longer applies to the now-unconfirmed state (Review P10).
+  $effect(() => {
+    if (!checked) errorMessage = '';
+  });
+
+  function formatApiError(err: unknown): string {
+    if (!isApiError(err)) return 'Aktivierung fehlgeschlagen.';
+    if (err.status === 0) {
+      return 'Keine Verbindung zum Add-on. Prüfe die HA-Verbindung und versuche es erneut.';
+    }
+    // RFC 7807 declares `title`/`detail` as strings, but custom extensions
+    // (or a misbehaving backend) could ship non-string values. `.trim()`
+    // would crash on non-strings; isinstance-guard before trimming (Story
+    // 3.2 Review P15).
+    const title = typeof err.title === 'string' ? err.title.trim() : '';
+    const detail = typeof err.detail === 'string' ? err.detail.trim() : '';
+    if (title && detail) return `${title}: ${detail}`;
+    return detail || title || 'Aktivierung fehlgeschlagen.';
+  }
+
   async function commission(): Promise<void> {
     if (committing) return;
     committing = true;
     errorMessage = '';
     try {
-      await client.commission();
+      const response = await client.commission();
+      if (!mounted) return;
+      if (response.status !== 'commissioned') {
+        errorMessage = 'Unerwartete Antwort vom Backend. Bitte erneut versuchen.';
+        return;
+      }
       window.location.hash = '#/running';
     } catch (err) {
-      errorMessage = isApiError(err) ? err.detail : 'Aktivierung fehlgeschlagen.';
-      committing = false;
+      if (!mounted) return;
+      errorMessage = formatApiError(err);
+    } finally {
+      if (mounted) committing = false;
     }
   }
 </script>
@@ -27,31 +61,34 @@
   </header>
 
   <section class="disclaimer-card">
-    <p class="disclaimer-text">
+    <p id="disclaimer-text" class="disclaimer-text">
       Solalex steuert deine Solaranlage aktiv und sekundengenau. Du bist verantwortlich dafür,
       dass die konfigurierten Entities deiner Hardware entsprechen. Fehlfunktionen durch falsche
       Entity-Zuweisung oder inkompatible Firmware können nicht durch Solalex verhindert werden.
     </p>
 
     <label class="checkbox-row">
-      <input type="checkbox" bind:checked />
+      <input
+        type="checkbox"
+        bind:checked
+        disabled={committing}
+        aria-describedby="disclaimer-text"
+      />
       <span>Ich habe den Hinweis gelesen und übernehme die Verantwortung für meine Anlage.</span>
     </label>
 
-    {#if checked}
-      <button class="activate-button" onclick={commission}>
+    {#if checked || committing}
+      <button type="button" class="activate-button" onclick={commission}>
         {committing ? 'Wird aktiviert …' : 'Aktivieren'}
       </button>
     {/if}
 
     {#if errorMessage}
-      <p class="error-line">{errorMessage}</p>
+      <p class="error-line" role="alert" aria-live="polite">{errorMessage}</p>
     {/if}
   </section>
 
-  {#if !committing}
-    <a href="#/functional-test" class="back-link">← Zurück zum Funktionstest</a>
-  {/if}
+  <a href="#/functional-test" class="back-link">← Zurück zum Funktionstest</a>
 </main>
 
 <style>
@@ -152,7 +189,6 @@
   .back-link {
     display: inline-flex;
     align-items: center;
-    width: min(100%, 640px);
     margin: 0 auto;
     height: 36px;
     padding: 0 16px;

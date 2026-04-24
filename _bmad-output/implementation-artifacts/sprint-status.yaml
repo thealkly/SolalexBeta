@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-24 (Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 3.2 → ready-for-dev; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
+# last_updated: 2026-04-24 (Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.3 → done; 3.1 → done; 2.3a → review; 5.1 → 5.1a + 5.1b gesplittet)
+last_updated: 2026-04-24 (Story 3.2 → done; 2.3 → done; 3.1 → done; 2.3a → review; 5.1 → 5.1a + 5.1b gesplittet)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -72,7 +72,7 @@ development_status:
   epic-3: in-progress
   # Key aktualisiert: Amendment 2026-04-22 — Mono-Modul + persistenter Rate-Limiter explizit
   3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: done
-  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: ready-for-dev
+  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: done
   3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
   3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
   3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog

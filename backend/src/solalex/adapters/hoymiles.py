@@ -17,6 +17,7 @@ from solalex.adapters.base import (
     AdapterBase,
     DetectedDevice,
     DeviceRecord,
+    DrosselParams,
     HaServiceCall,
     HaState,
     RateLimitPolicy,
@@ -74,6 +75,21 @@ class HoymilesAdapter(AdapterBase):
         # collects real hardware limits.
         del device
         return (2, 1500)
+
+    def get_drossel_params(self, device: DeviceRecord) -> DrosselParams:
+        del device
+        return DrosselParams(
+            # PRD line 181 + beta-gate: Hoymiles/OpenDTU ±5 W tolerance.
+            deadband_w=5,
+            # Empirical: sub-3 W deltas are indistinguishable from sensor noise.
+            min_step_w=3,
+            # 5 × ~1 s HA events ≈ 5 s smoothing — balances reactivity against
+            # noise suppression (Amendment 2026-04-22 cut JSON templates).
+            smoothing_window=5,
+            # Cap per-dispatch delta at 200 W to avoid WR shock transitions on
+            # load steps; Range-Check in the executor still clamps the result.
+            limit_step_clamp_w=200,
+        )
 
 
 ADAPTER = HoymilesAdapter()

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+from collections import deque
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime, timedelta
@@ -23,7 +24,7 @@ from typing import Any, Literal, assert_never
 
 import aiosqlite
 
-from solalex.adapters.base import AdapterBase, DeviceRecord
+from solalex.adapters.base import AdapterBase, DeviceRecord, DrosselParams, HaState
 from solalex.common.logging import get_logger
 from solalex.executor import dispatcher as executor_dispatcher
 from solalex.executor.dispatcher import (
@@ -108,6 +109,7 @@ class Controller:
         adapter_registry: dict[str, AdapterBase],
         *,
         ha_ws_connected_fn: Callable[[], bool],
+        devices_by_role: dict[str, DeviceRecord] | None = None,
         mode: Mode = Mode.DROSSEL,
         setpoint_provider: SetpointProvider | None = None,
         now_fn: Callable[[], datetime] = _utc_now,
@@ -124,6 +126,15 @@ class Controller:
         )
         self._now_fn = now_fn
         self._device_locks: dict[int, asyncio.Lock] = {}
+        # Story 3.2 — role lookup + per-grid_meter moving-average buffer.
+        # devices_by_role is optional so existing unit tests that do not
+        # exercise the Drossel policy keep working; in production (main.py)
+        # it is always populated from the devices table at startup.
+        self._devices_by_role: dict[str, DeviceRecord] = (
+            dict(devices_by_role) if devices_by_role is not None else {}
+        )
+        self._wr_limit_device: DeviceRecord | None = self._devices_by_role.get("wr_limit")
+        self._drossel_buffers: dict[int, deque[float]] = {}
 
     @property
     def current_mode(self) -> Mode:
@@ -242,18 +253,141 @@ class Controller:
     ) -> PolicyDecision | None:
         """Enum-Dispatch — policies land here in 3.2 / 3.3 / 3.4 / 3.5.
 
-        In Story 3.1 every branch returns ``None`` (noop). Amendment
+        Story 3.2 wires ``Mode.DROSSEL`` to the productive :meth:`_policy_drossel`;
+        speicher/multi remain noop stubs (Stories 3.4 / 3.5). Amendment
         2026-04-22 forbids splitting this into per-mode modules.
         """
         match mode:
             case Mode.DROSSEL:
-                return _policy_drossel_stub(device, sensor_value_w)
+                return self._policy_drossel(device, sensor_value_w)
             case Mode.SPEICHER:
                 return _policy_speicher_stub(device, sensor_value_w)
             case Mode.MULTI:
                 return _policy_multi_stub(device, sensor_value_w)
             case _:  # pragma: no cover — exhaustiveness guard
                 assert_never(mode)
+
+    # ------------------------------------------------------------------
+    # Story 3.2 — Drossel policy: reactive WR-limit regulation for
+    # zero-export. Inputs flow in on grid_meter state_changed events;
+    # the policy produces a PolicyDecision the executor then dispatches
+    # (range / rate-limit / readback / fail-safe all already enforced).
+    # ------------------------------------------------------------------
+    def _policy_drossel(
+        self,
+        device: DeviceRecord,
+        sensor_value_w: float | None,
+    ) -> PolicyDecision | None:
+        """Compute a Drossel ``PolicyDecision`` or ``None`` to skip.
+
+        Early returns (in order):
+          1. Event on a non-grid_meter device → ``None`` (AC 7).
+          2. No numeric sensor value → ``None``.
+          3. No commissioned ``wr_limit`` device → ``None`` (AC 6).
+          4. Smoothed grid power inside the deadband → ``None`` (AC 2).
+          5. Current WR limit unknown (state-cache miss) → ``None``.
+          6. |proposed − current| below ``min_step_w`` → ``None`` (AC 2).
+
+        Shelly-3EM sign convention: positive = grid import (Bezug),
+        negative = grid export (Einspeisung). Since the new WR limit is
+        ``current + smoothed``, a negative smoothed value drives the limit
+        *down* (reduces export), a positive one lets the WR produce more
+        within the hardware range enforced by the executor.
+        """
+        if device.role != "grid_meter":
+            return None
+        # ``_extract_sensor_w`` already filters NaN/Inf on the on_sensor_update
+        # path, but ``_policy_drossel`` is also called directly from tests and
+        # (in the future) from diagnostics tooling. Guard here so a pathological
+        # float from any caller cannot slip past the deadband comparison and
+        # blow up on ``int(round(nan))`` (Story 3.2 Review P4).
+        if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            return None
+
+        wr_device = self._wr_limit_device
+        if wr_device is None:
+            return None
+
+        adapter = self._adapter_registry.get(wr_device.adapter_key)
+        if adapter is None:
+            # Unknown adapter — executor would veto anyway, but there is no
+            # point producing a decision it cannot dispatch.
+            return None
+
+        params: DrosselParams = adapter.get_drossel_params(wr_device)
+
+        grid_meter_id = device.id
+        if grid_meter_id is None:
+            return None
+
+        buf = self._drossel_buffers.get(grid_meter_id)
+        if buf is None or buf.maxlen != params.smoothing_window:
+            # maxlen mismatch only occurs when params change across restarts
+            # in the same process — rebuild defensively rather than slicing.
+            buf = deque(maxlen=params.smoothing_window)
+            self._drossel_buffers[grid_meter_id] = buf
+        buf.append(sensor_value_w)
+        smoothed = sum(buf) / len(buf)
+
+        if abs(smoothed) <= params.deadband_w:
+            return None
+
+        current = self._read_current_wr_limit_w(wr_device)
+        if current is None:
+            return None
+
+        # ``round`` instead of ``int`` — ``int(-0.9) == int(+0.9) == 0`` biases
+        # the policy asymmetrically away from the zero-export target. ``round``
+        # produces symmetric nearest-integer steps and preserves the sign
+        # (Story 3.2 Review P5).
+        proposed = current + int(round(smoothed))
+        proposed = _clamp_step(current, proposed, params.limit_step_clamp_w)
+
+        if abs(proposed - current) < params.min_step_w:
+            return None
+
+        return PolicyDecision(
+            device=wr_device,
+            target_value_w=proposed,
+            mode=Mode.DROSSEL.value,
+            command_kind="set_limit",
+            sensor_value_w=smoothed,
+        )
+
+    def _read_current_wr_limit_w(self, wr_device: DeviceRecord) -> int | None:
+        """Return the last cached WR-limit value in watts, or ``None``."""
+        entry = self._state_cache.last_states.get(wr_device.entity_id)
+        if entry is None:
+            return None
+        adapter = self._adapter_registry.get(wr_device.adapter_key)
+        if adapter is None:
+            return None
+        # Defensive isinstance check: a malformed HA payload or a StateCache
+        # refactor that stored non-dict attributes would otherwise raise
+        # AttributeError on ``.items()`` and crash the fire-and-forget
+        # dispatch task (Story 3.2 Review P10).
+        raw_attrs = entry.attributes if isinstance(entry.attributes, dict) else {}
+        attributes: dict[str, Any] = {str(k): v for k, v in raw_attrs.items()}
+        state = HaState(
+            entity_id=entry.entity_id,
+            state=entry.state,
+            attributes=attributes,
+        )
+        # A buggy adapter or a wildly corrupt state could raise out of
+        # ``parse_readback`` — swallow it here so the policy returns None
+        # and the cycle becomes a noop rather than crashing ``on_sensor_update``
+        # (Story 3.2 Review P9).
+        try:
+            return adapter.parse_readback(state)
+        except Exception:
+            _logger.exception(
+                "parse_readback_failed",
+                extra={
+                    "entity_id": wr_device.entity_id,
+                    "adapter_key": wr_device.adapter_key,
+                },
+            )
+            return None
 
     async def _record_noop_cycle(
         self,
@@ -423,16 +557,10 @@ class Controller:
 
 
 # ---------------------------------------------------------------------------
-# Per-mode policy stubs — 3.2 / 3.3 / 3.4 will replace the bodies.
+# Per-mode policy stubs — 3.4 / 3.5 will replace the bodies.
 # Kept inline per Amendment 2026-04-22 (no drossel.py / speicher.py split).
+# Story 3.2 promoted the former _policy_drossel_stub to a method on Controller.
 # ---------------------------------------------------------------------------
-
-
-def _policy_drossel_stub(
-    device: DeviceRecord, sensor_value_w: float | None
-) -> PolicyDecision | None:
-    del device, sensor_value_w
-    return None
 
 
 def _policy_speicher_stub(
@@ -447,6 +575,27 @@ def _policy_multi_stub(
 ) -> PolicyDecision | None:
     del device, sensor_value_w
     return None
+
+
+def _clamp_step(current: int, proposed: int, max_step: int) -> int:
+    """Clamp the delta between *current* and *proposed* to ±``max_step`` W.
+
+    Prevents WR shock transitions on load steps — the executor's hardware
+    range check (per-adapter) still clamps the final value.
+
+    ``max_step`` must be >= 1. A zero or negative cap would silently disable
+    the safety gate (returning ``proposed`` unclamped). ``DrosselParams``
+    enforces ``limit_step_clamp_w >= 1`` at construction time, so hitting
+    this branch means a caller bypassed that invariant (Story 3.2 Review P6).
+    """
+    if max_step < 1:
+        raise ValueError(f"max_step must be >= 1, got {max_step}")
+    delta = proposed - current
+    if delta > max_step:
+        return current + max_step
+    if delta < -max_step:
+        return current - max_step
+    return proposed
 
 
 # ---------------------------------------------------------------------------
