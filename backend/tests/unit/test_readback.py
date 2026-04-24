@@ -111,11 +111,16 @@ async def test_readback_tolerance_floor_10w() -> None:
 
 @pytest.mark.asyncio
 async def test_readback_stale_state_is_timeout() -> None:
-    """State that predates the command should count as timeout."""
+    """State that clearly predates the command should count as timeout.
+
+    The readback tolerates up to ~2 s of negative clock drift between the
+    HA host and the add-on container; states older than that threshold
+    are still considered stale (Story 2.2 Review P4).
+    """
     cache = StateCache()
     cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
-    # State is BEFORE the command.
-    state_ts = cmd_ts - timedelta(seconds=1)
+    # State is 5s BEFORE the command — well outside the drift tolerance.
+    state_ts = cmd_ts - timedelta(seconds=5)
     await cache.update("number.test_limit", "50", {}, state_ts)
     cache.set_last_command_at(cmd_ts)
 
@@ -128,3 +133,54 @@ async def test_readback_stale_state_is_timeout() -> None:
         max_wait_s=0.1,
     )
     assert result.status == "timeout"
+
+
+@pytest.mark.asyncio
+async def test_readback_small_clock_drift_still_passes() -> None:
+    """HA state up to ~2 s older than the command is accepted (clock drift).
+
+    Real-world HA <-> add-on clock skew of a few hundred ms would
+    otherwise produce false-positive timeouts (Story 2.2 Review P4).
+    """
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    # State is 500ms BEFORE the command — typical HA/container drift.
+    state_ts = cmd_ts - timedelta(milliseconds=500)
+    await cache.update("number.test_limit", "50", {}, state_ts)
+    cache.set_last_command_at(cmd_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "passed"
+
+
+@pytest.mark.asyncio
+async def test_readback_entity_unavailable_is_timeout() -> None:
+    """HA sentinel 'unavailable' must not fall through to a numeric failure.
+
+    (Story 2.2 Review P5) The user needs an actionable message that the
+    device is offline, not a cryptic "not numeric" readback failure.
+    """
+    cache = StateCache()
+    cmd_ts = datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC)
+    cache.set_last_command_at(cmd_ts)
+    state_ts = cmd_ts + timedelta(seconds=1)
+    await cache.update("number.test_limit", "unavailable", {}, state_ts)
+
+    result = await verify_readback(
+        ha_client=MagicMock(),
+        state_cache=cache,
+        device=_device(),
+        expected_value_w=50,
+        readback_timing=_timing(),
+        max_wait_s=0.1,
+    )
+    assert result.status == "timeout"
+    assert result.reason is not None
+    assert "nicht erreichbar" in result.reason

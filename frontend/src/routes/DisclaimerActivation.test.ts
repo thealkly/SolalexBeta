@@ -33,11 +33,18 @@ function errCommission(status: number, detail: string) {
 }
 
 describe('DisclaimerActivation — SSR initial state', () => {
-  it('renders checkbox unchecked and no Aktivieren-Button in initial state', () => {
+  it('renders checkbox unchecked and no activate button in initial state', () => {
     const { html } = render(DisclaimerActivation, {});
+    // Pair the negative assertion below with a concrete positive counter-
+    // assertion — otherwise an empty/broken render (html === '') would
+    // silently pass the `.not.toMatch` check (Story 3.2 Review P16).
+    expect(html.length).toBeGreaterThan(200);
     expect(html).toContain('type="checkbox"');
-    // Button is inside {#if checked} — checked starts false, so not in DOM
-    expect(html).not.toContain('Aktivieren');
+    // The activate button lives behind `{#if checked || committing}`; assert on
+    // its distinctive class rather than a bare "Aktivieren" substring to avoid
+    // collisions with the error header "Aktivierungsfehler" or future copy
+    // tweaks (Review P11).
+    expect(html).not.toMatch(/<button[^>]*class="[^"]*activate-button/);
     expect(html).toContain('Bevor es losgeht');
   });
 
@@ -54,9 +61,19 @@ describe('DisclaimerActivation — SSR initial state', () => {
     expect(html).toContain('Zurück zum Funktionstest');
     expect(html).toContain('#/functional-test');
   });
+
+  it('wires the checkbox to the disclaimer paragraph via aria-describedby', () => {
+    const { html } = render(DisclaimerActivation, {});
+    expect(html).toMatch(/id="disclaimer-text"/);
+    expect(html).toMatch(/aria-describedby="disclaimer-text"/);
+  });
 });
 
-describe('DisclaimerActivation — commission() API contract', () => {
+// These tests exercise `client.commission()` directly. We keep them here next to
+// the component because the component's only job is to invoke this client
+// helper, and SSR rendering cannot simulate the button click itself. Interactive
+// coverage is an accepted gap — see Story 2.3 Review Decision D2.
+describe('commission() API contract (client-level, used by DisclaimerActivation)', () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -79,16 +96,25 @@ describe('DisclaimerActivation — commission() API contract', () => {
     await expect(commission()).rejects.toSatisfy(isApiError);
   });
 
-  it('ApiError carries the German detail string for inline display', async () => {
+  it('ApiError carries RFC-7807 title, detail and status for inline display', async () => {
     mockFetch.mockResolvedValue(errCommission(500, 'Server nicht erreichbar.'));
 
+    let caught: unknown;
     try {
       await commission();
     } catch (err) {
-      if (isApiError(err)) {
-        expect(err.detail).toBe('Server nicht erreichbar.');
-        expect(err.status).toBe(500);
-      }
+      caught = err;
+    }
+
+    // Without this guard the test would silently pass if commission() ever
+    // stopped throwing (Review P13). `toBeDefined` makes the missing throw
+    // an explicit failure.
+    expect(caught).toBeDefined();
+    expect(isApiError(caught)).toBe(true);
+    if (isApiError(caught)) {
+      expect(caught.detail).toBe('Server nicht erreichbar.');
+      expect(caught.title).toBe('Aktivierungsfehler');
+      expect(caught.status).toBe(500);
     }
   });
 });

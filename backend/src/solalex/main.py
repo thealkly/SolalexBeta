@@ -20,7 +20,7 @@ import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +97,10 @@ async def _dispatch_event(msg: dict[str, Any]) -> None:
                 timestamp = _parse_ts(new_state.get("last_updated"))
 
         if not entity_id:
+            _logger.warning(
+                "dispatch_event_missing_entity_id",
+                extra={"msg_type": msg.get("type")},
+            )
             return
 
         await _app_state_cache.update(
@@ -119,16 +123,31 @@ async def _dispatch_event(msg: dict[str, Any]) -> None:
             return
         await controller.on_sensor_update(msg, device)
     except Exception:
-        _logger.exception("dispatch_event_error", extra={"msg_type": msg.get("type")})
+        _logger.exception(
+            "dispatch_event_error",
+            extra={
+                "msg_type": msg.get("type"),
+                "entity_id": locals().get("entity_id"),
+            },
+        )
 
 
 def _parse_ts(raw: Any) -> datetime | None:
+    """Parse an HA ISO-8601 timestamp into a tz-aware UTC datetime.
+
+    HA usually sends timestamps with explicit UTC offset, but buggy
+    integrations occasionally ship naive values — treat those as UTC so
+    downstream tz-aware comparisons never blow up.
+    """
     if raw is None:
         return None
     try:
-        return datetime.fromisoformat(str(raw))
+        parsed = datetime.fromisoformat(str(raw))
     except ValueError:
         return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
 
 
 @asynccontextmanager
@@ -143,11 +162,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Build entity → role map and devices_by_entity map from the devices table.
     entity_role_map: dict[str, str] = {}
     devices_by_entity: dict[str, DeviceRecord] = {}
+    # v1 allows at most one commissioned device per role (PRD line 223) — the
+    # wizard enforces this upstream and SQLite has no unique constraint, so we
+    # log a warning on collision to surface DB hand-edits or wizard bugs
+    # instead of silently last-writer-wins (Story 3.2 Review P8).
+    devices_by_role: dict[str, DeviceRecord] = {}
     async with connection_context(settings.db_path) as conn:
         devices = await list_devices(conn)
     for device in devices:
         entity_role_map[device.entity_id] = device.role
         devices_by_entity[device.entity_id] = device
+        if device.commissioned_at is not None:
+            existing = devices_by_role.get(device.role)
+            if existing is not None and existing.entity_id != device.entity_id:
+                _logger.warning(
+                    "role_collision",
+                    extra={
+                        "role": device.role,
+                        "prev_entity_id": existing.entity_id,
+                        "new_entity_id": device.entity_id,
+                    },
+                )
+            devices_by_role[device.role] = device
 
     # Initialise the state cache singleton and attach to app.state.
     _app_state_cache = StateCache()
@@ -168,6 +204,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db_conn_factory=_db_conn_factory,
         adapter_registry=ADAPTERS,
         ha_ws_connected_fn=lambda: app.state.ha_client.ha_ws_connected,
+        devices_by_role=devices_by_role,
         mode=Mode.DROSSEL,
     )
     _app_controller = controller
@@ -202,6 +239,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # Cancel/await controller dispatch tasks BEFORE closing the HA
+        # client so in-flight readback waits don't fire call_service into
+        # a torn-down session.
+        await controller.aclose()
         await app.state.ha_client.close()
         if ha_client_task is not None:
             ha_client_task.cancel()

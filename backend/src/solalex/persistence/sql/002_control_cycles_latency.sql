@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS control_cycles (
     id                INTEGER   PRIMARY KEY AUTOINCREMENT,
     ts                TIMESTAMP NOT NULL,
     device_id         INTEGER   NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    mode              TEXT      NOT NULL CHECK (mode IN ('drossel','speicher','multi','idle')),
+    mode              TEXT      NOT NULL CHECK (mode IN ('drossel','speicher','multi')),
     source            TEXT      NOT NULL CHECK (source IN ('solalex','manual','ha_automation')),
     sensor_value_w    REAL,
     target_value_w    INTEGER,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS latency_measurements (
     command_at TIMESTAMP NOT NULL,
     effect_at  TIMESTAMP NOT NULL,
     latency_ms INTEGER   NOT NULL,
-    mode       TEXT      NOT NULL CHECK (mode IN ('drossel','speicher','multi','idle'))
+    mode       TEXT      NOT NULL CHECK (mode IN ('drossel','speicher','multi'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_latency_device_ts ON latency_measurements(device_id, command_at DESC);

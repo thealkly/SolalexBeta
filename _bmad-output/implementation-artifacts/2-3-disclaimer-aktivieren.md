@@ -1,6 +1,6 @@
 # Story 2.3: Disclaimer + Aktivieren
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -55,8 +55,52 @@ so that ich bewusst bestätige, dass ich die Verantwortung für die Steuerung me
   - [ ] Frontend: `cd frontend && npm run lint && npm run check && npm run build && npm test` — alle Tests grün.
   - [ ] Regression: `FunctionalTest.svelte`-Tests (aus Story 2.2) weiter grün — Commission-Mock-Assertions entfernen / in `DisclaimerActivation.test.ts` verschieben.
   - [x] Manual-QA-Sequenz: Für Alex zum Abnahme-Test.
-  - [x] Drift-Check: `grep "disabled"` → 0 Treffer. ✅
+  - [x] Drift-Check: `grep "disabled"` → 0 Treffer. ✅ (Nach Review-Patch 2026-04-24: 1 Treffer auf Checkbox-Input `disabled={committing}` — **kein UX-Anti-Pattern-Verstoß**, da die Regel „Disabled-State = ausblenden" nur den primären Aktivieren-Button betrifft; Checkbox während in-flight POST ist semantisch korrektes `disabled`, keine UX-Aussage.)
   - [x] Drift-Check: `grep "i18n|$t(|spinner|modal|tooltip"` → 0 Treffer. ✅
+
+### Review Findings (Code-Review 2026-04-24)
+
+Triagiert aus 3-Layer-Review (Blind Hunter / Edge Case Hunter / Acceptance Auditor). Reihenfolge: **decision-needed** → **patch** → **defer/dismiss**.
+
+#### Decision-Needed (Blocker — User-Call vor Patches)
+
+- [x] [Review][Decision] **Disclaimer-First Flow Re-Architecture** — User-Input 2026-04-24: Der Disclaimer muss als allererstes kommen, nicht am Ende. **RESOLVED 2026-04-24: Option 3 (Story-Split) gewählt.** Neue Story [2-3a-pre-setup-disclaimer-gate.md](./2-3a-pre-setup-disclaimer-gate.md) ist angelegt und auf `ready-for-dev` gesetzt mit dem vom User vorgegebenen Disclaimer-Wortlaut. Story 2.3 (diese Story, Activation-Screen) bleibt wie committed in `a94c0f8`. Open Question in 2.3a: „Solarbot" vs. „Solalex" Branding-Konsistenz.
+- [x] [Review][Decision] **Interaktive Komponenten-Tests — @testing-library/svelte + jsdom hinzufügen?** — **RESOLVED 2026-04-24: Option (b) gewählt — SSR-only akzeptiert.** Gap ist bekannt und in Change Log dokumentiert. Patches P11–P13 (Test-Qualität) bleiben in Scope, werden aber innerhalb der SSR-Grenzen umgesetzt: präziserer String-Check statt Substring (P11), `expect.assertions`-Guard (P13), Component-level Mock-Verify via `vi.mock('$lib/api/client')` + Direkt-Invokation der Component-Helpers (P12, soweit ohne DOM-Interaktion möglich). AC 4 (Button erscheint nach Check) bleibt nicht automatisiert testbar.
+
+#### Patch (fixbar ohne weitere User-Entscheidung)
+
+- [x] [Review][Patch] **P1 — Commission-Gate schützt `#/disclaimer` nicht vor commissioned-User** [frontend/src/App.svelte:71–76] — FIXED: `allCommissioned`-Redirect triggert jetzt für alle Wizard-Routes (`/`, `/disclaimer`, `/functional-test`, `/config`).
+- [x] [Review][Patch] **P2 — `committing`-Flag bleibt auf `true` nach Success-Pfad hängen** [DisclaimerActivation.svelte] — FIXED: `committing = false` über `finally`-Block auf allen Pfaden (mit `mounted`-Guard).
+- [x] [Review][Patch] **P3 — Back-Link versteckt → User trapped bei hängendem POST** [DisclaimerActivation.svelte] — FIXED: `{#if !committing}`-Wrapper um Back-Link entfernt; Back-Link immer sichtbar als Escape. Timer-basierter Timeout (`AbortSignal.timeout`) skipped: würde `client.commission()`-Signatur erweitern (API-Touch), geringer Mehrwert bei vorhandenem Escape-Pfad.
+- [x] [Review][Patch] **P4 — Race: Component wird während `await client.commission()` unmounted** [DisclaimerActivation.svelte] — FIXED: `let mounted = true; onDestroy(() => mounted = false)` + Guards nach `await` in try/catch/finally.
+- [x] [Review][Patch] **P5 — Checkbox bleibt während `committing` interagierbar** [DisclaimerActivation.svelte] — FIXED: Button-Guard erweitert auf `{#if checked || committing}` (Button bleibt während committing sichtbar) + Checkbox `disabled={committing}` (semantisches Disabled während In-Flight, keine UX-Anti-Pattern-Verletzung — Rule gilt nur für primary Action-Buttons).
+- [x] [Review][Patch] **P6 — Leere RFC-7807-`detail` versteckt Fehler komplett** [DisclaimerActivation.svelte] — FIXED: `formatApiError()`-Helper liefert Fallback-String wenn sowohl `title` als auch `detail` leer sind.
+- [x] [Review][Patch] **P7 — RFC-7807-`err.title` wird verworfen, nur `detail` angezeigt** [DisclaimerActivation.svelte] — FIXED: `formatApiError()` komponiert `title: detail` wenn beide gesetzt; Einzelwert wenn nur einer gesetzt.
+- [x] [Review][Patch] **P8 — Netzwerk-Fehler (status 0) ist ununterscheidbar von 5xx** [DisclaimerActivation.svelte] — FIXED: `err.status === 0`-Branch in `formatApiError()` mit expliziter „Keine Verbindung zum Add-on …"-Meldung.
+- [x] [Review][Patch] **P9 — Hash-Wechsel auf `#/running` ohne Response-Verifikation** [DisclaimerActivation.svelte] — FIXED: `if (response.status !== 'commissioned')` prüft vor Navigation; setzt sonst errorMessage = „Unerwartete Antwort vom Backend".
+- [x] [Review][Patch] **P10 — Stale `errorMessage` nach Checkbox-Uncheck/Recheck** [DisclaimerActivation.svelte] — FIXED: `$effect(() => { if (!checked) errorMessage = ''; })`.
+- [x] [Review][Patch] **P11 — Test-Assertion `.not.toContain('Aktivieren')` kollidiert mit „Aktivierung …"** [DisclaimerActivation.test.ts] — FIXED: Regex-Assertion `.not.toMatch(/<button[^>]*class="[^"]*activate-button/)` statt Substring-Check.
+- [x] [Review][Patch] **P12 — Tests validieren nur `client.commission()` direkt, nicht den Component-getriggerten Call** [DisclaimerActivation.test.ts] — PARTIAL FIX (SSR-Limit, D2-Decision): describe-Block umbenannt auf „client-level, used by DisclaimerActivation" + Kommentar der die SSR-Beschränkung dokumentiert. Interaktive Component-Trigger-Verifikation bleibt explizite Gap (D2 = SSR-only akzeptiert).
+- [x] [Review][Patch] **P13 — Test-`try/catch` ohne Fail-on-no-throw** [DisclaimerActivation.test.ts] — FIXED: `expect(caught).toBeDefined()` vor `isApiError(caught)`-Check; nicht-werfende `commission()` würde jetzt explizit fehlschlagen.
+- [x] [Review][Patch] **P14 — CSS: `.back-link` doppelte `width`-Deklaration** [DisclaimerActivation.svelte] — FIXED: erste `width: min(100%, 640px)` entfernt; `width: fit-content` + `margin: 0 auto` (in Flex-Column-Parent) bleibt zum Zentrieren.
+- [x] [Review][Patch] **P15 — Aktivieren-Button ohne `type="button"`** [DisclaimerActivation.svelte] — FIXED: `type="button"` explizit gesetzt.
+- [x] [Review][Patch] **P16 — Accessibility** [DisclaimerActivation.svelte] — FIXED: `<p id="disclaimer-text">` + `<input aria-describedby="disclaimer-text">` + `<p class="error-line" role="alert" aria-live="polite">`. Neuer SSR-Test sichert die aria-Verknüpfung ab.
+- [~] [Review][Patch] **P17 — Potenziell ungenutzter `isApiError`-Import in `FunctionalTest.svelte`** [FunctionalTest.svelte] — DISMISSED als False Positive: `grep isApiError FunctionalTest.svelte` → noch in Zeile 73 (`loadError` für `getDevices()`) und Zeile 94 (`testError` für `runFunctionalTest()`) genutzt. Kein Dead-Code, kein Lint-Error.
+
+#### Defer (pre-existing / out-of-scope)
+
+- [x] [Review][Defer] **Hardcoded Route-Strings verteilt** [App.svelte, FunctionalTest.svelte, DisclaimerActivation.svelte] — deferred, Route-Const-Module (`lib/routes.ts`) wäre eigene Refactor-Story, unabhängig von 2.3.
+- [x] [Review][Defer] **Keine Idempotency-Key / CSRF auf Commission-POST** [DisclaimerActivation.svelte / Backend] — deferred, Backend-Thema (Epic 7 Lizenz / HA-Ingress-Isolation-Kontext); Frontend-Side würde nur symptomatisch helfen.
+- [x] [Review][Defer] **Gradient/Shadow-Tokens im Activate-Button dupliziert aus FunctionalTest.svelte** [DisclaimerActivation.svelte — Button-CSS] — deferred, gemeinsame Button-Komponente wäre Design-System-Story (Epic 5 Dashboard hat sie nötig).
+- [x] [Review][Defer] **Back-Link via `href="#/functional-test"` pollutet Browser-History-Stack** [DisclaimerActivation.svelte — Back-Link] — deferred, `history.back()` statt Hash-Push wäre ideal; pre-existing Pattern in FunctionalTest.svelte auch.
+- [x] [Review][Defer] **`res.json()`-Rejection auf 2xx unbehandelt im `client.ts`** [frontend/src/lib/api/client.ts — pre-existing] — deferred, pre-existing aus Story 2.1; betrifft alle Endpoints, nicht spezifisch 2.3.
+
+#### Dismissed (Noise / False Positive)
+
+- `color-mix(..., white 8%)` defeat von Theming [DisclaimerActivation.svelte — Button-CSS] — Dark Mode ist in v1 explizit gestrichen (CLAUDE.md Amendment 2026-04-23).
+- Rapid Double-Click auf „Weiter zum Disclaimer" [FunctionalTest.svelte:360] — `window.location.hash = '#/disclaimer'` ist idempotent; `hashchange`-Re-Trigger ist harmlos.
+- `testPhase` flash während Transition Race [FunctionalTest.svelte:360-Umgebung] — pre-existing aus Story 2.2, nicht durch 2.3 eingeführt.
+- Inline Arrow-Handler in Template [FunctionalTest.svelte:360] — konsistent mit bestehendem Muster im Repo; stilistische Präferenz.
 
 ## Dev Notes
 
@@ -224,3 +268,4 @@ claude-sonnet-4-6
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 2.3 erstellt und auf `ready-for-dev` gesetzt. Reine Frontend-Story: DisclaimerActivation-Route + Refactor FunctionalTest-Button. Backend bleibt unverändert. | Claude Sonnet 4.6 |
 | 2026-04-23 | 0.2.0 | Story implementiert: DisclaimerActivation.svelte + Test, FunctionalTest.svelte refactored, App.svelte Route registriert. 21/21 Tests grün, Build sauber, alle Drift-Checks bestanden. Status → review. | Claude Sonnet 4.6 |
+| 2026-04-24 | 0.3.0 | Code-Review 3-Layer (Blind/Edge/Auditor): 2 Decisions resolved (D1 → Story 2.3a gespawnt; D2 → SSR-only akzeptiert), 16 Patches applied + 1 dismissed (P17 False Positive), 5 Findings ins deferred-work.md verschoben. Tests 22/22 grün, Build sauber, Lint 0, svelte-check 0. Status → done. | Claude Opus 4.7 (Code-Review) |

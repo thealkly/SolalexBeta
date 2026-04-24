@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 import aiosqlite
@@ -75,6 +75,11 @@ class DispatchContext:
     db_conn_factory: Callable[[], AbstractAsyncContextManager[aiosqlite.Connection]]
     adapter_registry: dict[str, AdapterBase]
     now_fn: Callable[[], datetime]
+    # Used to re-check the WS connection right before call_service to close
+    # the TOCTOU gap between controller-level check and dispatcher-level
+    # send. Defaults to a live-lambda so call-sites that cannot cheaply
+    # plumb it through (tests) don't need to construct one.
+    ha_ws_connected_fn: Callable[[], bool] = lambda: True
 
 
 def _require_id(device: DeviceRecord) -> int:
@@ -135,7 +140,25 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
     """
     t0 = time.monotonic()
     now = ctx.now_fn()
-    adapter = ctx.adapter_registry[decision.device.adapter_key]
+
+    adapter = ctx.adapter_registry.get(decision.device.adapter_key)
+    if adapter is None:
+        cycle = _build_cycle(
+            ts=now,
+            decision=decision,
+            readback_status="vetoed",
+            readback_actual_w=None,
+            readback_mismatch=False,
+            latency_ms=None,
+            cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+            reason=f"unknown_adapter: {decision.device.adapter_key!r}",
+        )
+        await _persist_cycle(ctx, cycle)
+        _logger.warning(
+            "dispatch_vetoed_unknown_adapter",
+            extra={"device_id": cycle.device_id, "adapter_key": decision.device.adapter_key},
+        )
+        return DispatchResult(status="vetoed", cycle=cycle, readback=None)
 
     # --- Gate (a): Range check ---
     try:
@@ -155,6 +178,31 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
         _logger.warning(
             "dispatch_vetoed_read_only",
             extra={"device_id": cycle.device_id, "reason": cycle.reason},
+        )
+        return DispatchResult(status="vetoed", cycle=cycle, readback=None)
+
+    if limit_min > limit_max:
+        cycle = _build_cycle(
+            ts=now,
+            decision=decision,
+            readback_status="vetoed",
+            readback_actual_w=None,
+            readback_mismatch=False,
+            latency_ms=None,
+            cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+            reason=(
+                f"adapter_invalid_range: min {limit_min} W > max {limit_max} W "
+                "(adapter configuration error)"
+            ),
+        )
+        await _persist_cycle(ctx, cycle)
+        _logger.error(
+            "dispatch_vetoed_invalid_range",
+            extra={
+                "device_id": cycle.device_id,
+                "limit_min": limit_min,
+                "limit_max": limit_max,
+            },
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
 
@@ -221,8 +269,23 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
     else:
         command = adapter.build_set_charge_command(decision.device, decision.target_value_w)
 
-    ctx.state_cache.set_last_command_at(now)
+    # TOCTOU close: re-check the WS connection between the controller's
+    # check and the actual send. If it dropped in-between, raise so the
+    # fail-safe wrapper writes a vetoed row with no mark_write.
+    if not ctx.ha_ws_connected_fn():
+        raise RuntimeError("ha_ws_disconnected_between_check_and_send")
+
     await ctx.ha_client.call_service(command.domain, command.service, command.service_data)
+    # Flag the 2-s solalex attribution window only after the call returned
+    # successfully — on exception we want external state changes in the
+    # window to keep their true source. (Resolved 2026-04-24.)
+    ctx.state_cache.set_last_command_at(now)
+
+    # cycle_duration_ms measures the synchronous send pipeline — adapter
+    # range/rate-limit gates + HA service-call round-trip. The readback
+    # wait below is recorded separately via latency_measurements.latency_ms
+    # and must NOT inflate this value (AC 1 budget ≤ 1 s).
+    cycle_duration_ms = int((time.monotonic() - t0) * 1000)
 
     # --- Readback (CLAUDE.md Rule 3) ---
     timing = adapter.get_readback_timing()
@@ -234,8 +297,14 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
         readback_timing=timing,
     )
 
-    cycle_duration_ms = int((time.monotonic() - t0) * 1000)
-    effect_at = ctx.now_fn()
+    # Derive effect_at from command_at + measured latency so both timestamps
+    # and latency_ms use a consistent clock source (avoids drift if now_fn
+    # sees a skew while readback is waiting).
+    effect_at = (
+        now + timedelta(milliseconds=readback_result.latency_ms)
+        if readback_result.latency_ms is not None
+        else ctx.now_fn()
+    )
 
     cycle = _build_cycle(
         ts=now,
@@ -249,6 +318,13 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
     )
 
     async with ctx.db_conn_factory() as conn:
+        # mark_write consumes the rate-limit slot whenever we actually sent
+        # a command — even if readback returned failed/timeout. Rationale:
+        # the HA call succeeded, so the hardware may have applied the
+        # change. Protecting the EEPROM from an immediate retry takes
+        # precedence over optimistic re-try. (Asymmetric to the fail-safe
+        # wrapper in controller.py, which intentionally skips mark_write
+        # because the call_service exception proves no send occurred.)
         await rate_limiter.mark_write(conn, _require_id(decision.device), now)
         await control_cycles.insert(conn, cycle)
         if readback_result.status == "passed" and readback_result.latency_ms is not None:

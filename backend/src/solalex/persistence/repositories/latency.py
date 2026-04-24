@@ -13,7 +13,7 @@ from typing import Literal
 
 import aiosqlite
 
-Mode = Literal["drossel", "speicher", "multi", "idle"]
+Mode = Literal["drossel", "speicher", "multi"]
 
 
 @dataclass

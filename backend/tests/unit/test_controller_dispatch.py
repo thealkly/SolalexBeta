@@ -140,10 +140,18 @@ async def test_fail_safe_when_ws_disconnected(
 
     async with connection_context(db) as conn:
         cycles = await control_cycles.list_recent(conn)
+        # AC 9b: devices.last_write_at must NOT be updated on the fail-safe
+        # path — otherwise the rate-limiter would block retries of a write
+        # that never actually went out.
+        async with conn.execute(
+            "SELECT last_write_at FROM devices WHERE id = ?", (device.id,)
+        ) as cur:
+            lw_row = await cur.fetchone()
     assert len(cycles) == 1
     assert cycles[0].readback_status == "vetoed"
     assert cycles[0].reason is not None
     assert "fail_safe" in cycles[0].reason and "disconnected" in cycles[0].reason
+    assert lw_row is not None and lw_row[0] is None
 
 
 @pytest.mark.asyncio
@@ -185,11 +193,17 @@ async def test_fail_safe_on_call_service_exception(
 
     async with connection_context(db) as conn:
         cycles = await control_cycles.list_recent(conn)
+        async with conn.execute(
+            "SELECT last_write_at FROM devices WHERE id = ?", (device.id,)
+        ) as cur:
+            lw_row = await cur.fetchone()
     # One vetoed row from fail_safe.
     assert any(
         c.readback_status == "vetoed" and c.reason and "fail_safe" in c.reason
         for c in cycles
     )
+    # AC 9b: last_write_at stays NULL even when call_service raised.
+    assert lw_row is not None and lw_row[0] is None
 
 
 @pytest.mark.asyncio

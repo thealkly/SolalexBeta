@@ -8,14 +8,16 @@ row here, including ``vetoed`` / ``noop`` cycles. Epic 4 reads this table via
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import aiosqlite
 
-Mode = Literal["drossel", "speicher", "multi", "idle"]
+Mode = Literal["drossel", "speicher", "multi"]
 Source = Literal["solalex", "manual", "ha_automation"]
 ReadbackStatus = Literal["passed", "failed", "timeout", "vetoed", "noop"]
+
+_ALLOWED_MODES: frozenset[str] = frozenset({"drossel", "speicher", "multi"})
 
 
 @dataclass
@@ -39,7 +41,11 @@ class ControlCycleRow:
 
 def _row_to_cycle(row: aiosqlite.Row) -> ControlCycleRow:
     raw_ts = row["ts"]
-    ts = datetime.fromisoformat(str(raw_ts)) if raw_ts is not None else datetime.fromtimestamp(0)
+    ts = (
+        datetime.fromisoformat(str(raw_ts))
+        if raw_ts is not None
+        else datetime.fromtimestamp(0, tz=UTC)
+    )
     return ControlCycleRow(
         id=int(row["id"]),
         ts=ts,
@@ -65,6 +71,12 @@ def _row_to_cycle(row: aiosqlite.Row) -> ControlCycleRow:
 
 async def insert(conn: aiosqlite.Connection, row: ControlCycleRow) -> int:
     """Insert a cycle row. Does NOT commit — caller controls the transaction."""
+    if row.mode not in _ALLOWED_MODES:
+        # Fail loudly with a clear message instead of surfacing a raw
+        # sqlite3.IntegrityError from the CHECK constraint.
+        raise ValueError(
+            f"invalid mode {row.mode!r} — expected one of {sorted(_ALLOWED_MODES)}"
+        )
     async with conn.execute(
         """
         INSERT INTO control_cycles (
@@ -97,6 +109,7 @@ async def list_recent(
     conn: aiosqlite.Connection, limit: int = 100
 ) -> list[ControlCycleRow]:
     """Return the ``limit`` most recent cycles ordered by id DESC."""
+    limit = max(1, limit)
     async with conn.execute(
         "SELECT * FROM control_cycles ORDER BY id DESC LIMIT ?",
         (limit,),
@@ -109,6 +122,7 @@ async def list_by_device(
     conn: aiosqlite.Connection, device_id: int, limit: int = 100
 ) -> list[ControlCycleRow]:
     """Return the ``limit`` most recent cycles for a single device."""
+    limit = max(1, limit)
     async with conn.execute(
         "SELECT * FROM control_cycles WHERE device_id = ? ORDER BY id DESC LIMIT ?",
         (device_id, limit),

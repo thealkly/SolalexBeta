@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-24 (Story 3.2 → ready-for-dev)
+# last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup: Review vom 2026-04-23 war vollständig abgearbeitet, aber Status nicht auf done gezogen — 4 Skipped-in-Batch-Items in deferred-work.md verschoben; Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 3.2 → ready-for-dev)
+last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -59,18 +59,21 @@ development_status:
   # Epic 2: Setup-Wizard & Hardware-Onboarding
   epic-2: in-progress
   # Key aktualisiert: Amendment 2026-04-23 — Config-Page statt 4-Schritt-Wizard
-  2-1-hardware-config-page-typ-auswahl-entity-dropdown: in-progress
+  # Status-Cleanup 2026-04-24: Review war am 2026-04-23 vollständig abgearbeitet (19 Patches + 2 Decisions); 4 Skipped-in-Batch-Items sind in deferred-work.md
+  2-1-hardware-config-page-typ-auswahl-entity-dropdown: done
   # Key aktualisiert: Amendment 2026-04-23 — Funktionstest + Commissioning kombiniert
-  2-2-funktionstest-mit-readback-commissioning: review
+  2-2-funktionstest-mit-readback-commissioning: done
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
-  2-3-disclaimer-aktivieren: review
+  2-3-disclaimer-aktivieren: done
+  # Neu: gespawnt aus 2.3-Code-Review Decision D1 (2026-04-24) — Disclaimer muss vor Setup kommen, nicht am Ende
+  2-3a-pre-setup-disclaimer-gate: done
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
   epic-3: in-progress
   # Key aktualisiert: Amendment 2026-04-22 — Mono-Modul + persistenter Rate-Limiter explizit
-  3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: review
-  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: ready-for-dev
+  3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: done
+  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: done
   3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
   3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
   3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog
@@ -90,7 +93,9 @@ development_status:
 
   # Epic 5: Dashboard mit Euro-Wert & Live-Visualisierung
   epic-5: backlog
-  5-1-dashboard-shell-mit-responsive-navigation-hero-zone-euro-wert-als-2-s-kernaussage: backlog
+  # Key geändert: Sprint Change Proposal 2026-04-24 — Story 5.1 in 5.1a (vorgezogen, Live-Betriebs-View nach Commissioning) + 5.1b (Rest-Scope: Hero + Nav + Euro-Wert) gesplittet
+  5-1a-live-betriebs-view-post-commissioning-mini-shell: ready-for-dev
+  5-1b-dashboard-hero-euro-wert-responsive-navigation: backlog
   5-2-bezugspreis-anpassung-inline-per-stepper: backlog
   5-3-beleg-kpis-getrennt-ausgewiesen-kwh-selbst-verbraucht-kwh-selbst-gesteuert: backlog
   5-4-energy-ring-flow-visualisierung-mit-custom-pv-icons: backlog

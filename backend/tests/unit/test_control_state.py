@@ -54,7 +54,7 @@ def test_control_state_reflects_cache(app_client: tuple[TestClient, Any]) -> Non
             datetime(2026, 4, 23, 12, 0, 0, tzinfo=UTC),
         )
 
-    asyncio.get_event_loop().run_until_complete(_populate())
+    asyncio.run(_populate())
 
     resp = client.get("/api/v1/control/state")
     assert resp.status_code == 200

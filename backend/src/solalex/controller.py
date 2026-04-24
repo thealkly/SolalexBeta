@@ -13,16 +13,18 @@ every branch returns ``None`` (noop).
 from __future__ import annotations
 
 import asyncio
+import math
 import time
+from collections import deque
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, assert_never
 
 import aiosqlite
 
-from solalex.adapters.base import AdapterBase, DeviceRecord
+from solalex.adapters.base import AdapterBase, DeviceRecord, DrosselParams, HaState
 from solalex.common.logging import get_logger
 from solalex.executor import dispatcher as executor_dispatcher
 from solalex.executor.dispatcher import (
@@ -41,6 +43,16 @@ _logger = get_logger(__name__)
 # Window within which a HA event on a device entity is attributed to Solalex
 # rather than to an external actor (manual / ha_automation).
 _SOLALEX_WINDOW_S: float = 2.0
+
+# HA sentinel values that the sensor emits when the entity is transiently
+# unreachable. Treat them as "no reading" rather than trying to coerce.
+_HA_SENSOR_SENTINELS: frozenset[str] = frozenset(
+    {"unavailable", "unknown", "none", ""}
+)
+
+# Cap the reason column so exception payloads with stack-like text or PII
+# cannot bloat the diagnostics UI.
+_REASON_MAX_LEN: int = 200
 
 Source = Literal["solalex", "manual", "ha_automation"]
 
@@ -97,6 +109,7 @@ class Controller:
         adapter_registry: dict[str, AdapterBase],
         *,
         ha_ws_connected_fn: Callable[[], bool],
+        devices_by_role: dict[str, DeviceRecord] | None = None,
         mode: Mode = Mode.DROSSEL,
         setpoint_provider: SetpointProvider | None = None,
         now_fn: Callable[[], datetime] = _utc_now,
@@ -113,6 +126,15 @@ class Controller:
         )
         self._now_fn = now_fn
         self._device_locks: dict[int, asyncio.Lock] = {}
+        # Story 3.2 — role lookup + per-grid_meter moving-average buffer.
+        # devices_by_role is optional so existing unit tests that do not
+        # exercise the Drossel policy keep working; in production (main.py)
+        # it is always populated from the devices table at startup.
+        self._devices_by_role: dict[str, DeviceRecord] = (
+            dict(devices_by_role) if devices_by_role is not None else {}
+        )
+        self._wr_limit_device: DeviceRecord | None = self._devices_by_role.get("wr_limit")
+        self._drossel_buffers: dict[int, deque[float]] = {}
 
     @property
     def current_mode(self) -> Mode:
@@ -150,6 +172,13 @@ class Controller:
 
         decision = self._dispatch_by_mode(self._current_mode, device, sensor_value)
 
+        # cycle_duration_ms reflects the *synchronous* pipeline only
+        # (event-in → dispatch task spawn). The adapter readback wait runs
+        # in the fire-and-forget task below and is reported separately via
+        # latency_measurements.latency_ms. AC 1's ≤ 1 s budget applies to
+        # this synchronous segment.
+        pipeline_ms = int((time.monotonic() - t0) * 1000)
+
         if decision is None:
             if source != "solalex":
                 await self._record_noop_cycle(
@@ -157,7 +186,7 @@ class Controller:
                     source=source,
                     sensor_value_w=sensor_value,
                     now=now,
-                    cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+                    cycle_duration_ms=pipeline_ms,
                 )
             return
 
@@ -166,12 +195,25 @@ class Controller:
         # caught by the fail-safe wrapper surface through the completed
         # task; unhandled ones are logged via the task's default handler.
         task = asyncio.create_task(
-            self._safe_dispatch(decision, t0),
+            self._safe_dispatch(decision, pipeline_ms),
             name=f"controller_dispatch_{device.id}",
         )
         # Prevent "Task was destroyed but it is pending" at shutdown by keeping
         # a reference. Tasks self-remove via their done callback.
         self._track_task(task)
+
+    async def aclose(self) -> None:
+        """Cancel and await pending dispatch tasks — called by FastAPI lifespan shutdown.
+
+        Without this hook, in-flight readback waits produce
+        "Task was destroyed but it is pending" warnings at shutdown and
+        half-committed cycles can land after the DB factory is torn down.
+        """
+        pending = list(self._dispatch_tasks)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     # ------------------------------------------------------------------
     # Internals
@@ -211,16 +253,141 @@ class Controller:
     ) -> PolicyDecision | None:
         """Enum-Dispatch — policies land here in 3.2 / 3.3 / 3.4 / 3.5.
 
-        In Story 3.1 every branch returns ``None`` (noop). Amendment
+        Story 3.2 wires ``Mode.DROSSEL`` to the productive :meth:`_policy_drossel`;
+        speicher/multi remain noop stubs (Stories 3.4 / 3.5). Amendment
         2026-04-22 forbids splitting this into per-mode modules.
         """
         match mode:
             case Mode.DROSSEL:
-                return _policy_drossel_stub(device, sensor_value_w)
+                return self._policy_drossel(device, sensor_value_w)
             case Mode.SPEICHER:
                 return _policy_speicher_stub(device, sensor_value_w)
             case Mode.MULTI:
                 return _policy_multi_stub(device, sensor_value_w)
+            case _:  # pragma: no cover — exhaustiveness guard
+                assert_never(mode)
+
+    # ------------------------------------------------------------------
+    # Story 3.2 — Drossel policy: reactive WR-limit regulation for
+    # zero-export. Inputs flow in on grid_meter state_changed events;
+    # the policy produces a PolicyDecision the executor then dispatches
+    # (range / rate-limit / readback / fail-safe all already enforced).
+    # ------------------------------------------------------------------
+    def _policy_drossel(
+        self,
+        device: DeviceRecord,
+        sensor_value_w: float | None,
+    ) -> PolicyDecision | None:
+        """Compute a Drossel ``PolicyDecision`` or ``None`` to skip.
+
+        Early returns (in order):
+          1. Event on a non-grid_meter device → ``None`` (AC 7).
+          2. No numeric sensor value → ``None``.
+          3. No commissioned ``wr_limit`` device → ``None`` (AC 6).
+          4. Smoothed grid power inside the deadband → ``None`` (AC 2).
+          5. Current WR limit unknown (state-cache miss) → ``None``.
+          6. |proposed − current| below ``min_step_w`` → ``None`` (AC 2).
+
+        Shelly-3EM sign convention: positive = grid import (Bezug),
+        negative = grid export (Einspeisung). Since the new WR limit is
+        ``current + smoothed``, a negative smoothed value drives the limit
+        *down* (reduces export), a positive one lets the WR produce more
+        within the hardware range enforced by the executor.
+        """
+        if device.role != "grid_meter":
+            return None
+        # ``_extract_sensor_w`` already filters NaN/Inf on the on_sensor_update
+        # path, but ``_policy_drossel`` is also called directly from tests and
+        # (in the future) from diagnostics tooling. Guard here so a pathological
+        # float from any caller cannot slip past the deadband comparison and
+        # blow up on ``int(round(nan))`` (Story 3.2 Review P4).
+        if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            return None
+
+        wr_device = self._wr_limit_device
+        if wr_device is None:
+            return None
+
+        adapter = self._adapter_registry.get(wr_device.adapter_key)
+        if adapter is None:
+            # Unknown adapter — executor would veto anyway, but there is no
+            # point producing a decision it cannot dispatch.
+            return None
+
+        params: DrosselParams = adapter.get_drossel_params(wr_device)
+
+        grid_meter_id = device.id
+        if grid_meter_id is None:
+            return None
+
+        buf = self._drossel_buffers.get(grid_meter_id)
+        if buf is None or buf.maxlen != params.smoothing_window:
+            # maxlen mismatch only occurs when params change across restarts
+            # in the same process — rebuild defensively rather than slicing.
+            buf = deque(maxlen=params.smoothing_window)
+            self._drossel_buffers[grid_meter_id] = buf
+        buf.append(sensor_value_w)
+        smoothed = sum(buf) / len(buf)
+
+        if abs(smoothed) <= params.deadband_w:
+            return None
+
+        current = self._read_current_wr_limit_w(wr_device)
+        if current is None:
+            return None
+
+        # ``round`` instead of ``int`` — ``int(-0.9) == int(+0.9) == 0`` biases
+        # the policy asymmetrically away from the zero-export target. ``round``
+        # produces symmetric nearest-integer steps and preserves the sign
+        # (Story 3.2 Review P5).
+        proposed = current + int(round(smoothed))
+        proposed = _clamp_step(current, proposed, params.limit_step_clamp_w)
+
+        if abs(proposed - current) < params.min_step_w:
+            return None
+
+        return PolicyDecision(
+            device=wr_device,
+            target_value_w=proposed,
+            mode=Mode.DROSSEL.value,
+            command_kind="set_limit",
+            sensor_value_w=smoothed,
+        )
+
+    def _read_current_wr_limit_w(self, wr_device: DeviceRecord) -> int | None:
+        """Return the last cached WR-limit value in watts, or ``None``."""
+        entry = self._state_cache.last_states.get(wr_device.entity_id)
+        if entry is None:
+            return None
+        adapter = self._adapter_registry.get(wr_device.adapter_key)
+        if adapter is None:
+            return None
+        # Defensive isinstance check: a malformed HA payload or a StateCache
+        # refactor that stored non-dict attributes would otherwise raise
+        # AttributeError on ``.items()`` and crash the fire-and-forget
+        # dispatch task (Story 3.2 Review P10).
+        raw_attrs = entry.attributes if isinstance(entry.attributes, dict) else {}
+        attributes: dict[str, Any] = {str(k): v for k, v in raw_attrs.items()}
+        state = HaState(
+            entity_id=entry.entity_id,
+            state=entry.state,
+            attributes=attributes,
+        )
+        # A buggy adapter or a wildly corrupt state could raise out of
+        # ``parse_readback`` — swallow it here so the policy returns None
+        # and the cycle becomes a noop rather than crashing ``on_sensor_update``
+        # (Story 3.2 Review P9).
+        try:
+            return adapter.parse_readback(state)
+        except Exception:
+            _logger.exception(
+                "parse_readback_failed",
+                extra={
+                    "entity_id": wr_device.entity_id,
+                    "adapter_key": wr_device.adapter_key,
+                },
+            )
+            return None
 
     async def _record_noop_cycle(
         self,
@@ -262,19 +429,28 @@ class Controller:
         else:
             await kpi_record(row)
 
-    async def _safe_dispatch(self, decision: PolicyDecision, t0: float) -> None:
+    async def _safe_dispatch(self, decision: PolicyDecision, pipeline_ms: int) -> None:
         """Fail-safe wrapper around :func:`executor.dispatcher.dispatch`.
 
         If the HA WS client is disconnected or ``call_service`` raises, we
         write a ``vetoed`` cycle with a diagnostic reason and swallow the
         exception so the control loop stays green. ``asyncio.CancelledError``
         is NOT caught — shutdown must propagate.
+
+        Rate-limit slot accounting — intentional asymmetry (resolved 2026-04-24):
+        ``call_service`` exception → no ``mark_write`` (per AC 9b): we are
+        certain nothing was sent (e.g. WS already disconnected before the
+        send). Readback ``failed``/``timeout`` → ``mark_write`` consumes the
+        slot: the command left the loop, so the hardware may have received
+        it, and the EEPROM must be protected from an immediate retry. The
+        asymmetry is deliberate — see dispatcher.dispatch() for the
+        happy-path mark_write; the fail-safe path here never marks.
         """
         if not self._ha_ws_connected_fn():
             await self._write_failsafe_cycle(
                 decision=decision,
                 reason="fail_safe: ha_ws_disconnected",
-                t0=t0,
+                pipeline_ms=pipeline_ms,
             )
             return
 
@@ -284,6 +460,7 @@ class Controller:
             db_conn_factory=self._db_conn_factory,
             adapter_registry=self._adapter_registry,
             now_fn=self._now_fn,
+            ha_ws_connected_fn=self._ha_ws_connected_fn,
         )
         result: DispatchResult | None = None
         lock = self._lock_for(decision.device)
@@ -301,10 +478,13 @@ class Controller:
                     "error_type": type(exc).__name__,
                 },
             )
+            # reason carries only the exception type name — full trace goes
+            # to the logger above. Avoids leaking stack or PII into the
+            # diagnostics UI (cf. CLAUDE.md Security-Hygiene).
             await self._write_failsafe_cycle(
                 decision=decision,
-                reason=f"fail_safe: {type(exc).__name__}: {exc}",
-                t0=t0,
+                reason=_truncate_reason(f"fail_safe: {type(exc).__name__}"),
+                pipeline_ms=pipeline_ms,
             )
             return
 
@@ -316,7 +496,7 @@ class Controller:
         *,
         decision: PolicyDecision,
         reason: str,
-        t0: float,
+        pipeline_ms: int,
     ) -> None:
         device_id = decision.device.id
         if device_id is None:
@@ -334,25 +514,41 @@ class Controller:
             readback_actual_w=None,
             readback_mismatch=False,
             latency_ms=None,
-            cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+            cycle_duration_ms=pipeline_ms,
             reason=reason,
         )
+        persisted = False
         try:
             async with self._db_conn_factory() as conn:
                 await control_cycles.insert(conn, row)
                 await conn.commit()
+            persisted = True
         except Exception:
+            # Nested failure inside the fail-safe path — never re-raise.
+            # The original exception context is already in the caller's
+            # exception-log above; we just surface the persistence failure.
             _logger.exception(
                 "failsafe_cycle_persist_failed",
                 extra={"device_id": device_id, "reason": reason},
             )
-            return
-        await kpi_record(row)
+
+        if persisted:
+            try:
+                await kpi_record(row)
+            except Exception:
+                _logger.exception(
+                    "failsafe_kpi_record_failed",
+                    extra={"device_id": device_id},
+                )
 
     def _lock_for(self, device: DeviceRecord) -> asyncio.Lock:
         device_id = device.id
         if device_id is None:
-            return asyncio.Lock()
+            # Dead defense: _require_id in the dispatcher raises for
+            # device.id is None anyway, but returning a fresh per-call
+            # Lock() would silently provide zero mutual exclusion. Raise
+            # early so the caller can handle it.
+            raise ValueError("device.id must be set to acquire a dispatch lock")
         lock = self._device_locks.get(device_id)
         if lock is None:
             lock = asyncio.Lock()
@@ -361,16 +557,10 @@ class Controller:
 
 
 # ---------------------------------------------------------------------------
-# Per-mode policy stubs — 3.2 / 3.3 / 3.4 will replace the bodies.
+# Per-mode policy stubs — 3.4 / 3.5 will replace the bodies.
 # Kept inline per Amendment 2026-04-22 (no drossel.py / speicher.py split).
+# Story 3.2 promoted the former _policy_drossel_stub to a method on Controller.
 # ---------------------------------------------------------------------------
-
-
-def _policy_drossel_stub(
-    device: DeviceRecord, sensor_value_w: float | None
-) -> PolicyDecision | None:
-    del device, sensor_value_w
-    return None
 
 
 def _policy_speicher_stub(
@@ -387,23 +577,55 @@ def _policy_multi_stub(
     return None
 
 
+def _clamp_step(current: int, proposed: int, max_step: int) -> int:
+    """Clamp the delta between *current* and *proposed* to ±``max_step`` W.
+
+    Prevents WR shock transitions on load steps — the executor's hardware
+    range check (per-adapter) still clamps the final value.
+
+    ``max_step`` must be >= 1. A zero or negative cap would silently disable
+    the safety gate (returning ``proposed`` unclamped). ``DrosselParams``
+    enforces ``limit_step_clamp_w >= 1`` at construction time, so hitting
+    this branch means a caller bypassed that invariant (Story 3.2 Review P6).
+    """
+    if max_step < 1:
+        raise ValueError(f"max_step must be >= 1, got {max_step}")
+    delta = proposed - current
+    if delta > max_step:
+        return current + max_step
+    if delta < -max_step:
+        return current - max_step
+    return proposed
+
+
 # ---------------------------------------------------------------------------
 # HA wire-format helpers — isolated so the two event shapes (subscribe_trigger
 # vs. state_changed) don't leak into the source-attribution code path.
 # ---------------------------------------------------------------------------
 
 
+def _truncate_reason(reason: str) -> str:
+    if len(reason) <= _REASON_MAX_LEN:
+        return reason
+    return reason[: _REASON_MAX_LEN - 1] + "…"
+
+
 def _extract_new_state(event_msg: dict[str, Any]) -> dict[str, Any]:
-    event = event_msg.get("event", {})
-    # subscribe_trigger: event.variables.trigger.to_state
-    trigger = event.get("variables", {}).get("trigger", {})
-    to_state = trigger.get("to_state")
-    if isinstance(to_state, dict):
-        return to_state
+    event = event_msg.get("event")
+    if not isinstance(event, dict):
+        return {}
+    variables = event.get("variables")
+    trigger = variables.get("trigger") if isinstance(variables, dict) else None
+    if isinstance(trigger, dict):
+        to_state = trigger.get("to_state")
+        if isinstance(to_state, dict):
+            return to_state
     # state_changed: event.data.new_state
-    new_state = event.get("data", {}).get("new_state")
-    if isinstance(new_state, dict):
-        return new_state
+    data = event.get("data")
+    if isinstance(data, dict):
+        new_state = data.get("new_state")
+        if isinstance(new_state, dict):
+            return new_state
     return {}
 
 
@@ -416,11 +638,15 @@ def _extract_context(event_msg: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_entity_id(event_msg: dict[str, Any]) -> str:
-    event = event_msg.get("event", {})
-    trigger = event.get("variables", {}).get("trigger", {})
-    eid = trigger.get("entity_id")
-    if isinstance(eid, str) and eid:
-        return eid
+    event = event_msg.get("event")
+    if not isinstance(event, dict):
+        return ""
+    variables = event.get("variables")
+    trigger = variables.get("trigger") if isinstance(variables, dict) else None
+    if isinstance(trigger, dict):
+        eid = trigger.get("entity_id")
+        if isinstance(eid, str) and eid:
+            return eid
     state = _extract_new_state(event_msg)
     eid = state.get("entity_id")
     return eid if isinstance(eid, str) else ""
@@ -431,10 +657,19 @@ def _extract_sensor_w(event_msg: dict[str, Any]) -> float | None:
     raw = state.get("state")
     if raw is None:
         return None
+    # HA emits string sentinels for transient unavailability. Filter those
+    # before float() silently swallows them via ValueError.
+    if isinstance(raw, str) and raw.strip().lower() in _HA_SENSOR_SENTINELS:
+        return None
     try:
-        return float(raw)
+        value = float(raw)
     except (ValueError, TypeError):
         return None
+    if not math.isfinite(value):
+        # NaN/Inf cannot drive policy decisions meaningfully and compare
+        # as False against every bound.
+        return None
+    return value
 
 
 __all__ = [
