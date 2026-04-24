@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet; 5.1a → ready-for-dev nach Story-Scaffold)
+last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet; 5.1a → review nach Dev-Implementierung)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -94,7 +94,7 @@ development_status:
   # Epic 5: Dashboard mit Euro-Wert & Live-Visualisierung
   epic-5: backlog
   # Key geändert: Sprint Change Proposal 2026-04-24 — Story 5.1 in 5.1a (vorgezogen, Live-Betriebs-View nach Commissioning) + 5.1b (Rest-Scope: Hero + Nav + Euro-Wert) gesplittet
-  5-1a-live-betriebs-view-post-commissioning-mini-shell: ready-for-dev
+  5-1a-live-betriebs-view-post-commissioning-mini-shell: review
   5-1b-dashboard-hero-euro-wert-responsive-navigation: backlog
   5-2-bezugspreis-anpassung-inline-per-stepper: backlog
   5-3-beleg-kpis-getrennt-ausgewiesen-kwh-selbst-verbraucht-kwh-selbst-gesteuert: backlog

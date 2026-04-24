@@ -164,6 +164,11 @@ class Controller:
         if self._state_cache.test_in_progress or device.commissioned_at is None:
             return
 
+        # Mirror the active mode into the state cache exactly once per processed
+        # event so the polling endpoint (Story 5.1a) can surface the regulator
+        # mode without dipping into Controller internals.
+        self._state_cache.update_mode(self._current_mode.value)
+
         t0 = time.monotonic()
         now = self._now_fn()
 

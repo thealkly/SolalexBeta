@@ -64,8 +64,29 @@ export interface EntitySnapshot {
   timestamp: string | null;
 }
 
+export interface RecentCycle {
+  ts: string;
+  device_id: number;
+  mode: string;
+  source: string;
+  sensor_value_w: number | null;
+  target_value_w: number | null;
+  readback_status: string | null;
+  latency_ms: number | null;
+}
+
+export interface RateLimitEntry {
+  device_id: number;
+  seconds_until_next_write: number | null;
+}
+
+export type ControlMode = 'drossel' | 'speicher' | 'multi' | 'idle';
+
 export interface StateSnapshot {
   entities: EntitySnapshot[];
   test_in_progress: boolean;
   last_command_at: string | null;
+  current_mode: ControlMode;
+  recent_cycles: RecentCycle[];
+  rate_limit_status: RateLimitEntry[];
 }

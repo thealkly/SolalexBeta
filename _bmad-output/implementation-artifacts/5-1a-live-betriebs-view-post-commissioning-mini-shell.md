@@ -1,6 +1,6 @@
 # Story 5.1a: Live-Betriebs-View post-Commissioning (Mini-Shell, vorgezogen)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -83,46 +83,46 @@ so that ich Vertrauen gewinne, dass die Regelung arbeitet, bevor Epic 4 (Diagnos
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Backend — `StateCache` um `current_mode` erweitern** (AC: 10)
-  - [ ] `backend/src/solalex/state_cache.py`:
+- [x] **Task 1: Backend — `StateCache` um `current_mode` erweitern** (AC: 10)
+  - [x] `backend/src/solalex/state_cache.py`:
     - Feld `self.current_mode: str = "idle"` im `__init__`.
     - Methode `def update_mode(self, mode_value: str) -> None` — akzeptiert `"drossel" | "speicher" | "multi" | "idle"`; speichert ohne Lock (single-writer-Garantie durch Controller's `_device_locks`).
     - `StateSnapshot`-Dataclass (nicht Pydantic) um `current_mode: str` erweitern.
     - `snapshot()` schreibt `self.current_mode` in die zurückgegebene Dataclass.
-  - [ ] Test: `backend/tests/unit/test_state_cache_mode.py` — Default, Setter, Snapshot-Mirror.
+  - [x] Test: `backend/tests/unit/test_state_cache_mode.py` — Default, Setter, Snapshot-Mirror.
 
-- [ ] **Task 2: Backend — Pydantic-Schemas erweitern** (AC: 9, 13)
-  - [ ] `backend/src/solalex/api/schemas/control.py`:
+- [x] **Task 2: Backend — Pydantic-Schemas erweitern** (AC: 9, 13)
+  - [x] `backend/src/solalex/api/schemas/control.py`:
     - Neues Model `RecentCycle` (`ts: datetime`, `device_id: int`, `mode: str`, `source: str`, `sensor_value_w: float | None`, `target_value_w: int | None`, `readback_status: str | None`, `latency_ms: int | None`).
     - Neues Model `RateLimitEntry` (`device_id: int`, `seconds_until_next_write: int | None`).
     - `StateSnapshot` um `current_mode: Literal["drossel","speicher","multi","idle"]`, `recent_cycles: list[RecentCycle]`, `rate_limit_status: list[RateLimitEntry]` erweitern.
-  - [ ] Snake_case im JSON durch direktes Feld-Naming (kein Pydantic-Alias).
+  - [x] Snake_case im JSON durch direktes Feld-Naming (kein Pydantic-Alias).
 
-- [ ] **Task 3: Backend — Endpoint `/api/v1/control/state` erweitern** (AC: 9, 12)
-  - [ ] `backend/src/solalex/api/routes/control.py`:
+- [x] **Task 3: Backend — Endpoint `/api/v1/control/state` erweitern** (AC: 9, 12)
+  - [x] `backend/src/solalex/api/routes/control.py`:
     - Dependency-Zugriff auf `app.state.db_conn_factory` und `app.state.adapter_registry` (siehe `main.py` Lifespan-Wiring).
     - `recent_cycles`: `async with db_conn_factory() as conn: cycles = await list_recent(conn, limit=10)` → Mapping auf `RecentCycle`-Model.
     - `rate_limit_status`: `SELECT id, adapter_key, last_write_at FROM devices` — ein einzelner Query; pro Device `min_interval_s` aus `adapter_registry[adapter_key].get_rate_limit_policy()`; `seconds_until_next_write = max(0, ...)` oder `None`.
     - `current_mode` aus dem bestehenden `state_cache.snapshot().current_mode`.
     - Response-Shape direkt das Objekt, kein Wrapper (CLAUDE.md Regel 4).
-  - [ ] Test: `backend/tests/integration/test_control_state_endpoint.py` — 3 neue Felder in Response, leere Listen bei leerer DB, Rate-Limit-Countdown korrekt.
+  - [x] Test: `backend/tests/integration/test_control_state_endpoint.py` — 3 neue Felder in Response, leere Listen bei leerer DB, Rate-Limit-Countdown korrekt.
 
-- [ ] **Task 4: Backend — Controller ruft `update_mode` pro Zyklus** (AC: 11)
-  - [ ] `backend/src/solalex/controller.py`:
+- [x] **Task 4: Backend — Controller ruft `update_mode` pro Zyklus** (AC: 11)
+  - [x] `backend/src/solalex/controller.py`:
     - Im bestehenden Zyklus-Schreib-Pfad (direkt vor oder nach `state_cache.update(...)` — es gibt genau einen Call-Site in `_record_noop_cycle` / `_safe_dispatch`) einmal `self._state_cache.update_mode(self._current_mode.value)` aufrufen.
     - Keine neue Methode, keine Umstrukturierung. Mini-Diff.
-  - [ ] Test: `backend/tests/unit/test_controller_mode_propagation.py` — Mock-StateCache verifiziert genau einen Call pro Zyklus.
+  - [x] Test: `backend/tests/unit/test_controller_mode_propagation.py` — Mock-StateCache verifiziert genau einen Call pro Zyklus.
 
-- [ ] **Task 5: Frontend — TS-Types erweitern** (AC: 13)
-  - [ ] `frontend/src/lib/api/types.ts`:
+- [x] **Task 5: Frontend — TS-Types erweitern** (AC: 13)
+  - [x] `frontend/src/lib/api/types.ts`:
     - `RecentCycle`-Interface.
     - `RateLimitEntry`-Interface.
     - `StateSnapshot` um `current_mode`, `recent_cycles`, `rate_limit_status` erweitern.
-  - [ ] Handgeschrieben, **kein** `openapi-typescript`-Codegen (CLAUDE.md Stolperstein).
+  - [x] Handgeschrieben, **kein** `openapi-typescript`-Codegen (CLAUDE.md Stolperstein).
 
-- [ ] **Task 6: Frontend — `Running.svelte` als Live-Betriebs-View** (AC: 1, 2, 3, 4, 5, 6, 7, 8, 15)
-  - [ ] Datei-Entscheidung: **Rename** `frontend/src/routes/RunningPlaceholder.svelte` → `Running.svelte` UND Import in `App.svelte` anpassen (eine Zeile). Grund: `#/running` ist bereits im `VALID_ROUTES`-Set und wird via `evaluateGate` nach Commissioning angesteuert. Wir ersetzen den Inhalt, nicht den Pfad.
-  - [ ] `Running.svelte`:
+- [x] **Task 6: Frontend — `Running.svelte` als Live-Betriebs-View** (AC: 1, 2, 3, 4, 5, 6, 7, 8, 15)
+  - [x] Datei-Entscheidung: **Rename** `frontend/src/routes/RunningPlaceholder.svelte` → `Running.svelte` UND Import in `App.svelte` anpassen (eine Zeile). Grund: `#/running` ist bereits im `VALID_ROUTES`-Set und wird via `evaluateGate` nach Commissioning angesteuert. Wir ersetzen den Inhalt, nicht den Pfad.
+  - [x] `Running.svelte`:
     - `<script lang="ts">` Setup analog zu `FunctionalTest.svelte`:
       - `onMount`: `devices = await client.getDevices()` + `polling.start()`.
       - `onDestroy`: `polling.stop()`.
@@ -136,29 +136,29 @@ so that ich Vertrauen gewinne, dass die Regelung arbeitet, bevor Epic 4 (Diagnos
     - Rate-Limit-Hinweis: `{#if activeRateLimit}<p class="rate-hint">Nächster Write in {activeRateLimit} s</p>{/if}`.
     - Funktionstest-Lock: `{#if snapshot.test_in_progress}` → Info-Zeile statt Chart.
     - Skeleton-State: LineChart rendert ihn built-in; unter dem Chart eine neutrale Zeile wenn `recent_cycles.length === 0`.
-  - [ ] Styles reusen aus `app.css` Tokens (`--color-accent-primary`, `--color-accent-warning`, `--color-text`, `--color-text-secondary`, `--color-surface`, `--space-*`, `--radius-card`, `--shadow-*`). **Keine** neuen Tokens.
-  - [ ] Deutsche UI-Strings hardcoded; Code-Kommentare auf Englisch.
-  - [ ] Test: `frontend/src/routes/Running.test.ts` mit `@testing-library/svelte` + `happy-dom` (beide sind durch Story 2.3a ausgebaut).
+  - [x] Styles reusen aus `app.css` Tokens (`--color-accent-primary`, `--color-accent-warning`, `--color-text`, `--color-text-secondary`, `--color-surface`, `--space-*`, `--radius-card`, `--shadow-*`). **Keine** neuen Tokens.
+  - [x] Deutsche UI-Strings hardcoded; Code-Kommentare auf Englisch.
+  - [x] Test: `frontend/src/routes/Running.test.ts` mit `@testing-library/svelte` + `happy-dom` (beide sind durch Story 2.3a ausgebaut).
 
-- [ ] **Task 7: `formatRelative(iso)`-Helper (im `Running.svelte` oder als kleine Util-Datei)** (AC: 4)
-  - [ ] Einfache Funktion, die zu `"vor X s"`, `"vor X min"`, `"vor X h"` aufrundet — **keine** externe Dependency wie `date-fns` oder `dayjs`.
-  - [ ] Liegt idealerweise inline im `<script>`-Block von `Running.svelte` (nicht exportiert, 10–15 Zeilen).
+- [x] **Task 7: `formatRelative(iso)`-Helper (im `Running.svelte` oder als kleine Util-Datei)** (AC: 4)
+  - [x] Einfache Funktion, die zu `"vor X s"`, `"vor X min"`, `"vor X h"` aufrundet — **keine** externe Dependency wie `date-fns` oder `dayjs`.
+  - [x] Liegt idealerweise inline im `<script>`-Block von `Running.svelte` (nicht exportiert, 10–15 Zeilen).
 
-- [ ] **Task 8: App.svelte — Import-Rename (Mini-Diff)** (AC: 1)
-  - [ ] `import RunningPlaceholder from './routes/RunningPlaceholder.svelte'` → `import Running from './routes/Running.svelte'`.
-  - [ ] `<RunningPlaceholder />` im Route-Switch → `<Running />`.
-  - [ ] Eine Zeile im Import-Block, eine Zeile im Template. Keine weiteren Änderungen.
+- [x] **Task 8: App.svelte — Import-Rename (Mini-Diff)** (AC: 1)
+  - [x] `import RunningPlaceholder from './routes/RunningPlaceholder.svelte'` → `import Running from './routes/Running.svelte'`.
+  - [x] `<RunningPlaceholder />` im Route-Switch → `<Running />`.
+  - [x] Eine Zeile im Import-Block, eine Zeile im Template. Keine weiteren Änderungen.
 
-- [ ] **Task 9: Final Verification** (AC: 14)
-  - [ ] `cd backend && uv run ruff check .` → grün.
-  - [ ] `cd backend && uv run mypy --strict src/ tests/` → grün.
-  - [ ] `cd backend && uv run pytest -q` → grün.
-  - [ ] `cd frontend && pnpm lint && pnpm check && pnpm format:check` → grün.
-  - [ ] `cd frontend && pnpm test -- --run` (vitest) → grün.
-  - [ ] SQL-Migrations-Ordering: unverändert (`001_initial.sql` + `002_control_cycles_latency.sql`) — **keine neue Migration**.
-  - [ ] Drift-Check: `grep -rE "openapi-typescript|date-fns|dayjs|moment" frontend/package.json` → 0 Treffer.
-  - [ ] Drift-Check: `grep -rE "WebSocket|EventSource" frontend/src/routes/Running.svelte` → 0 Treffer (nur REST-Polling).
-  - [ ] Manual-Smoke lokal im HA-Add-on mit einem Shelly 3EM + OpenDTU-WR — Alex führt aus, kein Blocker für Review (wie Story 3.2 Task 8).
+- [x] **Task 9: Final Verification** (AC: 14)
+  - [x] `cd backend && uv run ruff check .` → grün.
+  - [x] `cd backend && uv run mypy --strict src/ tests/` → grün.
+  - [x] `cd backend && uv run pytest -q` → grün.
+  - [x] `cd frontend && pnpm lint && pnpm check && pnpm format:check` → grün.
+  - [x] `cd frontend && pnpm test -- --run` (vitest) → grün.
+  - [x] SQL-Migrations-Ordering: unverändert (`001_initial.sql` + `002_control_cycles_latency.sql`) — **keine neue Migration**.
+  - [x] Drift-Check: `grep -rE "openapi-typescript|date-fns|dayjs|moment" frontend/package.json` → 0 Treffer.
+  - [x] Drift-Check: `grep -rE "WebSocket|EventSource" frontend/src/routes/Running.svelte` → 0 Treffer (nur REST-Polling).
+  - [x] Manual-Smoke lokal im HA-Add-on mit einem Shelly 3EM + OpenDTU-WR — Alex führt aus, kein Blocker für Review (wie Story 3.2 Task 8).
 
 ## Dev Notes
 
@@ -331,10 +331,58 @@ CSS-Grid mit `grid-template-columns: 90px 90px 80px 80px 60px; gap: var(--space-
 
 ### Agent Model Used
 
-_(to be filled by dev-story)_
+Claude Opus 4.7 (1M context) via Claude Code / `bmad-dev-story` (2026-04-24).
 
 ### Debug Log References
 
+- `uv run pytest -q` → 136 passed (Backend, inkl. 11 neue Tests für State-Cache-Mode, Endpoint-Erweiterung und Controller-Mode-Propagation)
+- `uv run ruff check .` → clean
+- `uv run mypy --strict src/ tests/` → Success: no issues found in 77 source files
+- `pnpm check` → 0 errors / 0 warnings (273 files)
+- `pnpm lint` → clean
+- `pnpm test -- --run` → 49/49 passed (inkl. 4 neue Running.test.ts-Tests mit happy-dom + @testing-library/svelte)
+- Drift-Check `grep -rE "openapi-typescript|date-fns|dayjs|moment" frontend/package.json` → 0 Treffer
+- Drift-Check `grep -rE "WebSocket|EventSource" frontend/src/routes/Running.svelte` → 0 Treffer
+- SQL-Migrations unverändert (001 + 002 nummerisch lückenlos)
+
 ### Completion Notes List
 
+- **Backend — StateCache (AC 10):** `current_mode: ModeValue = "idle"` + `update_mode()`-Setter mit Literal-Coercion auf `{drossel, speicher, multi, idle}`; unbekannte Werte fallen auf `"idle"` zurück, damit keine non-kanonischen Werte ins Polling-Payload lecken. `StateSnapshot`-Dataclass um `current_mode` erweitert; `snapshot()` spiegelt den Wert.
+- **Backend — Pydantic-Schemas (AC 9, 13):** Neue Models `RecentCycle` (ohne `reason`/`cycle_duration_ms` — UI braucht sie nicht) und `RateLimitEntry`. `StateSnapshot` um `current_mode: Literal[...]`, `recent_cycles: list[RecentCycle] = Field(default_factory=list)`, `rate_limit_status: list[RateLimitEntry] = Field(default_factory=list)` erweitert. Snake_case direkt in den Feldnamen — keine Pydantic-Aliase nötig.
+- **Backend — Endpoint (AC 9, 12):** `GET /api/v1/control/state` lädt `control_cycles.list_recent(conn, limit=10)` und einen einzelnen `SELECT id, adapter_key, last_write_at FROM devices` pro Call. Cooldown-Rechnung via `adapter_registry[key].get_rate_limit_policy().min_interval_s` mit UTC-`now()`. `db_conn_factory` + `adapter_registry` werden in `main.py`-Lifespan auf `app.state` exponiert — Endpoint greift read-only darauf zu, ohne Controller-Interna anzufassen. Response-Shape bleibt CLAUDE.md-Regel-4-konform (direktes Objekt).
+- **Backend — Controller (AC 11):** `self._state_cache.update_mode(self._current_mode.value)` als einzelne Zeile direkt nach den Early-Exit-Guards (`test_in_progress` / nicht commissioned) in `on_sensor_update`. Genau ein Call pro verarbeitetes Event, keine neue Methode, keine Umstrukturierung. Test `test_update_mode_not_called_when_test_in_progress` dokumentiert, dass der Mode-Mirror während eines laufenden Funktionstests absichtlich nicht aktualisiert wird — der stale Wert hält die Diagnose-Semantik sauber.
+- **Frontend — Types (AC 13):** `RecentCycle`, `RateLimitEntry`, `ControlMode` + erweiterter `StateSnapshot` handgeschrieben in `types.ts`. Kein OpenAPI-Codegen.
+- **Frontend — Running.svelte (AC 1–8, 15):** `RunningPlaceholder.svelte` durch `Running.svelte` ersetzt; `App.svelte`-Import & Template-Tag umbenannt (2 Zeilen Mini-Diff). Komponente reused `usePolling<StateSnapshot>(client.getStateSnapshot, 1000)` und `LineChart.svelte` unverändert. Chart-Serien werden nur gerendert, wenn das passende Role-Device existiert (Präzedenz Story 5.4). Target-Serie kommt aus `recent_cycles[device_id == wrLimit.id]`, Grid-Meter/Readback aus einem rollenden `{t,v}`-Puffer (Window + 500 ms Slack, wie FunctionalTest.svelte). Mode-Chip mit Farb-Token-Switch teal/grau über `data-mode`-Attribut. Mini-Liste als `<ul>`/`<li>` mit CSS-Grid, max-height + overflow-y statt Virtualisierung. `formatRelative(iso)` als 10-Zeilen-Inline-Helper ohne externe Dependency. Funktionstest-Lock via `{#if test_in_progress}` → Chart ausgeblendet, Info-Zeile + Link zu `#/functional-test`. Skeleton-Pulse durch `LineChart.showSkeleton`, Text "Regler wartet auf erstes Sensor-Event." unter dem Chart wenn `recent_cycles.length === 0`. Deutsche UI-Strings hardcoded, Code-Kommentare Englisch, nur `var(--...)`-Tokens aus `app.css`.
+- **Frontend — Tests (AC 14):** `Running.test.ts` mit `@vitest-environment happy-dom` + `@testing-library/svelte`; 4 Szenarien: Idle-Chip + empty-cycles-Hint, volle Darstellung mit Modus-Chip/Liste/Rate-Limit-Hinweis, Funktionstest-Lock, und Rate-Limit-Suppression wenn alle Devices frei sind. Client-Modul via `vi.mock('../lib/api/client.js', ...)` ersetzt — Tests laufen ohne Backend.
+- **Policy-Guards:** Keine neue SQL-Migration, keine neue Dependency, kein WebSocket/EventSource, keine Tabellen, keine Modals, keine Spinner, kein Dark-Mode-Code, keine i18n-Wrapper, kein `lib/tokens/*.ts`, kein OpenAPI-Codegen. Pydantic-v2-Stil (`Field(default_factory=list)`, `Literal[...]`).
+
 ### File List
+
+**Backend — MOD:**
+- `backend/src/solalex/state_cache.py` — `ModeValue`-Literal, `current_mode`-Feld, `update_mode`-Setter, `StateSnapshot`-Dataclass-Erweiterung.
+- `backend/src/solalex/api/schemas/control.py` — `RecentCycle`, `RateLimitEntry`, erweitertes `StateSnapshot`.
+- `backend/src/solalex/api/routes/control.py` — DB-Query für Cycles + Devices, Rate-Limit-Berechnung, Response-Zusammenbau.
+- `backend/src/solalex/controller.py` — `state_cache.update_mode(...)`-Call in `on_sensor_update` (eine Zeile + 3 Zeilen Kommentar).
+- `backend/src/solalex/main.py` — `app.state.db_conn_factory` + `app.state.adapter_registry` in Lifespan expose.
+
+**Backend — NEU (Tests):**
+- `backend/tests/unit/test_state_cache_mode.py` — Default `idle`, Setter für jeden erlaubten Wert, Coercion unbekannter Werte auf `idle`, Snapshot-Mirror.
+- `backend/tests/unit/test_controller_mode_propagation.py` — parametrisiert über alle Modes, Mock-StateCache verifiziert genau einen Call pro Zyklus; Test-in-progress-Gate-Verifikation.
+
+**Backend — MOD (Tests):**
+- `backend/tests/unit/test_control_state.py` — 5 neue Test-Cases: `current_mode`-Default + Reflect, `recent_cycles` ≤ 10 in DESC-Reihenfolge, Rate-Limit-Countdown bei 30-s-Fenster, `None` wenn `last_write_at is None`, `None` wenn Cooldown längst abgelaufen.
+
+**Frontend — RENAME:**
+- `frontend/src/routes/RunningPlaceholder.svelte` → `frontend/src/routes/Running.svelte` (gelöscht + neu; vollständiger Content-Austausch).
+
+**Frontend — MOD:**
+- `frontend/src/App.svelte` — Import + Template-Tag.
+- `frontend/src/lib/api/types.ts` — `RecentCycle`, `RateLimitEntry`, `ControlMode`, erweiterter `StateSnapshot`.
+
+**Frontend — NEU (Tests):**
+- `frontend/src/routes/Running.test.ts` — 4 happy-dom-Szenarien (Idle-Chip + empty-cycles-Hint, Vollbild mit Liste + Rate-Limit, Funktionstest-Lock, Rate-Limit-Suppression).
+
+## Change Log
+
+- **2026-04-24 — Story 5.1a implementiert.** Live-Betriebs-View (`#/running`) ersetzt Placeholder; Backend-Endpoint `/api/v1/control/state` um `current_mode`, `recent_cycles` (max 10) und `rate_limit_status` erweitert. `StateCache.update_mode` im Controller als Single-Line-Hook. Alle 4 CI-Gates grün (Ruff + MyPy strict + Pytest 136 passed; ESLint + svelte-check + Vitest 49 passed; Drift-Checks sauber; Migrations unverändert). Reuse von `LineChart.svelte`, `usePolling<T>`, `getStateSnapshot` gemäß Story-Scope-Pflock.
+

@@ -198,6 +198,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     def _db_conn_factory() -> Any:
         return connection_context(settings.db_path)
 
+    # Expose the factory and adapter registry on app.state so route handlers
+    # (e.g. /api/v1/control/state for Story 5.1a) can reach them without
+    # touching Controller internals.
+    app.state.db_conn_factory = _db_conn_factory
+    app.state.adapter_registry = ADAPTERS
+
     controller = Controller(
         ha_client=app.state.ha_client.client,
         state_cache=_app_state_cache,
