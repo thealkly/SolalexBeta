@@ -79,7 +79,9 @@ async def test_rate_limit_blocks_second_write(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_happy_path_writes_cycle_and_latency(tmp_path: Path) -> None:
+async def test_happy_path_writes_cycle_and_latency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """call_service fires; readback passes; cycle + latency rows land in DB."""
     db = tmp_path / "test.db"
     device = await seeded_device(db)
@@ -98,18 +100,21 @@ async def test_happy_path_writes_cycle_and_latency(tmp_path: Path) -> None:
     ha = FakeHaClient()
 
     # Swap the hoymiles readback timing to near-zero so the test is fast.
+    # Using monkeypatch ensures automatic restore even if the test is
+    # interrupted, avoiding cross-test pollution of the shared ADAPTERS
+    # singleton.
     from solalex.adapters.base import ReadbackTiming
     hoymiles = ADAPTERS["hoymiles"]
-    original_timing = hoymiles.get_readback_timing
-    hoymiles.get_readback_timing = lambda: ReadbackTiming(timeout_s=0.01, mode="sync")  # type: ignore[method-assign]
-    try:
-        decision = PolicyDecision(
-            device=device, target_value_w=50, mode="drossel",
-            command_kind="set_limit", sensor_value_w=220.0,
-        )
-        result = await dispatch(decision, _ctx(db, ha, now, state_cache=state_cache))
-    finally:
-        hoymiles.get_readback_timing = original_timing  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        hoymiles,
+        "get_readback_timing",
+        lambda: ReadbackTiming(timeout_s=0.01, mode="sync"),
+    )
+    decision = PolicyDecision(
+        device=device, target_value_w=50, mode="drossel",
+        command_kind="set_limit", sensor_value_w=220.0,
+    )
+    result = await dispatch(decision, _ctx(db, ha, now, state_cache=state_cache))
 
     assert result.status == "passed"
     assert len(ha.calls) == 1

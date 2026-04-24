@@ -40,7 +40,15 @@ jobs:
         run: uv run mypy .
 
       - name: Pytest
-        run: uv run pytest -q
+        run: |
+          uv run pytest -q \
+            --cov=solalex.controller \
+            --cov=solalex.executor.dispatcher \
+            --cov=solalex.executor.rate_limiter \
+            --cov=solalex.persistence.repositories.control_cycles \
+            --cov=solalex.persistence.repositories.latency \
+            --cov-report=term-missing \
+            --cov-fail-under=90
 
   frontend:
     name: frontend — eslint / svelte-check / build

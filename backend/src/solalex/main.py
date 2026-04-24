@@ -20,7 +20,7 @@ import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +97,10 @@ async def _dispatch_event(msg: dict[str, Any]) -> None:
                 timestamp = _parse_ts(new_state.get("last_updated"))
 
         if not entity_id:
+            _logger.warning(
+                "dispatch_event_missing_entity_id",
+                extra={"msg_type": msg.get("type")},
+            )
             return
 
         await _app_state_cache.update(
@@ -119,16 +123,31 @@ async def _dispatch_event(msg: dict[str, Any]) -> None:
             return
         await controller.on_sensor_update(msg, device)
     except Exception:
-        _logger.exception("dispatch_event_error", extra={"msg_type": msg.get("type")})
+        _logger.exception(
+            "dispatch_event_error",
+            extra={
+                "msg_type": msg.get("type"),
+                "entity_id": locals().get("entity_id"),
+            },
+        )
 
 
 def _parse_ts(raw: Any) -> datetime | None:
+    """Parse an HA ISO-8601 timestamp into a tz-aware UTC datetime.
+
+    HA usually sends timestamps with explicit UTC offset, but buggy
+    integrations occasionally ship naive values — treat those as UTC so
+    downstream tz-aware comparisons never blow up.
+    """
     if raw is None:
         return None
     try:
-        return datetime.fromisoformat(str(raw))
+        parsed = datetime.fromisoformat(str(raw))
     except ValueError:
         return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
 
 
 @asynccontextmanager
@@ -202,6 +221,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # Cancel/await controller dispatch tasks BEFORE closing the HA
+        # client so in-flight readback waits don't fire call_service into
+        # a torn-down session.
+        await controller.aclose()
         await app.state.ha_client.close()
         if ha_client_task is not None:
             ha_client_task.cancel()

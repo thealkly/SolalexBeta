@@ -15,11 +15,11 @@ from tests.unit._controller_helpers import FakeHaClient, make_db_factory
 
 
 @pytest.mark.asyncio
-async def test_noop_provider_returns_none() -> None:
+async def test_noop_provider_returns_none(tmp_path: Path) -> None:
     controller = Controller(
         ha_client=cast(HaWebSocketClient, FakeHaClient()),
         state_cache=StateCache(),
-        db_conn_factory=make_db_factory(Path("/tmp/solalex_noop_test.db")),
+        db_conn_factory=make_db_factory(tmp_path / "solalex_noop_test.db"),
         adapter_registry=ADAPTERS,
         ha_ws_connected_fn=lambda: False,
     )
@@ -38,12 +38,12 @@ class _FixedProvider(SetpointProvider):
 
 
 @pytest.mark.asyncio
-async def test_custom_provider_injected() -> None:
+async def test_custom_provider_injected(tmp_path: Path) -> None:
     custom = _FixedProvider(777)
     controller = Controller(
         ha_client=cast(HaWebSocketClient, FakeHaClient()),
         state_cache=StateCache(),
-        db_conn_factory=make_db_factory(Path("/tmp/solalex_noop_test.db")),
+        db_conn_factory=make_db_factory(tmp_path / "solalex_custom_test.db"),
         adapter_registry=ADAPTERS,
         ha_ws_connected_fn=lambda: False,
         setpoint_provider=custom,

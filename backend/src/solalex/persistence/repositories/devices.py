@@ -136,7 +136,11 @@ async def mark_all_commissioned(
     """
     if ts is None:
         ts = datetime.now(tz=UTC)
-    ts_str = ts.isoformat()
+    # Align with the SQL-generated ``updated_at`` format (``...Z`` suffix)
+    # so the column stores one consistent ISO-8601 shape.  Python's
+    # ``.isoformat()`` produces ``+00:00`` for UTC, which parses fine but
+    # looks different to downstream string-based tooling.
+    ts_str = ts.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     async with conn.execute(
         "UPDATE devices SET commissioned_at = ? WHERE commissioned_at IS NULL",
         (ts_str,),

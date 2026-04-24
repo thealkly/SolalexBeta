@@ -13,12 +13,13 @@ every branch returns ``None`` (noop).
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, assert_never
 
 import aiosqlite
 
@@ -41,6 +42,16 @@ _logger = get_logger(__name__)
 # Window within which a HA event on a device entity is attributed to Solalex
 # rather than to an external actor (manual / ha_automation).
 _SOLALEX_WINDOW_S: float = 2.0
+
+# HA sentinel values that the sensor emits when the entity is transiently
+# unreachable. Treat them as "no reading" rather than trying to coerce.
+_HA_SENSOR_SENTINELS: frozenset[str] = frozenset(
+    {"unavailable", "unknown", "none", ""}
+)
+
+# Cap the reason column so exception payloads with stack-like text or PII
+# cannot bloat the diagnostics UI.
+_REASON_MAX_LEN: int = 200
 
 Source = Literal["solalex", "manual", "ha_automation"]
 
@@ -150,6 +161,13 @@ class Controller:
 
         decision = self._dispatch_by_mode(self._current_mode, device, sensor_value)
 
+        # cycle_duration_ms reflects the *synchronous* pipeline only
+        # (event-in → dispatch task spawn). The adapter readback wait runs
+        # in the fire-and-forget task below and is reported separately via
+        # latency_measurements.latency_ms. AC 1's ≤ 1 s budget applies to
+        # this synchronous segment.
+        pipeline_ms = int((time.monotonic() - t0) * 1000)
+
         if decision is None:
             if source != "solalex":
                 await self._record_noop_cycle(
@@ -157,7 +175,7 @@ class Controller:
                     source=source,
                     sensor_value_w=sensor_value,
                     now=now,
-                    cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+                    cycle_duration_ms=pipeline_ms,
                 )
             return
 
@@ -166,12 +184,25 @@ class Controller:
         # caught by the fail-safe wrapper surface through the completed
         # task; unhandled ones are logged via the task's default handler.
         task = asyncio.create_task(
-            self._safe_dispatch(decision, t0),
+            self._safe_dispatch(decision, pipeline_ms),
             name=f"controller_dispatch_{device.id}",
         )
         # Prevent "Task was destroyed but it is pending" at shutdown by keeping
         # a reference. Tasks self-remove via their done callback.
         self._track_task(task)
+
+    async def aclose(self) -> None:
+        """Cancel and await pending dispatch tasks — called by FastAPI lifespan shutdown.
+
+        Without this hook, in-flight readback waits produce
+        "Task was destroyed but it is pending" warnings at shutdown and
+        half-committed cycles can land after the DB factory is torn down.
+        """
+        pending = list(self._dispatch_tasks)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     # ------------------------------------------------------------------
     # Internals
@@ -221,6 +252,8 @@ class Controller:
                 return _policy_speicher_stub(device, sensor_value_w)
             case Mode.MULTI:
                 return _policy_multi_stub(device, sensor_value_w)
+            case _:  # pragma: no cover — exhaustiveness guard
+                assert_never(mode)
 
     async def _record_noop_cycle(
         self,
@@ -262,19 +295,28 @@ class Controller:
         else:
             await kpi_record(row)
 
-    async def _safe_dispatch(self, decision: PolicyDecision, t0: float) -> None:
+    async def _safe_dispatch(self, decision: PolicyDecision, pipeline_ms: int) -> None:
         """Fail-safe wrapper around :func:`executor.dispatcher.dispatch`.
 
         If the HA WS client is disconnected or ``call_service`` raises, we
         write a ``vetoed`` cycle with a diagnostic reason and swallow the
         exception so the control loop stays green. ``asyncio.CancelledError``
         is NOT caught — shutdown must propagate.
+
+        Rate-limit slot accounting — intentional asymmetry (resolved 2026-04-24):
+        ``call_service`` exception → no ``mark_write`` (per AC 9b): we are
+        certain nothing was sent (e.g. WS already disconnected before the
+        send). Readback ``failed``/``timeout`` → ``mark_write`` consumes the
+        slot: the command left the loop, so the hardware may have received
+        it, and the EEPROM must be protected from an immediate retry. The
+        asymmetry is deliberate — see dispatcher.dispatch() for the
+        happy-path mark_write; the fail-safe path here never marks.
         """
         if not self._ha_ws_connected_fn():
             await self._write_failsafe_cycle(
                 decision=decision,
                 reason="fail_safe: ha_ws_disconnected",
-                t0=t0,
+                pipeline_ms=pipeline_ms,
             )
             return
 
@@ -284,6 +326,7 @@ class Controller:
             db_conn_factory=self._db_conn_factory,
             adapter_registry=self._adapter_registry,
             now_fn=self._now_fn,
+            ha_ws_connected_fn=self._ha_ws_connected_fn,
         )
         result: DispatchResult | None = None
         lock = self._lock_for(decision.device)
@@ -301,10 +344,13 @@ class Controller:
                     "error_type": type(exc).__name__,
                 },
             )
+            # reason carries only the exception type name — full trace goes
+            # to the logger above. Avoids leaking stack or PII into the
+            # diagnostics UI (cf. CLAUDE.md Security-Hygiene).
             await self._write_failsafe_cycle(
                 decision=decision,
-                reason=f"fail_safe: {type(exc).__name__}: {exc}",
-                t0=t0,
+                reason=_truncate_reason(f"fail_safe: {type(exc).__name__}"),
+                pipeline_ms=pipeline_ms,
             )
             return
 
@@ -316,7 +362,7 @@ class Controller:
         *,
         decision: PolicyDecision,
         reason: str,
-        t0: float,
+        pipeline_ms: int,
     ) -> None:
         device_id = decision.device.id
         if device_id is None:
@@ -334,25 +380,41 @@ class Controller:
             readback_actual_w=None,
             readback_mismatch=False,
             latency_ms=None,
-            cycle_duration_ms=int((time.monotonic() - t0) * 1000),
+            cycle_duration_ms=pipeline_ms,
             reason=reason,
         )
+        persisted = False
         try:
             async with self._db_conn_factory() as conn:
                 await control_cycles.insert(conn, row)
                 await conn.commit()
+            persisted = True
         except Exception:
+            # Nested failure inside the fail-safe path — never re-raise.
+            # The original exception context is already in the caller's
+            # exception-log above; we just surface the persistence failure.
             _logger.exception(
                 "failsafe_cycle_persist_failed",
                 extra={"device_id": device_id, "reason": reason},
             )
-            return
-        await kpi_record(row)
+
+        if persisted:
+            try:
+                await kpi_record(row)
+            except Exception:
+                _logger.exception(
+                    "failsafe_kpi_record_failed",
+                    extra={"device_id": device_id},
+                )
 
     def _lock_for(self, device: DeviceRecord) -> asyncio.Lock:
         device_id = device.id
         if device_id is None:
-            return asyncio.Lock()
+            # Dead defense: _require_id in the dispatcher raises for
+            # device.id is None anyway, but returning a fresh per-call
+            # Lock() would silently provide zero mutual exclusion. Raise
+            # early so the caller can handle it.
+            raise ValueError("device.id must be set to acquire a dispatch lock")
         lock = self._device_locks.get(device_id)
         if lock is None:
             lock = asyncio.Lock()
@@ -393,17 +455,28 @@ def _policy_multi_stub(
 # ---------------------------------------------------------------------------
 
 
+def _truncate_reason(reason: str) -> str:
+    if len(reason) <= _REASON_MAX_LEN:
+        return reason
+    return reason[: _REASON_MAX_LEN - 1] + "…"
+
+
 def _extract_new_state(event_msg: dict[str, Any]) -> dict[str, Any]:
-    event = event_msg.get("event", {})
-    # subscribe_trigger: event.variables.trigger.to_state
-    trigger = event.get("variables", {}).get("trigger", {})
-    to_state = trigger.get("to_state")
-    if isinstance(to_state, dict):
-        return to_state
+    event = event_msg.get("event")
+    if not isinstance(event, dict):
+        return {}
+    variables = event.get("variables")
+    trigger = variables.get("trigger") if isinstance(variables, dict) else None
+    if isinstance(trigger, dict):
+        to_state = trigger.get("to_state")
+        if isinstance(to_state, dict):
+            return to_state
     # state_changed: event.data.new_state
-    new_state = event.get("data", {}).get("new_state")
-    if isinstance(new_state, dict):
-        return new_state
+    data = event.get("data")
+    if isinstance(data, dict):
+        new_state = data.get("new_state")
+        if isinstance(new_state, dict):
+            return new_state
     return {}
 
 
@@ -416,11 +489,15 @@ def _extract_context(event_msg: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_entity_id(event_msg: dict[str, Any]) -> str:
-    event = event_msg.get("event", {})
-    trigger = event.get("variables", {}).get("trigger", {})
-    eid = trigger.get("entity_id")
-    if isinstance(eid, str) and eid:
-        return eid
+    event = event_msg.get("event")
+    if not isinstance(event, dict):
+        return ""
+    variables = event.get("variables")
+    trigger = variables.get("trigger") if isinstance(variables, dict) else None
+    if isinstance(trigger, dict):
+        eid = trigger.get("entity_id")
+        if isinstance(eid, str) and eid:
+            return eid
     state = _extract_new_state(event_msg)
     eid = state.get("entity_id")
     return eid if isinstance(eid, str) else ""
@@ -431,10 +508,19 @@ def _extract_sensor_w(event_msg: dict[str, Any]) -> float | None:
     raw = state.get("state")
     if raw is None:
         return None
+    # HA emits string sentinels for transient unavailability. Filter those
+    # before float() silently swallows them via ValueError.
+    if isinstance(raw, str) and raw.strip().lower() in _HA_SENSOR_SENTINELS:
+        return None
     try:
-        return float(raw)
+        value = float(raw)
     except (ValueError, TypeError):
         return None
+    if not math.isfinite(value):
+        # NaN/Inf cannot drive policy decisions meaningfully and compare
+        # as False against every bound.
+        return None
+    return value
 
 
 __all__ = [
