@@ -6,9 +6,6 @@
     <p class="eyebrow">Solalex</p>
     <h1>Solalex läuft</h1>
     <p class="running-hint">Dashboard folgt mit Epic 5.</p>
-    <div class="running-links">
-      <a href="#/config" class="config-link">Konfiguration ändern</a>
-    </div>
   </section>
 </main>
 
@@ -41,31 +38,6 @@
 
   .running-hint {
     color: var(--color-text-secondary);
-    margin: 0 0 var(--space-3) 0;
-  }
-
-  .running-links {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .config-link {
-    display: inline-flex;
-    align-items: center;
-    height: 36px;
-    padding: 0 16px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
-    transition: color 120ms ease, border-color 120ms ease;
-  }
-
-  .config-link:hover {
-    color: var(--color-text);
-    border-color: color-mix(in srgb, var(--color-text) 40%, transparent);
+    margin: 0;
   }
 </style>
