@@ -83,13 +83,144 @@ def test_control_state_reflects_cache(app_client: tuple[TestClient, Any]) -> Non
 
 
 def test_control_state_current_mode_reflects_state_cache(
-    app_client: tuple[TestClient, Any],
+    app_client: tuple[TestClient, Any], tmp_data_dir: Path
 ) -> None:
+    import asyncio
+
     client, app = app_client
+    db_path = tmp_data_dir / "solalex.db"
     app.state.state_cache.update_mode("drossel")
+
+    # Post-P8 the StateCache mirror only advances alongside a persisted
+    # cycle, so the endpoint's idle-override treats an empty `control_cycles`
+    # table as "regulator went quiet" — seed a fresh cycle so the heartbeat
+    # stays inside the window.
+    async def _seed() -> None:
+        async with connection_context(db_path) as conn:
+            await upsert_device(
+                conn,
+                DeviceRecord(
+                    id=None,
+                    type="hoymiles",
+                    role="wr_limit",
+                    entity_id="number.opendtu_limit_nonpersistent_absolute",
+                    adapter_key="hoymiles",
+                ),
+            )
+            async with conn.execute(
+                "SELECT id FROM devices WHERE entity_id = ?",
+                ("number.opendtu_limit_nonpersistent_absolute",),
+            ) as cur:
+                row = await cur.fetchone()
+            assert row is not None
+            await insert_cycle(
+                conn,
+                ControlCycleRow(
+                    id=None,
+                    ts=datetime.now(tz=UTC),
+                    device_id=int(row[0]),
+                    mode="drossel",
+                    source="solalex",
+                    sensor_value_w=None,
+                    target_value_w=100,
+                    readback_status="passed",
+                    readback_actual_w=None,
+                    readback_mismatch=False,
+                    latency_ms=50,
+                    cycle_duration_ms=5,
+                    reason=None,
+                ),
+            )
+            await conn.commit()
+
+    asyncio.run(_seed())
+
     resp = client.get("/api/v1/control/state")
     assert resp.status_code == 200
     assert resp.json()["current_mode"] == "drossel"
+
+
+def test_control_state_idle_override_when_heartbeat_stale(
+    app_client: tuple[TestClient, Any], tmp_data_dir: Path
+) -> None:
+    """P10: endpoint overrides cache-mode to ``idle`` when no fresh cycle exists.
+
+    The Controller's ``Mode`` enum has no ``idle`` value, so after the first
+    event the StateCache mirror is stuck on the last active mode. The
+    endpoint uses ``recent_cycles[0].ts`` as a heartbeat signal with a 15 s
+    grace window and overrides the chip to ``idle`` when the regulator has
+    gone quiet (e.g. HA disconnect, sensor stall).
+    """
+    import asyncio
+
+    client, app = app_client
+    db_path = tmp_data_dir / "solalex.db"
+    app.state.state_cache.update_mode("drossel")
+
+    # Seed a 20 s old cycle — past the 15 s heartbeat window.
+    stale_ts = datetime.now(tz=UTC) - timedelta(seconds=20)
+
+    async def _seed() -> None:
+        async with connection_context(db_path) as conn:
+            await upsert_device(
+                conn,
+                DeviceRecord(
+                    id=None,
+                    type="hoymiles",
+                    role="wr_limit",
+                    entity_id="number.opendtu_limit_nonpersistent_absolute",
+                    adapter_key="hoymiles",
+                ),
+            )
+            async with conn.execute(
+                "SELECT id FROM devices WHERE entity_id = ?",
+                ("number.opendtu_limit_nonpersistent_absolute",),
+            ) as cur:
+                row = await cur.fetchone()
+            assert row is not None
+            await insert_cycle(
+                conn,
+                ControlCycleRow(
+                    id=None,
+                    ts=stale_ts,
+                    device_id=int(row[0]),
+                    mode="drossel",
+                    source="solalex",
+                    sensor_value_w=None,
+                    target_value_w=100,
+                    readback_status="passed",
+                    readback_actual_w=None,
+                    readback_mismatch=False,
+                    latency_ms=50,
+                    cycle_duration_ms=5,
+                    reason=None,
+                ),
+            )
+            await conn.commit()
+
+    asyncio.run(_seed())
+
+    resp = client.get("/api/v1/control/state")
+    assert resp.status_code == 200
+    assert resp.json()["current_mode"] == "idle"
+
+
+def test_control_state_idle_override_when_no_cycles(
+    app_client: tuple[TestClient, Any],
+) -> None:
+    """P10: empty ``control_cycles`` table means no heartbeat → idle.
+
+    Covers the post-commissioning / pre-first-event window where the UI
+    must show ``Idle`` rather than whatever the cache last saw.
+    """
+    client, app = app_client
+    # Even if somebody set the cache-mode directly (diagnostics, test
+    # fixture), the heartbeat rule wins — no cycles = no heartbeat = idle.
+    app.state.state_cache.update_mode("drossel")
+
+    resp = client.get("/api/v1/control/state")
+    assert resp.status_code == 200
+    assert resp.json()["current_mode"] == "idle"
 
 
 def test_control_state_recent_cycles_returns_last_ten(
