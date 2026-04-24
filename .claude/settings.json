@@ -29,7 +29,9 @@
       "Bash(git -C /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment show --stat a94c0f8)",
       "Bash(grep -nE 'i18n|\\\\$t\\\\\\(|spinner|modal|tooltip' /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/src/routes/PreSetupDisclaimer.svelte /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/src/routes/PreSetupDisclaimer.test.ts)",
       "Bash(git diff *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm uninstall *)"
     ],
     "additionalDirectories": [
       "/tmp",

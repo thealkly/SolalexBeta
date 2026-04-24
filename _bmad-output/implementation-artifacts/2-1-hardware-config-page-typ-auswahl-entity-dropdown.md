@@ -1,6 +1,6 @@
 # Story 2.1: Hardware Config Page — Typ-Auswahl + Entity-Dropdown
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -568,6 +568,7 @@ Claude Opus 4.7 (1M context) — claude-opus-4-7[1m]
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 2.1 erstellt und auf `ready-for-dev` gesetzt. Deckt Persistence-Foundation + Adapter-Module + Hardware Config Page als kombinierten Foundation-Sprung für Epic 2. | Claude Opus 4.7 |
 | 2026-04-23 | 1.0.0 | Implementierung abgeschlossen: Persistence-Foundation (aiosqlite WAL, Migrations, Repositories), Adapter-Registry (Hoymiles, Marstek Venus, Shelly 3EM), HA `get_states`, Setup- und Devices-API-Routen, RFC-7807-Middleware, Frontend-API-Layer (client.ts, types.ts, errors.ts), Config.svelte mit Hardware-Typ-Kacheln + Entity-Dropdowns + Akku-Feldern + Speichern + Weiterleitung. Alle CI-Gates grün. Story auf `review` gesetzt. | Claude Opus 4.7 (1M context) |
+| 2026-04-24 | 1.1.0 | Status-Cleanup: Story auf `done` gesetzt. Review vom 2026-04-23 war vollständig abgearbeitet (19 Patches applied, 2 Decisions resolved, 7 Defers ohne Handlungsbedarf), aber Status wurde nicht aus `in-progress` gezogen. Die 4 `Skipped-in-Batch`-Items (`_app_state_cache` Double-Init, `_dispatch_event`-Exception-Schlucker, Hoymiles-POST-Marstek-Feld-Schlucker, `test_get_entities_returns_three_categories`-Happy-Path-Lücke) sind in `deferred-work.md` verschoben. `_app_state_cache` war bereits via 2-2-Review-Defer erfasst. | Claude Opus 4.7 (1M context) |
 
 ## Review Findings
 

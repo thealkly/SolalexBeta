@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-24 (Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
+# last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup: Review vom 2026-04-23 war vollständig abgearbeitet, aber Status nicht auf done gezogen — 4 Skipped-in-Batch-Items in deferred-work.md verschoben; Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet)
+last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -59,7 +59,8 @@ development_status:
   # Epic 2: Setup-Wizard & Hardware-Onboarding
   epic-2: in-progress
   # Key aktualisiert: Amendment 2026-04-23 — Config-Page statt 4-Schritt-Wizard
-  2-1-hardware-config-page-typ-auswahl-entity-dropdown: in-progress
+  # Status-Cleanup 2026-04-24: Review war am 2026-04-23 vollständig abgearbeitet (19 Patches + 2 Decisions); 4 Skipped-in-Batch-Items sind in deferred-work.md
+  2-1-hardware-config-page-typ-auswahl-entity-dropdown: done
   # Key aktualisiert: Amendment 2026-04-23 — Funktionstest + Commissioning kombiniert
   2-2-funktionstest-mit-readback-commissioning: done
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
