@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import aiosqlite
 from fastapi import APIRouter, Request
@@ -27,6 +27,8 @@ from solalex.api.schemas.control import (
 )
 from solalex.common.logging import get_logger
 from solalex.persistence.repositories import control_cycles
+
+ModeValue = Literal["drossel", "speicher", "multi", "idle"]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -112,7 +114,7 @@ async def get_control_state(request: Request) -> StateSnapshot:
         ]
 
     current_mode = _resolve_current_mode(
-        cache_mode=snap.current_mode,
+        cache_mode=cast(ModeValue, snap.current_mode),
         recent_cycles=recent_cycles,
         now=datetime.now(tz=UTC),
     )
@@ -129,10 +131,10 @@ async def get_control_state(request: Request) -> StateSnapshot:
 
 def _resolve_current_mode(
     *,
-    cache_mode: str,
+    cache_mode: ModeValue,
     recent_cycles: list[RecentCycle],
     now: datetime,
-) -> str:
+) -> ModeValue:
     """Override ``cache_mode`` to ``idle`` when the regulator has gone quiet.
 
     The Controller's ``Mode`` enum has no ``idle`` value, so the StateCache
