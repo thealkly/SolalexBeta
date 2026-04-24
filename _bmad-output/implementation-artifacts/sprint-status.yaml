@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-23 (Epic-1-Retro durchgeführt → epic-1 done, epic-1-retrospective done; Story 3.1 → ready-for-dev)
+# last_updated: 2026-04-24 (Story 3.2 → ready-for-dev)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-23 (Story 3.1 → ready-for-dev; Epic 3 startet)
+last_updated: 2026-04-24 (Story 3.2 → ready-for-dev)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -59,7 +59,7 @@ development_status:
   # Epic 2: Setup-Wizard & Hardware-Onboarding
   epic-2: in-progress
   # Key aktualisiert: Amendment 2026-04-23 — Config-Page statt 4-Schritt-Wizard
-  2-1-hardware-config-page-typ-auswahl-entity-dropdown: review
+  2-1-hardware-config-page-typ-auswahl-entity-dropdown: in-progress
   # Key aktualisiert: Amendment 2026-04-23 — Funktionstest + Commissioning kombiniert
   2-2-funktionstest-mit-readback-commissioning: review
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
@@ -69,8 +69,8 @@ development_status:
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
   epic-3: in-progress
   # Key aktualisiert: Amendment 2026-04-22 — Mono-Modul + persistenter Rate-Limiter explizit
-  3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: ready-for-dev
-  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: backlog
+  3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: review
+  3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: ready-for-dev
   3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
   3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
   3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog

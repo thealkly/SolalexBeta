@@ -76,6 +76,23 @@ Das Skript:
 - pusht danach `HEAD` in den Ziel-Branch im Repo `thealkly/SolalexBeta`
 - pusht abschließend den Tag `v<version>` in dasselbe Repo
 
+### One-Command-Beta-Release
+
+Wenn Du kuenftig alles mit einem Befehl fahren willst (Version setzen,
+alle aktuellen Aenderungen committen, taggen, publishen):
+
+- `scripts/release_beta_one_command.sh 0.1.0-beta.3`
+
+Optional:
+- `scripts/release_beta_one_command.sh 0.1.0-beta.3 "feat: story 3.1 beta release" main`
+
+Verhalten:
+- setzt `addon/config.yaml` auf die uebergebene Version
+- fuehrt `git add -A` + Commit aus
+- erstellt den Tag `v<version>`
+- ruft `publish_release_to_solalexbeta.sh` auf `main` auf
+- faellt bei Non-Fast-Forward automatisch auf `sync/v<version>` zurueck
+
 Wichtig fuer Home Assistant Pulls:
 - Das Add-on nutzt GHCR-Images `ghcr.io/thealkly/solalexbeta-{arch}`.
 - Stelle in GitHub sicher, dass die Packages `solalexbeta-amd64` und

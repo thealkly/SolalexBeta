@@ -57,7 +57,7 @@ class HoymilesAdapter(AdapterBase):
 
     def parse_readback(self, state: HaState) -> int | None:
         try:
-            return int(float(state.state))
+            return round(float(state.state))
         except (ValueError, TypeError):
             return None
 
@@ -66,6 +66,14 @@ class HoymilesAdapter(AdapterBase):
 
     def get_readback_timing(self) -> ReadbackTiming:
         return ReadbackTiming(timeout_s=15.0, mode="sync")
+
+    def get_limit_range(self, device: DeviceRecord) -> tuple[int, int]:
+        # OpenDTU accepts non-persistent absolute limit from 2 W upward; the
+        # upper bound matches an HM-1500 micro-inverter. TODO(3.2): tighten
+        # from device.config (per-model rated power) once the Drossel story
+        # collects real hardware limits.
+        del device
+        return (2, 1500)
 
 
 ADAPTER = HoymilesAdapter()

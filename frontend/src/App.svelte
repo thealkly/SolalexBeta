@@ -111,7 +111,7 @@
         <p class="eyebrow">Solalex</p>
         <h1>Willkommen bei Solalex</h1>
         <p class="intro">
-          Du bist startklar. Richte jetzt in wenigen Schritten deinen Setup-Wizard ein und starte mit lokaler
+          Du bist startklar. Richte jetzt in wenigen Schritten dein Setup ein und starte mit lokaler
           Energie-Steuerung.
         </p>
       </header>

@@ -1,6 +1,6 @@
 # Story 2.1: Hardware Config Page — Typ-Auswahl + Entity-Dropdown
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -568,3 +568,55 @@ Claude Opus 4.7 (1M context) — claude-opus-4-7[1m]
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 2.1 erstellt und auf `ready-for-dev` gesetzt. Deckt Persistence-Foundation + Adapter-Module + Hardware Config Page als kombinierten Foundation-Sprung für Epic 2. | Claude Opus 4.7 |
 | 2026-04-23 | 1.0.0 | Implementierung abgeschlossen: Persistence-Foundation (aiosqlite WAL, Migrations, Repositories), Adapter-Registry (Hoymiles, Marstek Venus, Shelly 3EM), HA `get_states`, Setup- und Devices-API-Routen, RFC-7807-Middleware, Frontend-API-Layer (client.ts, types.ts, errors.ts), Config.svelte mit Hardware-Typ-Kacheln + Entity-Dropdowns + Akku-Feldern + Speichern + Weiterleitung. Alle CI-Gates grün. Story auf `review` gesetzt. | Claude Opus 4.7 (1M context) |
+
+## Review Findings
+
+Code-Review am 2026-04-23 über 3 parallele Layer (Blind Hunter, Edge Case Hunter, Acceptance Auditor). Spec-Konformität für alle 12 ACs bestätigt; keine CLAUDE.md-Hard-Rule-Verletzungen. Findings nach Triage:
+
+### Decision-Needed (0 offen, 2 resolved)
+
+- [x] [Review][Decision-Resolved] **SoC-Band-Validator widerspricht Field-Bounds** → **Option (a) Feld-Bounds verengen.** Entscheidung 2026-04-23 durch Alex: `min_soc ∈ [5, 40]`, `max_soc ∈ [51, 100]`. Validator bleibt (`max_soc > min_soc + 10`) und wird durch die verengten Bounds automatisch nie mehr verletzt. → wird als Patch umgesetzt (siehe P22).
+- [x] [Review][Decision-Resolved] **Re-Save-Semantik bei bereits commissioned-ten Devices** → **Option (a) commissioned_at preservieren.** Entscheidung 2026-04-23 durch Alex: Bei `(entity_id, role)`-Match wird das bestehende `commissioned_at` übernommen; nur wirklich neue Entities sind frisch (uncommissioned). Mischzustand wird akzeptiert. → wird als Patch umgesetzt (siehe P23). [backend/src/solalex/api/routes/devices.py:606-609]
+
+### Patch (23: 19 fixed, 4 skipped in batch — see below)
+
+**Batch-Apply 2026-04-23**: Alle nicht-kontroversen Patches angewandt, 4 judgement-heavy Findings bewusst ausgelassen (P5, P11, P15, P21). Alle vier CI-Gates danach grün: ruff clean, mypy strict 45 files no issues, pytest 94 passed, svelte-check 0 errors, ESLint clean, vitest 21 passed.
+
+- [x] [Review][Patch] **POST /devices: delete_all + upsert-Loop nicht atomar + kein `busy_timeout`** — gefixt via neuer `replace_all(conn, rows)` in `repositories/devices.py` (BEGIN IMMEDIATE + COALESCE-basierte Preserve-Logik in `ON CONFLICT`; einzelner Commit mit Rollback-on-Exception). `PRAGMA busy_timeout=5000` in `db.py` ergänzt. [backend/src/solalex/api/routes/devices.py, backend/src/solalex/persistence/db.py, backend/src/solalex/persistence/repositories/devices.py]
+- [x] [Review][Patch] **`_to_response` nutzt `__import__("datetime").datetime.utcnow()`-Fallback** — gefixt: `from datetime import UTC, datetime` + `datetime.now(tz=UTC)` im Fallback-Pfad. [backend/src/solalex/api/routes/devices.py]
+- [x] [Review][Patch] **Migration `executescript` ohne Transaktion + Version aus Enumerate-Index statt Datei-Prefix** — teilweise gefixt: Version jetzt aus `NNN_`-Prefix geparst (neue Helper-Funktion `_parse_prefix`), nicht mehr aus `enumerate`-Index. `executescript`-Transaktionssemantik ist durch SQLite-Library vorgegeben (auto-commit vor Scriptstart) und als Kommentar dokumentiert — Forward-Guard: Multi-Statement-Atomicity muss im SQL-File selbst via `BEGIN;...COMMIT;` sichergestellt werden. [backend/src/solalex/persistence/migrate.py]
+- [x] [Review][Patch] **Migration: keine Duplikat-Prefix-Erkennung und keine `schema_version > len(files)`-Guard** — gefixt: `_check_contiguous` erkennt nun Duplikate, `run()` wirft `RuntimeError` wenn `schema_version` in der DB höher ist als der höchste Migration-File-Prefix. [backend/src/solalex/persistence/migrate.py]
+- [ ] [Review][Patch][Skipped-in-Batch] **`_app_state_cache` wird im Module-Scope UND im Lifespan neu instanziert** — übersprungen im Batch: Refactor des Lifespans ist nicht-trivial und riskiert Regression in StateCache-Konsumenten. Bleibt als Action-Item für Story 3.1 (Controller-Integration packt das Lifespan-State-Handling ohnehin neu an). [backend/src/solalex/main.py:1150, 1170-1171]
+- [x] [Review][Patch] **`parse_readback` macht `int(float(...))`, trunciert statt zu runden** — gefixt: `round(float(state.state))` in beiden Adaptern. [backend/src/solalex/adapters/hoymiles.py, backend/src/solalex/adapters/marstek_venus.py]
+- [x] [Review][Patch] **`GET /setup/entities`: `wr_limit`-Filter akzeptiert leere `unit_of_measurement`** — gefixt: leerer String aus dem Tuple entfernt, Filter akzeptiert jetzt nur noch `("W", "kW", "%")`. [backend/src/solalex/api/routes/setup.py:699]
+- [x] [Review][Patch] **`GET /setup/entities`: SoC-Bucket classifiziert jeden `sensor.*` mit `%` als SoC** — gefixt: zusätzliche Bedingung `device_class == "battery" OR "soc" in eid OR "battery" in eid`. Filtert Humidity/CPU-Load/Brightness raus. [backend/src/solalex/api/routes/setup.py:703]
+- [x] [Review][Patch] **Race: HA-Drop zwischen `ha_ws_connected`-Check und `get_states`-Call → 500 statt 503** — gefixt: zusätzlicher `except (RuntimeError, ConnectionError, OSError)` im Handler; liefert 503 mit deutscher RFC-7807-Meldung. [backend/src/solalex/api/routes/setup.py:56-74]
+- [x] [Review][Patch] **`GET /setup/entities` mit leerer `raw_states`-Liste liefert drei leere Dropdowns ohne Hinweis** — gefixt im Frontend: `Config.svelte` zeigt Error-Block „HA hat keine passenden Entities geliefert" wenn alle drei Listen leer sind. [frontend/src/routes/Config.svelte]
+- [ ] [Review][Patch][Skipped-in-Batch] **`_dispatch_event` schluckt alle Exceptions** — übersprungen im Batch: Narrow-Scope braucht Wissen um die konkreten Exception-Klassen, die HA-Wire-Format-Parsing werfen kann. Als Action-Item für Story 3.1 — dort wird `_dispatch_event` ohnehin erweitert (Controller-Hook) und die Exception-Semantik neu durchdacht. [backend/src/solalex/main.py:1135-1136]
+- [x] [Review][Patch] **`night_start`/`night_end`-Regex akzeptiert `99:99`** — gefixt: `pattern=r"^([01]\d|2[0-3]):[0-5]\d$"` bounded Stunde und Minute. [backend/src/solalex/api/schemas/devices.py:20-21]
+- [x] [Review][Patch] **Marstek-Validator erlaubt `night_start == night_end` (leeres Entlade-Fenster)** — gefixt: `model_validator` prüft bei `night_discharge_enabled=True` auf leeres Fenster. [backend/src/solalex/api/schemas/devices.py:validate_soc_range]
+- [x] [Review][Patch] **Marstek-Validator erlaubt `battery_soc_entity_id == wr_limit_entity_id`** — gefixt: `model_validator` lehnt identische Entity-IDs mit deutscher Meldung ab. [backend/src/solalex/api/schemas/devices.py:validate_soc_range]
+- [ ] [Review][Patch][Skipped-in-Batch] **Hoymiles-POST-Pfad schluckt Marstek-Felder still** — übersprungen im Batch: saubere Lösung erfordert Pydantic-Sentinel-Pattern (Felder als `Annotated[int | _Unset]`) — nicht-trivial und niedriges Risiko, weil Default-Werte korrekt bleiben. Bleibt als Action-Item; Warn-Log ist die pragmatische Minimalvariante für Follow-up. [backend/src/solalex/api/schemas/devices.py, backend/src/solalex/api/routes/devices.py]
+- [x] [Review][Patch] **`client.ts`: `fetch()`-Netzwerkfehler werden nicht als `ApiError` gekapselt** — gefixt: `try/catch` um `fetch(...)` wirft jetzt `ApiError(0, "urn:solalex:network-error", "Verbindungsfehler", ...)` mit deutscher Handlungsempfehlung. [frontend/src/lib/api/client.ts]
+- [x] [Review][Patch] **`Config.svelte`: `useSmartMeter=true` mit leerem Dropdown verwirft still** — gefixt: `canSave` zusätzlich blockiert wenn `useSmartMeter && !gridMeterEntityId`; Hint-Zeile erwähnt fehlendes Smart-Meter-Feld. [frontend/src/routes/Config.svelte]
+- [x] [Review][Patch] **`DeviceResponse` fehlt `last_write_at`-Feld** — gefixt: Feld in `DeviceResponse` ergänzt + `_to_response` mappt `record.last_write_at`. [backend/src/solalex/api/schemas/devices.py, backend/src/solalex/api/routes/devices.py]
+- [x] [Review][Patch] **`HaWebSocketClient.get_states` prüft `result` nicht als Liste** — gefixt: expliziter `isinstance(raw, list)`-Check, None wird zu `[]`, Non-List wirft `RuntimeError` mit Shape-Info. [backend/src/solalex/ha_client/client.py]
+- [x] [Review][Patch] **`App.svelte` Empty-State-Prosa erwähnt weiter „Setup-Wizard"** — gefixt: „Richte jetzt in wenigen Schritten dein Setup ein". [frontend/src/App.svelte:114]
+- [ ] [Review][Patch][Skipped-in-Batch] **Test `test_get_entities_returns_three_categories` testet NICHT den Happy-Path** — übersprungen im Batch: substanzieller Test-Refactor mit Dependency-Injection-Fixture. Bleibt als Action-Item — Happy-Path-Coverage für `/api/v1/setup/entities` ist Test-Debt, aber kein Prod-Risiko. [backend/tests/integration/test_setup_entities.py:1777-1810]
+- [x] [Review][Patch] **P22 (aus D1): SoC-Feld-Bounds verengen** — gefixt: `min_soc=Field(15, ge=5, le=40)`, `max_soc=Field(95, ge=51, le=100)` + Frontend-Stepper `min="5" max="40"` / `min="51" max="100"`. [backend/src/solalex/api/schemas/devices.py, frontend/src/routes/Config.svelte]
+- [x] [Review][Patch] **P23 (aus D2): Re-Save preserviert `commissioned_at` bei `(entity_id, role)`-Match** — gefixt: neue `replace_all(conn, records)` in `repositories/devices.py` (siehe P1). Nicht mehr in der neuen Config-Liste enthaltene `(entity_id, role)`-Paare werden gelöscht; enthaltene Paare werden via `ON CONFLICT DO UPDATE` aktualisiert — `commissioned_at` bleibt durch Abwesenheit im SET-Clause automatisch erhalten. Alles in einer Transaktion mit `BEGIN IMMEDIATE` + `rollback` bei Exception. [backend/src/solalex/persistence/repositories/devices.py]
+
+### Defer (7)
+
+- [x] [Review][Defer] **Shelly `_POWER_PATTERN` overmatched Hoymiles `ac_power`-Sensoren** [backend/src/solalex/adapters/shelly_3em.py:344] — deferred, `detect()` wird in v1 nicht aus UI aufgerufen (AC8-Sub-And). Fix in v1.5 zusammen mit Auto-Detection.
+- [x] [Review][Defer] **Marstek `_SOC_PATTERN` regex-Logik zweideutig** [backend/src/solalex/adapters/marstek_venus.py:259] — deferred, identische Begründung wie Shelly; detect() v1-ungenutzt.
+- [x] [Review][Defer] **`entity_role_map` ist Startup-Snapshot ohne Refresh nach `POST /devices`** [backend/src/solalex/main.py:1163-1172] — deferred, Controller-/Event-Dispatch-Konzept gehört zu Story 3.1 Core-Controller. Für 2.1 ohne Controller-Pfad folgenlos.
+- [x] [Review][Defer] **`upsert_device` gibt `0` auf UPDATE-Pfad zurück — Contract-Lüge** [backend/src/solalex/persistence/repositories/devices.py:1407-1422] — deferred, aktueller Caller nutzt Return-Wert nicht; Cleanup wenn weitere Caller dazukommen.
+- [x] [Review][Defer] **`GET /setup/entities` ohne Pagination/Dedupe bei großen HA-Instanzen** [backend/src/solalex/api/routes/setup.py:692-704] — deferred, >500 Entities-Fall nicht in NFR; Beta-Nutzer unwahrscheinlich betroffen. Scale-Nachzug wenn Beta-Feedback es verlangt.
+- [x] [Review][Defer] **Scope-Creep aus Bundle-Commit: `POST /setup/test` + `POST /setup/commission` in diesem Diff** [backend/src/solalex/api/routes/setup.py:713-851] — deferred, gehört zu Story 2.2 (Funktionstest) und 2.3 (Commissioning). Eigene Findings (Lock-TOCTOU-Race, `devices[0]`-Fallback auf Non-WR, Exception-Leak in 500-Detail, `count if count > 0 else len(devices)`-Idempotency-Lüge, `mark_all_commissioned`-ISO-Format-Inkonsistenz) werden dort bewertet.
+- [x] [Review][Defer] **Scope-Creep aus Bundle-Commit: `App.svelte` hat `/running`+`/disclaimer`-Routes + `getDevices`-Autoforward** [frontend/src/App.svelte:30, 2299-2313] — deferred, gehört zu Story 2.3 (Disclaimer) und späterem Running-Screen. Findings (stale `currentRoute`-Read, Ping-Interval-Signal-Check) werden dort bewertet.
+
+### Dismissed (~20)
+
+Rauschen / False-Positives / Nits: `id=record.id or 0`-Fallback, `_test_lock` lazy init (in 2.2-Scope), Python-3.10-`Z`-Suffix (Projekt ist 3.13), `_POWER_PATTERN` dead-code in marstek_venus, `parse_readback` TypeError-dead-branch, no-solo-index-on-entity_id (Composite hat es als Leading-Col), SoC-Band-Upper-Bound (Field-Clamps decken), `get_entities`-no-dedup (3 disjoint Buckets), Timestamp-Format-`Z`-vs-`+00:00` (kosmetisch), Test-patches-private-`_url`, ApiError-prototype-fix (TS-Target ES2020+), `res.json()`-on-empty-body (kein Caller in 2.1), `_parse_ts` swallowing (akzeptables Robustheits-Verhalten), Mock-Server-`contextlib.suppress`, App.svelte-Avatar-Import, `test_resave`-ohne-Crash-Test, `wr_limit_entity_id`-Feldname-für-Marstek-Charge (semantisch OK), main.py-Version-Bump, `_check_contiguous`-forever-start-at-1.
+

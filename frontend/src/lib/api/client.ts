@@ -12,7 +12,20 @@ import type {
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, init);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, init);
+  } catch (err) {
+    // Network-level failure (offline, DNS, CORS, aborted). Wrap so callers
+    // can handle it uniformly via isApiError instead of a raw TypeError.
+    const message = err instanceof Error ? err.message : String(err);
+    throw new ApiError(
+      0,
+      'urn:solalex:network-error',
+      'Verbindungsfehler',
+      `Backend nicht erreichbar: ${message}. Prüfe die HA-Verbindung und lade die Seite neu.`,
+    );
+  }
   if (!res.ok) {
     let type = 'urn:solalex:error';
     let title = 'Fehler';

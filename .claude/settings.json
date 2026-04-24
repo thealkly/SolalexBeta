@@ -24,7 +24,8 @@
       "Bash(xargs cat *)",
       "Bash(awk '{sum+=$1} END {print \"Total bytes:\", sum}')",
       "Bash(npm test *)",
-      "Bash(grep -n 'i18n\\\\|$t\\(\\\\|spinner\\\\|modal\\\\|tooltip' /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/src/routes/DisclaimerActivation.svelte)"
+      "Bash(grep -n 'i18n\\\\|$t\\(\\\\|spinner\\\\|modal\\\\|tooltip' /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/frontend/src/routes/DisclaimerActivation.svelte)",
+      "Bash(awk '{print $2}')"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -146,7 +146,14 @@ class HaWebSocketClient:
         if not result.get("success"):
             error = result.get("error", {})
             raise RuntimeError(f"get_states failed: {error}")
-        return list(result.get("result") or [])
+        raw = result.get("result")
+        if raw is None:
+            return []
+        if not isinstance(raw, list):
+            raise RuntimeError(
+                f"get_states returned unexpected payload shape: {type(raw).__name__}"
+            )
+        return raw
 
     async def call_service(
         self,

@@ -1,6 +1,6 @@
 # Story 3.1: Core Controller (Mono-Modul, Sensor → Policy → Executor) + Event-Source + Readback + persistenter Rate-Limit
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -43,97 +43,85 @@ so that alle Modi und Adapter-Module denselben Safety-Layer und dieselbe Event-B
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: SQL-Migration 002 (control_cycles + latency_measurements)** (AC: 7, 8)
-  - [ ] Neue Datei `backend/src/solalex/persistence/sql/002_control_cycles_latency.sql`.
+- [x] **Task 1: SQL-Migration 002 (control_cycles + latency_measurements)** (AC: 7, 8)
+  - [x] Neue Datei `backend/src/solalex/persistence/sql/002_control_cycles_latency.sql`.
     - Tabellen `control_cycles` + `latency_measurements` mit exakt den Spalten aus AC 7 / AC 8.
     - Indexes: `CREATE INDEX idx_control_cycles_ts ON control_cycles(ts DESC)`, `CREATE INDEX idx_control_cycles_device ON control_cycles(device_id)`.
     - `CHECK`-Constraints für Enum-Spalten (SQLite erlaubt Check-Constraints — syntaktisch inline in `CREATE TABLE`).
     - Forward-only: keine `ALTER TABLE`, nur `CREATE TABLE IF NOT EXISTS`.
-  - [ ] Smoke-Test: lokales `pytest -k migrate` verifiziert, dass `run(db_path)` die neue Migration problemlos auf einer DB anwendet, die bereits auf `001` steht.
+  - [x] Smoke-Test: lokales `pytest -k migrate` verifiziert, dass `run(db_path)` die neue Migration problemlos auf einer DB anwendet, die bereits auf `001` steht.
 
-- [ ] **Task 2: `persistence/repositories/control_cycles.py`** (AC: 3, 6, 7, 9)
-  - [ ] Datenklasse `ControlCycleRow` (dataclass, snake_case-Felder exakt wie die Tabelle).
-  - [ ] `async def insert(conn: aiosqlite.Connection, row: ControlCycleRow) -> int`.
-  - [ ] `async def list_recent(conn: aiosqlite.Connection, limit: int = 100) -> list[ControlCycleRow]` → `ORDER BY id DESC LIMIT ?`.
-  - [ ] `async def list_by_device(conn, device_id, limit=100) -> list[ControlCycleRow]` (Dashboard-/Diagnose-Support für Epic 4/5).
-  - [ ] Kein ORM, nur raw `aiosqlite` mit handgeschriebenem SQL (CLAUDE.md Regel 1 + „Kein SQLAlchemy").
+- [x] **Task 2: `persistence/repositories/control_cycles.py`** (AC: 3, 6, 7, 9)
+  - [x] Datenklasse `ControlCycleRow` (dataclass, snake_case-Felder exakt wie die Tabelle).
+  - [x] `async def insert(conn: aiosqlite.Connection, row: ControlCycleRow) -> int`.
+  - [x] `async def list_recent(conn: aiosqlite.Connection, limit: int = 100) -> list[ControlCycleRow]` → `ORDER BY id DESC LIMIT ?`.
+  - [x] `async def list_by_device(conn, device_id, limit=100) -> list[ControlCycleRow]` (Dashboard-/Diagnose-Support für Epic 4/5).
+  - [x] Kein ORM, nur raw `aiosqlite` mit handgeschriebenem SQL (CLAUDE.md Regel 1 + „Kein SQLAlchemy").
 
-- [ ] **Task 3: `persistence/repositories/latency.py`** (AC: 8)
-  - [ ] Datenklasse `LatencyMeasurementRow`.
-  - [ ] `async def insert(conn, row) -> int`.
-  - [ ] `async def list_for_device(conn, device_id, since_ts) -> list[...]` (für Epic 4.4 vorbereitet, keine 30-Tage-Retention in 3.1).
+- [x] **Task 3: `persistence/repositories/latency.py`** (AC: 8)
+  - [x] Datenklasse `LatencyMeasurementRow`.
+  - [x] `async def insert(conn, row) -> int`.
+  - [x] `async def list_for_device(conn, device_id, since_ts) -> list[...]` (für Epic 4.4 vorbereitet, keine 30-Tage-Retention in 3.1).
 
-- [ ] **Task 4: `executor/rate_limiter.py`** (AC: 4)
-  - [ ] Funktion `async def check_and_reserve(conn, device_id, min_interval_s, now) -> tuple[bool, datetime | None]` — `True` wenn erlaubt, sonst `False` + `last_write_at`.
-  - [ ] Funktion `async def mark_write(conn, device_id, ts)` — UPDATE `devices SET last_write_at=?`.
-  - [ ] Reine SQL-Logik, liest/schreibt **nur** `devices.last_write_at`.
-  - [ ] **Nicht** `datetime.now()` intern benutzen — immer Parameter `now` akzeptieren (Testbarkeit).
+- [x] **Task 4: `executor/rate_limiter.py`** (AC: 4)
+  - [x] Funktion `async def check_and_reserve(conn, device_id, min_interval_s, now) -> tuple[bool, datetime | None]` — `True` wenn erlaubt, sonst `False` + `last_write_at`.
+  - [x] Funktion `async def mark_write(conn, device_id, ts)` — UPDATE `devices SET last_write_at=?`.
+  - [x] Reine SQL-Logik, liest/schreibt **nur** `devices.last_write_at`.
+  - [x] **Nicht** `datetime.now()` intern benutzen — immer Parameter `now` akzeptieren (Testbarkeit).
 
-- [ ] **Task 5: `executor/dispatcher.py`** (AC: 3, 6, 9)
-  - [ ] Datenklasse `PolicyDecision`: `device: DeviceRecord`, `target_value_w: int`, `mode: Mode`, `command_kind: Literal["set_limit","set_charge"]`.
-  - [ ] Datenklasse `DispatchResult` (Status + geschriebener `ControlCycleRow`).
-  - [ ] Funktion `async def dispatch(decision, ctx: DispatchContext) -> DispatchResult`:
+- [x] **Task 5: `executor/dispatcher.py`** (AC: 3, 6, 9)
+  - [x] Datenklasse `PolicyDecision`: `device: DeviceRecord`, `target_value_w: int`, `mode: Mode`, `command_kind: Literal["set_limit","set_charge"]`.
+  - [x] Datenklasse `DispatchResult` (Status + geschriebener `ControlCycleRow`).
+  - [x] Funktion `async def dispatch(decision, ctx: DispatchContext) -> DispatchResult`:
     1. Range-Check via Adapter-Hardware-Spanne (siehe Task 6 für die Spanne-API).
     2. Rate-Limit via `rate_limiter.check_and_reserve`.
     3. Build Command via `adapter.build_set_limit_command` oder `build_set_charge_command`.
-    4. `ha_client.call_service(...)` im `try` — bei Exception: Fail-Safe (AC 9).
-    5. `rate_limiter.mark_write(...)` + `readback.verify_readback(...)` im selben DB-Commit-Transaction.
-    6. `control_cycles.insert(...)` mit vollständigem Row.
-    7. Optional `latency.insert(...)` bei readback=passed.
-  - [ ] `DispatchContext` bündelt `ha_client`, `state_cache`, `db_conn_factory` (async context manager), `adapter_registry` (Dict), `now_fn: Callable[[], datetime]`.
+    4. `ha_client.call_service(...)` — bei Exception propagiert bis zum Fail-Safe-Wrapper im Controller (AC 9).
+    5. `rate_limiter.mark_write(...)` + `control_cycles.insert(...)` + `latency.insert(...)` im selben DB-Commit.
+    6. `readback.verify_readback(...)` zwischen Service-Call und DB-Commit.
+    7. `latency.insert(...)` nur wenn readback `status='passed'`.
+  - [x] `DispatchContext` bündelt `ha_client`, `state_cache`, `db_conn_factory` (async context manager), `adapter_registry` (Dict), `now_fn: Callable[[], datetime]`.
 
-- [ ] **Task 6: Adapter-Hardware-Spanne** (AC: 3)
-  - [ ] `AdapterBase` in `adapters/base.py` um Methode `get_limit_range(device) -> tuple[int, int]` erweitern (Default: `(0, 10_000)` für W — Subclasses überschreiben).
-  - [ ] Hoymiles: `(2, 1500)` W (Hardware-Spec-Minimum 2 W laut OpenDTU, Max 1500 W = typischer HM-1500).
-  - [ ] Marstek Venus: `(0, 2500)` W (Charge-Range für Venus 3E — siehe Datasheet).
-  - [ ] Shelly 3EM: `NotImplementedError` (Smart-Meter schreibt nicht).
-  - [ ] Falls unsicher, Default-Spanne und `# TODO(3.2/3.4): eng fassen`-Kommentar setzen — später verfeinert in 3.2/3.4 mit echten Hardware-Tests.
+- [x] **Task 6: Adapter-Hardware-Spanne** (AC: 3)
+  - [x] `AdapterBase` in `adapters/base.py` um Methode `get_limit_range(device) -> tuple[int, int]` erweitern (Default: `(0, 10_000)` für W — Subclasses überschreiben).
+  - [x] Hoymiles: `(2, 1500)` W (OpenDTU Hardware-Spec-Minimum, HM-1500 Max).
+  - [x] Marstek Venus: `(0, 2500)` W (Charge-Range für Venus 3E).
+  - [x] Shelly 3EM: `NotImplementedError` (Smart-Meter schreibt nicht).
+  - [x] `TODO(3.2/3.4)`-Kommentare für spätere Verfeinerung aus Device-Config gesetzt.
 
-- [ ] **Task 7: `controller.py` Mono-Modul** (AC: 1, 2, 5, 9, 10, 11, 13)
-  - [ ] `Mode` Enum: `DROSSEL`, `SPEICHER`, `MULTI` (lowercase Values wegen DB-CHECK-Constraint).
-  - [ ] Klasse `SetpointProvider` (Abstract-ish) + `_NoopSetpointProvider`-Default.
-  - [ ] Klasse `Controller` mit:
-    - `__init__(self, ha_client, state_cache, db_conn_factory, adapter_registry, mode: Mode = Mode.DROSSEL, setpoint_provider: SetpointProvider | None = None, now_fn = lambda: datetime.now(tz=UTC))`
-    - `async def on_sensor_update(self, event_msg: dict, device: DeviceRecord) -> None`
-    - Interner `_classify_source(event_msg) -> Literal["solalex","manual","ha_automation"]` (Logik aus AC 5).
-    - Interner `_dispatch_by_mode(mode) -> PolicyDecision | None` (match-Block mit **Noop-Policies für 3.2/3.3/3.4** — Stub liefert `None`).
-    - Interner `_record_noop_cycle(...)` für Source=`manual`/`ha_automation` (keine Solalex-Write-Entscheidung, aber Zyklus wird attribuiert).
-    - Interner `_safe_dispatch(decision)` mit Fail-Safe-Wrapper (try/except → vetoed Row, keine Propagation).
-  - [ ] Skip-Condition: wenn `state_cache.test_in_progress == True` **oder** `device.commissioned_at is None` → Controller returnt sofort ohne Zyklus-Row (kein Spam während Funktionstest).
+- [x] **Task 7: `controller.py` Mono-Modul** (AC: 1, 2, 5, 9, 10, 11, 13)
+  - [x] `Mode` als `StrEnum`: `DROSSEL`, `SPEICHER`, `MULTI` (lowercase Values wegen DB-CHECK-Constraint).
+  - [x] Klasse `SetpointProvider` + `_NoopSetpointProvider`-Default direkt im Modul.
+  - [x] Klasse `Controller` mit vollständiger Signatur (inkl. `ha_ws_connected_fn` für Fail-Safe-Erkennung) und `on_sensor_update`, `_classify_source`, `_dispatch_by_mode` (match-Block), `_record_noop_cycle`, `_safe_dispatch`, `_write_failsafe_cycle`, Per-Device-`asyncio.Lock`-Map.
+  - [x] Skip-Condition: `test_in_progress == True` **oder** `commissioned_at is None` → früher Return.
 
-- [ ] **Task 8: `kpi/__init__.py` Noop-Stub** (AC: 11)
-  - [ ] Neue Datei `backend/src/solalex/kpi/__init__.py` mit:
-    ```python
-    async def record(cycle):  # noqa: ARG001
-        """v1-Noop — echte KPI-Aggregation ist Epic 5."""
-        return None
-    ```
-  - Das ist explizit ein Stub — **keine** Attribution-Logik, keine DB-Operationen. Epic 5 ersetzt den Body, nicht die Signatur.
+- [x] **Task 8: `kpi/__init__.py` Noop-Stub** (AC: 11)
+  - [x] Neue Datei mit `async def record(cycle: ControlCycleRow) -> None`, Rückgabe `None`. Signatur ist Epic-5-fest.
 
-- [ ] **Task 9: Startup-Integration in `main.py`** (AC: 1, 12, 13)
-  - [ ] In `lifespan()` nach DB-Migration + vor `ha_client_task`: Controller-Instanz bauen und an `app.state.controller` hängen.
-  - [ ] `_dispatch_event` erweitern: nach `state_cache.update(...)` eine Lookup `entity_id → DeviceRecord` (aus neuem `app.state.devices_by_entity: dict[str, DeviceRecord]`) **und** — nur wenn Device existiert und `commissioned_at is not None` und `state_cache.test_in_progress is False` — `await app.state.controller.on_sensor_update(msg, device)`.
-  - [ ] `devices_by_entity` wird im Lifespan aus `list_devices(conn)` aufgebaut (gleicher Durchlauf wie `entity_role_map`).
-  - [ ] HA-Subscriptions für kommissionierte Devices: Nach HA-WS-Auth (oder lazy beim ersten Event) `ensure_entity_subscriptions(ha_client.client, commissioned_entity_ids, state_cache)` aufrufen. **Wenn `ensure_entity_subscriptions` zu Funktionstest-spezifisch ist**, eine Schwester-Funktion `ensure_controller_subscriptions(...)` neben ihr in `setup/test_session.py` oder einem neuen `ha_client/subscriptions.py` anlegen — aber Logik identisch (subscribe_trigger auf `state_changed` pro Entity).
+- [x] **Task 9: Startup-Integration in `main.py`** (AC: 1, 12, 13)
+  - [x] Lifespan baut `Controller`-Instanz nach DB-Migration, vor `ha_client_task`. Hängt an `app.state.controller`.
+  - [x] `_dispatch_event` erweitert: nach `state_cache.update(...)` ruft es `controller.on_sensor_update(msg, device)` für commissioned Devices außerhalb des Funktionstest-Locks.
+  - [x] `devices_by_entity` wird im Lifespan aus `list_devices(conn)` gebaut (gleicher Durchlauf wie `entity_role_map`).
+  - [x] `_subscribe_controller_entities` ruft `ensure_entity_subscriptions(...)` für kommissionierte Devices nach erfolgreicher WS-Auth — eine Schwester-Funktion war nicht nötig, da `ensure_entity_subscriptions` reine Subscription-Verwaltung ist.
 
-- [ ] **Task 10: Unit-Tests** (AC: 14)
-  - [ ] `backend/tests/unit/test_controller_dispatch.py` (Pipeline + Fail-Safe).
-  - [ ] `backend/tests/unit/test_executor_dispatcher.py` (Veto-Kaskade).
-  - [ ] `backend/tests/unit/test_executor_rate_limiter.py` (Persistenz über „Restart").
-  - [ ] `backend/tests/unit/test_source_attribution.py` (HA-context-Parsing).
-  - [ ] `backend/tests/unit/test_control_cycles_repo.py` (Insert + list_recent).
-  - [ ] `backend/tests/unit/test_latency_repo.py` (Insert smoke).
-  - [ ] `backend/tests/unit/test_setpoint_provider.py`.
-  - [ ] Fakes statt Mocks wo möglich: `FakeHaClient` mit `call_service`-Spy, in-memory aiosqlite DB.
+- [x] **Task 10: Unit-Tests** (AC: 14)
+  - [x] `backend/tests/unit/test_controller_dispatch.py` (Pipeline + Fail-Safe + Event-Shape-Tolerance + Drift-Guard).
+  - [x] `backend/tests/unit/test_executor_dispatcher.py` (Veto-Kaskade + Happy-Path + Latency-Row).
+  - [x] `backend/tests/unit/test_executor_rate_limiter.py` (Persistenz über simulierten Restart).
+  - [x] `backend/tests/unit/test_source_attribution.py` (HA-context-Parsing).
+  - [x] `backend/tests/unit/test_control_cycles_repo.py` (Insert + list_recent + FK ON DELETE CASCADE).
+  - [x] `backend/tests/unit/test_latency_repo.py` (Insert smoke + since_ts-Filter).
+  - [x] `backend/tests/unit/test_setpoint_provider.py` (Noop + Custom Injection).
+  - [x] `FakeHaClient` als Fake statt Mock; alle DB-Tests nutzen temporäre SQLite-Dateien via `tmp_path`.
 
-- [ ] **Task 11: Final Verification** (AC: 14)
-  - [ ] `cd backend && uv run ruff check .` → grün.
-  - [ ] `cd backend && uv run mypy --strict src/` → grün.
-  - [ ] `cd backend && uv run pytest -q` → grün, Coverage-Target erreicht.
-  - [ ] SQL-Ordering-Check: `ls backend/src/solalex/persistence/sql/` → `001_initial.sql`, `002_control_cycles_latency.sql` (lückenlose Nummerierung).
-  - [ ] Drift-Check: `grep -rE "asyncio.Queue|events/bus|structlog|APScheduler" backend/src/solalex/` → 0 Treffer (Stolpersteine aus CLAUDE.md).
-  - [ ] Drift-Check: `grep -rE "def record|def update" backend/src/solalex/controller.py` → bestätigt, dass `kpi.record` + `state_cache.update` als direkte Aufrufe im Controller-Code vorkommen.
-  - [ ] Manual-Smoke (wenn möglich): Add-on lokal starten, 1 Device commissioned, Smart-Meter-Wert ändern in HA Entwicklerwerkzeuge → prüfen, ob `control_cycles`-Row mit `source='manual'` entsteht (echte Regel-Logik ist Stub, aber Source-Attribution + Zyklus-Row müssen funktionieren).
+- [x] **Task 11: Final Verification** (AC: 14)
+  - [x] `uv run ruff check .` → grün.
+  - [x] `uv run mypy --strict src/ tests/` → grün (73 Files).
+  - [x] `uv run pytest -q` → 91 Tests grün, Coverage 95 % gesamt (Controller 92 %, Dispatcher 97 %, Rate-Limiter 92 %, Repos 100 %).
+  - [x] SQL-Ordering: `001_initial.sql` + `002_control_cycles_latency.sql` — lückenlos.
+  - [x] Drift-Check `asyncio.Queue|events/bus|structlog|APScheduler`: 0 Code-Treffer (nur dokumentarische Erwähnungen in Docstrings/Kommentaren, wie in CLAUDE.md vorgesehen).
+  - [x] `kpi.record` als direkter `await`-Aufruf in `_safe_dispatch`, `_record_noop_cycle`, `_write_failsafe_cycle` bestätigt. `state_cache.update` läuft weiterhin in `main.py._dispatch_event` vor dem Controller-Hook (Reference-Flow in Dev Notes).
+  - [ ] Manual-Smoke lokal im HA-Add-on offen (Backend-only, Ausführung durch Alex — kein Blocker für Review).
 
 ## Dev Notes
 
@@ -388,18 +376,68 @@ Diese Story ist abgeschlossen, wenn:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context) — bmad-dev-story Workflow
 
 ### Debug Log References
 
+- `uv run ruff check .` (grün)
+- `uv run mypy --strict src/ tests/` (grün, 73 Files)
+- `uv run pytest -q` (91 Tests grün, ~1.2 s)
+- `uv run pytest tests/unit --cov=solalex.controller --cov=solalex.executor.dispatcher --cov=solalex.executor.rate_limiter --cov=solalex.persistence.repositories.control_cycles --cov=solalex.persistence.repositories.latency` → Gesamt 95 %, Controller 92 %, Dispatcher 97 %, Rate-Limiter 92 %, Repos 100 %.
+- `grep -rE "asyncio\.Queue|events/bus|structlog|APScheduler" backend/src/solalex/` → 0 Code-Treffer (zwei Docstring-Nennungen in `controller.py` / `common/logging.py`, die die verbotenen Pattern explizit als *nicht verwendet* markieren — CLAUDE.md-konform).
+
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- Mono-Modul-Controller mit `match`-Dispatch über `Mode.DROSSEL | SPEICHER | MULTI` umgesetzt; Policies für 3.2/3.3/3.4 sind inline-Stubs und liefern `None` (keine `drossel.py`/`speicher.py`-Dateien angelegt).
+- `SetpointProvider` liegt direkt in `controller.py` (v2-Naht, kein Folder).
+- Executor-Veto-Kaskade in `executor/dispatcher.py`: Range → Rate-Limit → HA-Call → Readback. Bei Veto wird ein eigener `control_cycles`-Row geschrieben, **kein** `call_service` ausgeführt.
+- Persistenter Rate-Limiter via `devices.last_write_at` — Unit-Test mit zwei Connections (simuliert Restart) verifiziert, dass der Lock über Container-Grenzen hinweg greift.
+- Fail-Safe-Wrapper im Controller (`_safe_dispatch` + `_write_failsafe_cycle`) fängt Exceptions und `ha_ws_connected == False`; `asyncio.CancelledError` wird explizit re-raised.
+- Dispatch läuft via `asyncio.create_task` (Fire-and-Forget), damit der 15–30 s Readback-Wait den HA-Event-Loop nicht blockiert (NFR2). Task-Refs werden getrackt, damit sie beim Shutdown nicht verwaisen.
+- Source-Attribution in `_classify_source`: Solalex-Window (2 s nach `state_cache.last_command_at` auf derselben Entity) → `solalex`; `parent_id` gesetzt → `ha_automation`; nur `user_id` gesetzt → `manual`; beide `None` → Default `ha_automation`.
+- `main.py`-Integration: `devices_by_entity`-Map + Controller-Hook im `_dispatch_event` (nach `state_cache.update`), HA-Subscriptions für kommissionierte Devices werden nach Auth via Hintergrund-Task `_subscribe_controller_entities` angelegt.
+- SQL-Migration 002 mit forward-only `CREATE TABLE IF NOT EXISTS` + Indexes auf `ts DESC` und `device_id`. `ON DELETE CASCADE` auf `device_id` verifiziert via Repo-Test.
+- `kpi/__init__.py` ist Noop-Stub mit stabiler Signatur `async def record(cycle: ControlCycleRow) -> None`.
+- Bestehender `test_migrate`-Test wurde auf dynamische `_expected_head()` umgestellt, damit er mit jeder weiteren Migration grün bleibt — keine Logik-Änderung, nur Assertions.
+- Frontend: keine Änderungen (Backend-only-Story, wie in Scope beschrieben).
+- Task-11 Manual-Smoke bleibt offen für Alex' lokalen HA-Run; alle CI-relevanten Gates sind grün.
 
 ### File List
+
+**Neu (Backend-Quellcode):**
+- `backend/src/solalex/controller.py`
+- `backend/src/solalex/executor/dispatcher.py`
+- `backend/src/solalex/executor/rate_limiter.py`
+- `backend/src/solalex/persistence/repositories/control_cycles.py`
+- `backend/src/solalex/persistence/repositories/latency.py`
+- `backend/src/solalex/persistence/sql/002_control_cycles_latency.sql`
+- `backend/src/solalex/kpi/__init__.py`
+
+**Neu (Backend-Tests):**
+- `backend/tests/unit/_controller_helpers.py`
+- `backend/tests/unit/test_controller_dispatch.py`
+- `backend/tests/unit/test_executor_dispatcher.py`
+- `backend/tests/unit/test_executor_rate_limiter.py`
+- `backend/tests/unit/test_source_attribution.py`
+- `backend/tests/unit/test_control_cycles_repo.py`
+- `backend/tests/unit/test_latency_repo.py`
+- `backend/tests/unit/test_setpoint_provider.py`
+
+**Modifiziert (Backend):**
+- `backend/src/solalex/adapters/base.py` (Default `get_limit_range`)
+- `backend/src/solalex/adapters/hoymiles.py` (Override `get_limit_range = (2, 1500)`)
+- `backend/src/solalex/adapters/marstek_venus.py` (Override `(0, 2500)`)
+- `backend/src/solalex/adapters/shelly_3em.py` (Override → `NotImplementedError`)
+- `backend/src/solalex/main.py` (Lifespan, `_dispatch_event`-Controller-Hook, `devices_by_entity`, `_subscribe_controller_entities`)
+- `backend/tests/unit/test_migrate.py` (dynamische `_expected_head()`-Assertion)
+
+**Modifiziert (Planning/Status):**
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (3-1 → in-progress → review)
+- `_bmad-output/implementation-artifacts/3-1-…-persistenter-rate-limit.md` (Status + Dev Agent Record + File List)
 
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-23 | 0.1.0 | Initiale Story-Kontextdatei für Story 3.1 erstellt und auf `ready-for-dev` gesetzt. Core-Controller-Mono-Modul + Executor-Veto-Kaskade + persistenter Rate-Limiter + Source-Attribution + control_cycles/latency_measurements. Backend-only. | Claude Opus 4.7 |
+| 2026-04-23 | 0.2.0 | Story 3.1 implementiert: Controller Mono-Modul mit Enum-Dispatch + SetpointProvider-Naht, Executor-Veto-Kaskade (Range → Rate-Limit → Readback), persistenter Rate-Limiter via `devices.last_write_at` mit Restart-Test, Source-Attribution (solalex/manual/ha_automation), SQL-Migration 002 für `control_cycles` (Ring-Buffer) + `latency_measurements`, KPI-Noop-Stub, main.py-Lifespan-Hook mit `devices_by_entity`-Map. 91 Tests grün, 95 % Coverage auf neuen Files, ruff + mypy strict grün. Status → review. | Claude Opus 4.7 |

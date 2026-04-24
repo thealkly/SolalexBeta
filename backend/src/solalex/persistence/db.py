@@ -26,5 +26,9 @@ async def connection_context(db_path: Path) -> AsyncIterator[aiosqlite.Connectio
         await conn.execute("PRAGMA journal_mode=WAL")
         await conn.execute("PRAGMA synchronous=NORMAL")
         await conn.execute("PRAGMA foreign_keys=ON")
+        # busy_timeout keeps concurrent writers from hitting SQLITE_BUSY on
+        # overlapping POSTs (e.g. double-click) — SQLite waits up to 5 s for
+        # a held write lock before raising.
+        await conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = aiosqlite.Row
         yield conn

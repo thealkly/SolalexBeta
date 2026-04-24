@@ -61,6 +61,17 @@ async def get_entities(request: Request) -> EntitiesResponse:
                 "Prüfe die HA-Verbindung und lade die Seite neu."
             ),
         ) from exc
+    except (RuntimeError, ConnectionError, OSError) as exc:
+        # Connection dropped between the ha_ws_connected check and the call,
+        # or the WS client raised mid-request. Translate to 503 (same class
+        # as "not connected") so the frontend shows the same German message.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Home Assistant WebSocket-Verbindung während der Anfrage unterbrochen. "
+                "Lade die Seite neu, sobald HA wieder erreichbar ist."
+            ),
+        ) from exc
 
     wr_limit: list[EntityOption] = []
     power: list[EntityOption] = []
@@ -71,13 +82,16 @@ async def get_entities(request: Request) -> EntitiesResponse:
         attrs: dict[str, object] = state.get("attributes", {})
         fname = str(attrs.get("friendly_name", eid))
         uom = str(attrs.get("unit_of_measurement", ""))
+        device_class = str(attrs.get("device_class", ""))
         opt = EntityOption(entity_id=eid, friendly_name=fname)
 
-        if eid.startswith("number.") and uom in ("W", "kW", "%", ""):
+        if eid.startswith("number.") and uom in ("W", "kW", "%"):
             wr_limit.append(opt)
         elif eid.startswith("sensor.") and uom in ("W", "kW"):
             power.append(opt)
-        elif eid.startswith("sensor.") and uom == "%":
+        elif eid.startswith("sensor.") and uom == "%" and (
+            device_class == "battery" or "soc" in eid or "battery" in eid
+        ):
             soc.append(opt)
 
     return EntitiesResponse(

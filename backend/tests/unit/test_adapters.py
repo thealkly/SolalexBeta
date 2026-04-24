@@ -64,7 +64,7 @@ class TestHoymilesAdapter:
     def test_parse_readback_float_state(self) -> None:
         adapter = ADAPTERS["hoymiles"]
         state = HaState(entity_id="number.test", state="52.7")
-        assert adapter.parse_readback(state) == 52
+        assert adapter.parse_readback(state) == 53  # round(), not truncate
 
     def test_parse_readback_invalid_state_returns_none(self) -> None:
         adapter = ADAPTERS["hoymiles"]

@@ -6,8 +6,10 @@ Ingress-only — no external port exposure.
 Lifespan order:
   1. Logging configure (via run_startup)
   2. DB migration
-  3. State-cache + entity-role-map init
-  4. HA WebSocket supervisor task start
+  3. State-cache + entity-role-map + devices_by_entity init
+  4. Controller instance wired up (Story 3.1)
+  5. HA WebSocket supervisor task start
+  6. Controller subscribes to commissioned devices (lazy on first event)
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from solalex.adapters import ADAPTERS
+from solalex.adapters.base import DeviceRecord
 from solalex.api.middleware import register_exception_handlers
 from solalex.api.routes import health
 from solalex.api.routes.control import router as control_router
@@ -33,10 +37,12 @@ from solalex.api.routes.devices import router as devices_router
 from solalex.api.routes.setup import router as setup_router
 from solalex.common.logging import get_logger
 from solalex.config import get_settings
+from solalex.controller import Controller, Mode
 from solalex.ha_client import ReconnectingHaClient
 from solalex.persistence.db import connection_context
 from solalex.persistence.migrate import run as run_migration
 from solalex.persistence.repositories.devices import list_devices
+from solalex.setup.test_session import ensure_entity_subscriptions
 from solalex.startup import run_startup
 from solalex.state_cache import StateCache
 
@@ -51,45 +57,67 @@ _FRONTEND_DIST = Path(
     )
 )
 
+# Module-level references populated during lifespan startup so _dispatch_event
+# can reach them before app.state is built.
+_app_state_cache: StateCache = StateCache()
+_app_controller: Controller | None = None
+_app_devices_by_entity: dict[str, DeviceRecord] = {}
+
 
 async def _dispatch_event(msg: dict[str, Any]) -> None:
-    """Route HA events to the state cache.
+    """Route HA events to the state cache and (if commissioned) the controller.
 
-    Handles ``subscribe_trigger`` shape:
-        {"type": "event", "event": {"variables": {"trigger": {"to_state": {...}}}}}
-
-    And plain ``subscribe_events`` shape:
-        {"type": "event", "event": {"data": {"new_state": {...}}}}
+    Handles ``subscribe_trigger`` shape and plain ``subscribe_events``
+    ``state_changed`` shape.
     """
     try:
         event = msg.get("event", {})
+        entity_id: str | None = None
+        state_str: str = ""
+        attributes: dict[str, Any] = {}
+        timestamp: datetime | None = None
+
         # subscribe_trigger shape
         variables = event.get("variables", {})
         trigger = variables.get("trigger", {})
         to_state = trigger.get("to_state")
         if to_state:
-            entity_id: str = str(trigger.get("entity_id", to_state.get("entity_id", "")))
-            if entity_id:
-                await _app_state_cache.update(
-                    entity_id=entity_id,
-                    state=str(to_state.get("state", "")),
-                    attributes=dict(to_state.get("attributes", {})),
-                    timestamp=_parse_ts(to_state.get("last_updated")),
-                )
+            entity_id = str(trigger.get("entity_id", to_state.get("entity_id", "")))
+            state_str = str(to_state.get("state", ""))
+            attributes = dict(to_state.get("attributes", {}))
+            timestamp = _parse_ts(to_state.get("last_updated"))
+        else:
+            # subscribe_events shape (state_changed)
+            data = event.get("data", {})
+            new_state = data.get("new_state")
+            if new_state:
+                entity_id = str(new_state.get("entity_id", ""))
+                state_str = str(new_state.get("state", ""))
+                attributes = dict(new_state.get("attributes", {}))
+                timestamp = _parse_ts(new_state.get("last_updated"))
+
+        if not entity_id:
             return
 
-        # subscribe_events shape (state_changed)
-        data = event.get("data", {})
-        new_state = data.get("new_state")
-        if new_state:
-            entity_id = str(new_state.get("entity_id", ""))
-            if entity_id:
-                await _app_state_cache.update(
-                    entity_id=entity_id,
-                    state=str(new_state.get("state", "")),
-                    attributes=dict(new_state.get("attributes", {})),
-                    timestamp=_parse_ts(new_state.get("last_updated")),
-                )
+        await _app_state_cache.update(
+            entity_id=entity_id,
+            state=state_str,
+            attributes=attributes,
+            timestamp=timestamp,
+        )
+
+        # Controller hook — only for commissioned devices while no functional
+        # test is running (AC 12, AC 13). The controller double-checks these
+        # conditions internally so direct unit tests stay safe.
+        controller = _app_controller
+        if controller is None:
+            return
+        device = _app_devices_by_entity.get(entity_id)
+        if device is None or device.commissioned_at is None:
+            return
+        if _app_state_cache.test_in_progress:
+            return
+        await controller.on_sensor_update(msg, device)
     except Exception:
         _logger.exception("dispatch_event_error", extra={"msg_type": msg.get("type")})
 
@@ -103,34 +131,47 @@ def _parse_ts(raw: Any) -> datetime | None:
         return None
 
 
-# Module-level reference so _dispatch_event can reach the cache before
-# app.state is available. Populated during lifespan startup.
-_app_state_cache: StateCache = StateCache()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _app_state_cache
+    global _app_state_cache, _app_controller, _app_devices_by_entity
     settings = get_settings()
     await run_startup(settings)
 
     # Run DB migrations before any route handler can reach the DB.
     await run_migration(settings.db_path)
 
-    # Build the entity → role map from the devices table (cached in memory).
+    # Build entity → role map and devices_by_entity map from the devices table.
     entity_role_map: dict[str, str] = {}
+    devices_by_entity: dict[str, DeviceRecord] = {}
     async with connection_context(settings.db_path) as conn:
         devices = await list_devices(conn)
     for device in devices:
         entity_role_map[device.entity_id] = device.role
+        devices_by_entity[device.entity_id] = device
 
     # Initialise the state cache singleton and attach to app.state.
     _app_state_cache = StateCache()
+    _app_devices_by_entity = devices_by_entity
     app.state.state_cache = _app_state_cache
     app.state.entity_role_map = entity_role_map
+    app.state.devices_by_entity = devices_by_entity
     app.state.started_at = time.monotonic()
 
     app.state.ha_client = ReconnectingHaClient(token=settings.supervisor_token or "")
+
+    def _db_conn_factory() -> Any:
+        return connection_context(settings.db_path)
+
+    controller = Controller(
+        ha_client=app.state.ha_client.client,
+        state_cache=_app_state_cache,
+        db_conn_factory=_db_conn_factory,
+        adapter_registry=ADAPTERS,
+        ha_ws_connected_fn=lambda: app.state.ha_client.ha_ws_connected,
+        mode=Mode.DROSSEL,
+    )
+    _app_controller = controller
+    app.state.controller = controller
 
     ha_client_task: asyncio.Task[None] | None = None
     if settings.supervisor_token:
@@ -138,6 +179,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.ha_client.run_forever(on_event=_dispatch_event),
             name="ha_ws_supervisor",
         )
+        # Subscribe to commissioned devices so the controller sees events.
+        commissioned_entities = [
+            d.entity_id for d in devices if d.commissioned_at is not None
+        ]
+        if commissioned_entities:
+            app.state.controller_subscribe_task = asyncio.create_task(
+                _subscribe_controller_entities(
+                    app.state.ha_client,
+                    commissioned_entities,
+                    _app_state_cache,
+                ),
+                name="controller_subscribe",
+            )
     else:
         _logger.warning(
             "ha_ws_disabled",
@@ -153,6 +207,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ha_client_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await ha_client_task
+        _app_controller = None
+        _app_devices_by_entity = {}
+
+
+async def _subscribe_controller_entities(
+    ha_client: ReconnectingHaClient,
+    entity_ids: list[str],
+    state_cache: StateCache,
+) -> None:
+    """Wait for the HA WS session to be up, then subscribe to each entity."""
+    # Poll the connection flag — cheap, and a dedicated signal would require
+    # plumbing through reconnect.py. 250 ms loop drops us in ≤ 1 s of session
+    # start on a fresh container.
+    for _ in range(120):  # up to ~30 s
+        if ha_client.ha_ws_connected:
+            break
+        await asyncio.sleep(0.25)
+    try:
+        await ensure_entity_subscriptions(ha_client.client, entity_ids, state_cache)
+    except Exception:
+        _logger.exception(
+            "controller_subscribe_failed",
+            extra={"entity_count": len(entity_ids)},
+        )
 
 
 def create_app() -> FastAPI:
