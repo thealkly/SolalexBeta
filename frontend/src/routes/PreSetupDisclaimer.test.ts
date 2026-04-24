@@ -47,10 +47,8 @@ describe('PreSetupDisclaimer — SSR initial state', () => {
     expect(html).toMatch(/aria-describedby="pre-disclaimer-text"/);
   });
 
-  it('does not render a disabled button (Anti-Pattern: disabled-state = ausblenden)', () => {
-    const { html } = render(PreSetupDisclaimer, {});
-    // No disabled attribute anywhere on a button — the component must hide
-    // the button entirely instead of showing a greyed-out disabled variant.
-    expect(html).not.toMatch(/<button[^>]*disabled/);
-  });
+  // The disabled-button assertion for the *checked* state is covered by
+  // `PreSetupDisclaimer.interactive.test.ts` under jsdom — the SSR initial
+  // render never produces a button at all, so a `toMatch` check here would be
+  // tautological.
 });

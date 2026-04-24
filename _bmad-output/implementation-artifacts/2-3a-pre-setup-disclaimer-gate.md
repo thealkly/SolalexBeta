@@ -1,6 +1,6 @@
 # Story 2.3a: Pre-Setup-Disclaimer-Gate (vor Config + Funktionstest)
 
-Status: review
+Status: done
 
 <!-- Spawned aus Story 2.3 Code-Review 2026-04-24, Decision D1. User-Intent: Disclaimer muss als allererstes kommen, nicht am Ende des Setup-Flows. -->
 
@@ -63,6 +63,30 @@ so dass ich verstehe, wofür Solarbot zuständig ist und in welchem Rahmen ich e
   - [x] Drift-Checks: `grep "disabled"` in neuer Komponente → 0 (nur im Test-Fall, der explizit `disabled` verhindert). `grep -E "i18n|\$t\(|spinner|modal|tooltip"` in neuen Dateien → 0.
   - [ ] Manual-QA: Frischer Add-on-Install (localStorage leer) → sieht `#/disclaimer`; Direkt auf `#/config` ohne Accept → redirected auf `#/disclaimer`; Nach Accept → `#/config` bleibt. *(Von Alex auf echter HA-Instanz zu verifizieren — kein automatisierter E2E-Stack in v1.)*
 
+### Review Findings (Code-Review 2026-04-24)
+
+- [x] [Review][Decision→Patch] D1 — **Resolved (2026-04-24):** jsdom-Ersatz `happy-dom` + `@testing-library/svelte` + `@testing-library/jest-dom` als devDependencies ergänzt, `vitest.config.ts` mit `resolve.conditions: ['browser']` (Svelte 5 client-Runtime) + opt-in-`@vitest-environment`-pragma angelegt. Neu: `src/lib/gate.ts` (pure `evaluateGate`-Decision-Core) + `src/lib/gate.test.ts` (14 Unit-Tests decken AC 1/7/10 ab) + `src/routes/PreSetupDisclaimer.interactive.test.ts` (4 Tests decken AC 4/5/6 inkl. localStorage-Throw-Pfad ab). Test-Suite jetzt 45/45 grün (+18 neu).
+- [x] [Review][Decision→Patch] D2 — **Resolved (2026-04-24):** Scope-Expansion als bewusst legitimiert dokumentiert. Story-Abschnitt „Dateien, die berührt werden" + File List um Chart-Guard-Rewrite, Spinner-Removal, Catch-Block-Rewrite + eslint.config.js-Global nachgezogen.
+- [x] [Review][Decision→Patch] D3 — **Resolved (2026-04-24):** Button-Label in [FunctionalTest.svelte:156](frontend/src/routes/FunctionalTest.svelte#L156) auf „ja ich akzeptiere das" geändert (User-Entscheidung).
+- [~] [Review][Decision→Dismiss] D4 — **Resolved (2026-04-24):** `aria-describedby` bleibt — User-Entscheidung, intendiertes Verhalten (erzwingt Wahrnehmung des Haftungstexts beim Fokus). Kein Code-Change.
+
+- [x] [Review][Patch] P1 — **Fixed (2026-04-24):** `readPreAccepted()`-Helper in [App.svelte](frontend/src/App.svelte) wraps `localStorage.getItem` in try/catch (Throw → behandelt als „nicht akzeptiert"). `handleContinue` in [PreSetupDisclaimer.svelte:4-14](frontend/src/routes/PreSetupDisclaimer.svelte) wraps `setItem` in try/catch + loggt + navigiert trotzdem. Interactive-Test deckt den Throw-Pfad ab.
+- [x] [Review][Patch] P2 — **Fixed (2026-04-24):** Gate-Logik in pure `evaluateGate`-Funktion extrahiert ([src/lib/gate.ts](frontend/src/lib/gate.ts)) und aus `guardCurrentRoute(allowAutoForward)` aufgerufen. `handleHashChange` in [App.svelte](frontend/src/App.svelte) ruft jetzt zusätzlich `guardCurrentRoute(false)` auf, re-evaluiert den Gate bei jeder Route-Änderung. `allowAutoForward=false` verhindert, dass ein User der bewusst zurück auf `/` navigiert fälschlich auf `/functional-test` geschickt wird. Deckt AC 7 für in-session-URL-Edits ab und schließt als Seiteneffekt den Edge#8-„cleared-localStorage + commissioned"-Bypass.
+- [x] [Review][Patch] P3 — **Fixed (2026-04-24):** Welcome-Card in [App.svelte](frontend/src/App.svelte) rendert Error-Hinweis statt „Setup starten"-CTA wenn `backendStatus === 'error'`. Der Status-Chip bleibt sichtbar für Diagnose.
+- [x] [Review][Patch] P5 — **Fixed (2026-04-24):** Tautologische SSR-Assertion in [PreSetupDisclaimer.test.ts](frontend/src/routes/PreSetupDisclaimer.test.ts) entfernt + Kommentar mit Verweis auf `PreSetupDisclaimer.interactive.test.ts` ergänzt. Die echte Disabled-Button-Assertion läuft jetzt gegen den `checked=true`-State im interactive-Test (happy-dom).
+
+- [x] [Review][Defer] Flash-of-wrong-content bei direktem URL-Hit auf `#/config` [App.svelte onMount IIFE] — Gate-Redirect passiert erst nach `getDevices()`-Resolve; User sieht kurz Config-Internals. UX-Polish, kein Verhaltensbug. Deferred.
+- [x] [Review][Defer] Layout-Shift + fehlendes Focus-Management beim Einblenden des „Weiter"-Buttons [PreSetupDisclaimer.svelte:44-46] — Keyboard-User und Screenreader bekommen das Erscheinen nicht announciert. a11y-Polish, AC 4 erzwingt das Pattern explizit. Deferred.
+- [x] [Review][Defer] `normalize`-Helper in Test dekodiert keine HTML-Entities [PreSetupDisclaimer.test.ts:6-8] — Umlaut-Escape bricht die Verbatim-Assertions still. Test-Fragilität, aktuell nicht getriggert. Deferred.
+- [x] [Review][Defer] `localStorage`-Key `solalex_pre_disclaimer_accepted` hat kein Versionsschema — Zukünftiger Disclaimer-Text-Change kann Accept nicht invalidieren. Epic 7 (Lizenz) migriert das ohnehin nach `/data/license.json`. Deferred.
+- [x] [Review][Defer] `backendStatus`-Race: `ping()`-Resolve kann `'ok'` setzen nachdem Catch `'error'` gesetzt hat [App.svelte:68,118] — Status-Chip kann fälschlich „verbunden" zeigen während getDevices fehlgeschlagen ist. Minor UX-Inkonsistenz, pre-existing Pattern. Deferred.
+- [x] [Review][Defer] `allCommissioned`-Block hat drei dichte Early-Returns hintereinander [App.svelte:76-105] — Lesbarkeit verbesserbar, aber kein Bug. Deferred.
+- [x] [Review][Defer] Story-File-List nennt die drei out-of-scope-Edits nicht (siehe D2) — Doc-Hygiene, wird mit D2-Entscheidung nachgezogen. Deferred.
+- [x] [Review][Defer] Manual-QA (AC 1/7/10) ungeprüft, Sprint-Status trotzdem `review` — Prozess-Nit, von Alex auf echter HA-Instanz zu verifizieren (kein E2E-Stack v1). Deferred.
+- [x] [Review][Defer] Kein test für `App.svelte`-Gate-Logik — Teilmenge von D1. Separat gelistet für Klarheit: Selbst wenn D1 als v1-Lücke akzeptiert wird, wäre der Gate der Top-Kandidat für die erste jsdom-Testsuite, sobald v1.5 Test-Stack dazukommt. Deferred.
+
+<!-- Dismissed (nicht in Liste): DevTools-localStorage-Bypass (by design, Epic 7); Race auf currentRoute nach await (jeder Branch hat passenden Guard, L109); allCommissioned-Redirect auf /running (nicht in wizardRoutes); / nicht explizit im Route-Switch (normalizeRoute + {:else} deckt ab); Entity-State-Guard-Verschärfung (strictly stronger, keine Regression); backendStatus-Typ (L11 $state deklariert); allCommissioned-skippt-preAccepted (by design per AC 10); Multi-Tab-Race (safe); Tests-Module-Eval (SSR-safe). -->
+
 ## Dev Notes
 
 ### Architektur-Bezugspunkte
@@ -82,6 +106,12 @@ so dass ich verstehe, wofür Solarbot zuständig ist und in welchem Rahmen ich e
 
 - NEU: `frontend/src/routes/PreSetupDisclaimer.svelte`, `frontend/src/routes/PreSetupDisclaimer.test.ts`
 - MOD: `frontend/src/App.svelte` (Gate-Logik + Route-Handler), `frontend/src/routes/FunctionalTest.svelte` (Route-Ziel falls Umnennung `#/disclaimer` → `#/activate`)
+
+**Scope-Expansion aus commit 88894f3 (nachträglich dokumentiert per Code-Review 2026-04-24, Decision D2):** Zusätzlich zur obigen Liste wurden drei Review-Fixes aus der Story-2.3-Review mit-eingebaut, weil sie den Gate-Pfad affected haben und logisch in denselben Commit gehörten:
+- MOD: `frontend/src/routes/FunctionalTest.svelte` — Chart-Guard-Verschärfung (`typeof 'number' + Number.isFinite(...)`) statt `=== null`-Check (ursprünglich Story 2.3 Review P11).
+- MOD: `frontend/src/routes/FunctionalTest.svelte` — Spinner-Markup + CSS entfernt (CLAUDE-Compliance: keine Loading-Spinner).
+- MOD: `frontend/src/App.svelte` — Catch-Block setzt `backendStatus='error'` bei getDevices-Fehler (ursprünglich Story 2.3 Review P12).
+- MOD: `frontend/eslint.config.js` — `localStorage` zu Browser-Globals ergänzt.
 
 ### Source Tree — Zielzustand nach Story
 
@@ -122,12 +152,24 @@ frontend/src/
 
 ### File List
 
+**Initial implementation (commit 88894f3):**
 - **NEU:** `frontend/src/routes/PreSetupDisclaimer.svelte` (Pre-Setup-Disclaimer-Komponente)
 - **NEU:** `frontend/src/routes/PreSetupDisclaimer.test.ts` (SSR-Unit-Tests)
-- **MOD:** `frontend/src/App.svelte` (Import, `VALID_ROUTES` um `/activate` erweitert, Route-Handler `/disclaimer` → PreSetupDisclaimer + neuer `/activate` → DisclaimerActivation, `wizardRoutes`-Set erweitert, Pre-Disclaimer-Gate in onMount, `allCommissioned`-Härtung)
-- **MOD:** `frontend/src/routes/FunctionalTest.svelte` (Button-Onclick `#/disclaimer` → `#/activate` nach Funktionstest-Erfolg)
+- **MOD:** `frontend/src/App.svelte` (Import, `VALID_ROUTES` um `/activate` erweitert, Route-Handler `/disclaimer` → PreSetupDisclaimer + neuer `/activate` → DisclaimerActivation, `wizardRoutes`-Set erweitert, Pre-Disclaimer-Gate in onMount, `allCommissioned`-Härtung, Catch-Block `backendStatus='error'` — Story 2.3 Review P12 Scope-Expansion)
+- **MOD:** `frontend/src/routes/FunctionalTest.svelte` (Button-Onclick `#/disclaimer` → `#/activate`; Chart-Guard-Verschärfung — Story 2.3 Review P11 Scope-Expansion; Spinner-Markup/CSS entfernt — CLAUDE-Compliance Scope-Expansion)
 - **MOD:** `frontend/eslint.config.js` (`localStorage` zu Browser-Globals ergänzt)
 - **MOD:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (2-3a → in-progress → review)
+
+**Review-Patches (2026-04-24):**
+- **NEU:** `frontend/src/lib/gate.ts` (extrahierte pure `evaluateGate`-Entscheidungslogik — Patch P2 für testbare Gate-Logik)
+- **NEU:** `frontend/src/lib/gate.test.ts` (Unit-Tests für `evaluateGate` deckt AC 1/7/10 ab — Decision D1 patch)
+- **NEU:** `frontend/src/routes/PreSetupDisclaimer.interactive.test.ts` (jsdom-basierte Click-Handler-Tests für AC 4/5/6 inkl. localStorage-Throw-Pfad — Decision D1 patch, löst P5-tautology auf)
+- **NEU:** `frontend/vitest.config.ts` (opt-in `jsdom`-Environment per `// @vitest-environment jsdom` pragma)
+- **MOD:** `frontend/src/App.svelte` (Hash-Change re-triggert Gate via `guardCurrentRoute` — Patch P2 AC 7; `readPreAccepted`-Helper mit try/catch — Patch P1; Welcome-Card unterdrückt CTA bei `backendStatus='error'` — Patch P3)
+- **MOD:** `frontend/src/routes/PreSetupDisclaimer.svelte` (`handleContinue` mit try/catch um `localStorage.setItem` — Patch P1)
+- **MOD:** `frontend/src/routes/PreSetupDisclaimer.test.ts` (tautologische Disabled-Button-SSR-Assertion entfernt — P5; Verweis auf interactive-Test ergänzt)
+- **MOD:** `frontend/src/routes/FunctionalTest.svelte` (Button-Label auf „ja ich akzeptiere das" — Decision D3)
+- **MOD:** `frontend/package.json` (`jsdom`, `@testing-library/svelte`, `@testing-library/jest-dom` als devDependencies — Decision D1)
 
 ## Change Log
 
@@ -135,3 +177,4 @@ frontend/src/
 |---|---|---|---|
 | 2026-04-24 | 0.1.0 | Story aus 2.3-Review Decision D1 (Story-Split) gespawnt. User-vorgegebener Disclaimer-Text + Checkbox-Label verbindlich. Open Question: Solarbot vs. Solalex Branding-Konsistenz. | Claude Opus 4.7 (Code-Review) |
 | 2026-04-24 | 0.2.0 | Implementierung. Route-Disambiguation (Pre-Setup=/disclaimer, Activation=/activate). Branding auf „Solalex" (Alex-Entscheidung). Pre-Disclaimer-Gate + `allCommissioned`-Härtung in `App.svelte`. 5 SSR-Tests, 27/27 grün, lint + check + build grün. Status → review. | Claude Opus 4.7 (Dev) |
+| 2026-04-24 | 0.3.0 | Code-Review-Patches (D1, D2, D3, P1, P2, P3, P5). D1: `happy-dom` + `@testing-library/svelte` als Test-Stack, `src/lib/gate.ts` extrahiert + 14 Unit-Tests + 4 interactive-Tests. P1: `localStorage`-Throws abgefangen. P2: Gate re-evaluiert auf jedem `hashchange` (schließt AC-7-Lücke für in-session-URL-Edits). P3: Welcome-Card unterdrückt „Setup starten"-CTA bei Backend-Error. P5: tautologische SSR-Assertion entfernt, echter Test im interactive-File. D3: Button-Label auf „ja ich akzeptiere das". D2: Story-Doc mit Scope-Expansion nachgezogen. D4 dismissed (intended). Test-Suite 45/45 grün, lint + check + build grün. | Claude Opus 4.7 (Code-Review) |

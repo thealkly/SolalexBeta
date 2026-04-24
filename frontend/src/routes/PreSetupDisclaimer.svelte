@@ -2,7 +2,15 @@
   let checked = $state(false);
 
   function handleContinue(): void {
-    localStorage.setItem('solalex_pre_disclaimer_accepted', '1');
+    // localStorage can throw SecurityError in sandboxed iframes or
+    // QuotaExceededError when storage is full. Always navigate so the user is
+    // never stuck on the disclaimer page; the App-level gate will re-prompt on
+    // the next load if persistence actually failed.
+    try {
+      localStorage.setItem('solalex_pre_disclaimer_accepted', '1');
+    } catch (err) {
+      console.warn('Could not persist pre-disclaimer acceptance', err);
+    }
     window.location.hash = '#/config';
   }
 </script>

@@ -153,7 +153,7 @@
         {#if testResult?.latency_ms !== null && testResult?.latency_ms !== undefined}
           <p class="result-sub">Latenz: {testResult.latency_ms} ms</p>
         {/if}
-        <button class="continue-button" onclick={() => { window.location.hash = '#/activate'; }}>Weiter zum Disclaimer</button>
+        <button class="continue-button" onclick={() => { window.location.hash = '#/activate'; }}>ja ich akzeptiere das</button>
       </section>
     {:else if testPhase === 'failed' || testPhase === 'timeout'}
       <section class="ft-card result-card result-failed">

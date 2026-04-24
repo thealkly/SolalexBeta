@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-24 (Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
+# last_updated: 2026-04-24 (Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 3.2 → done; 2.3 → done; 3.1 → done; 2.3a → review; 5.1 → 5.1a + 5.1b gesplittet)
+last_updated: 2026-04-24 (Story 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -65,7 +65,7 @@ development_status:
   # Key aktualisiert: Amendment 2026-04-23 — Disclaimer + Aktivieren (letzter Epic-2-Stein)
   2-3-disclaimer-aktivieren: done
   # Neu: gespawnt aus 2.3-Code-Review Decision D1 (2026-04-24) — Disclaimer muss vor Setup kommen, nicht am Ende
-  2-3a-pre-setup-disclaimer-gate: review
+  2-3a-pre-setup-disclaimer-gate: done
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
