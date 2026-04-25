@@ -2,6 +2,11 @@
 
 Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story-Scopes liegen. Aus dieser Liste speisen sich Kandidaten für Folge-Stories (Refactors, Tech-Debt-Epics, Security-Hardening).
 
+## Deferred from: code review of story-4-0a-diagnose-schnellexport-db-dump-logs-zip (2026-04-25)
+
+- **Streaming partial ZIP nicht von vollständigem unterscheidbar** — Wenn der Worker mid-stream raised (z. B. Logrotation-TOCTOU oder Disk-Full nach erstem Chunk), sieht der Browser einen erfolgreich abgeschlossenen Download mit korrupter ZIP. Mitigation wäre HTTP-Trailer mit Checksum, vollständige Vor-Bufferung, oder Pre-Flight-`HEAD`-Request mit `Content-Length` aus Pre-Computation — alle außerhalb des Schnellexport-Scopes. (Backend `routes/diagnostics.py` + `diagnostics/export.py`.)
+- **Kein Size-Cap für Logs / Multi-GB-DB-Memory-Pressure** — `_write_file_entry` streamt unbegrenzt; bei fehlender Logger-Größenrotation oder Multi-GB-DB kann Export sehr groß / langlaufend werden. Operationelle Sorge, kein Bug. Mitigation wäre Max-Size-Header, frühes Abbrechen oder pre-flight Größenwarnung im Frontend. (Backend `diagnostics/export.py:_write_file_entry`.)
+
 ## Deferred from: code review of story-1-1-add-on-skeleton-mit-custom-repository-multi-arch-build (2026-04-22)
 
 - GHA-Actions nicht auf Commit-SHA gepinnt — Supply-Chain-Hardening-Kandidat für Epic 6/7.

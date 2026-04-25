@@ -28,6 +28,7 @@ export interface GateInput {
 
 export function evaluateGate(input: GateInput): GateDecision {
   const { currentRoute, devices, preAccepted, allowAutoForward } = input;
+  if (currentRoute === '/diagnostics') return { kind: 'stay' };
   if (devices === null) return { kind: 'stay' };
 
   const allCommissioned =

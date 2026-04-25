@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import avatarUrl from '../static/avatar-alex.png';
   import Config from './routes/Config.svelte';
+  import Diagnostics from './routes/Diagnostics.svelte';
   import DisclaimerActivation from './routes/DisclaimerActivation.svelte';
   import FunctionalTest from './routes/FunctionalTest.svelte';
   import PreSetupDisclaimer from './routes/PreSetupDisclaimer.svelte';
@@ -43,6 +44,7 @@
     '/running',
     '/disclaimer',
     '/activate',
+    '/diagnostics',
   ]);
 
   function syncRoute(): void {
@@ -150,6 +152,8 @@
     <DisclaimerActivation />
   {:else if currentRoute === '/running'}
     <Running />
+  {:else if currentRoute === '/diagnostics'}
+    <Diagnostics />
   {:else}
     <section class="empty-state-card">
       <header class="empty-state-header">

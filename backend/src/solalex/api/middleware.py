@@ -75,6 +75,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         }
         type_uri, title = type_map.get(status, ("error", "Fehler"))
         detail = str(exc.detail) if exc.detail else title
+        if status == 500 and detail == "diagnostics_export_failed":
+            type_uri = "diagnostics-export-failed"
+            title = "diagnostics_export_failed"
+            detail = "Diagnose-Export konnte nicht erstellt werden."
         return _problem_response(
             status=status,
             type_uri=type_uri,

@@ -34,6 +34,7 @@ from solalex.api.middleware import register_exception_handlers
 from solalex.api.routes import health
 from solalex.api.routes.control import router as control_router
 from solalex.api.routes.devices import router as devices_router
+from solalex.api.routes.diagnostics import router as diagnostics_router
 from solalex.api.routes.setup import router as setup_router
 from solalex.battery_pool import BatteryPool
 from solalex.common.logging import get_logger
@@ -308,6 +309,7 @@ def create_app() -> FastAPI:
     app.include_router(setup_router)
     app.include_router(devices_router)
     app.include_router(control_router)
+    app.include_router(diagnostics_router)
 
     assets_dir = _FRONTEND_DIST / "assets"
     if assets_dir.is_dir():
