@@ -24,6 +24,16 @@ _LOG_FILENAME = "solalex.log"
 _MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 _BACKUP_COUNT = 5
 
+# Public string-level mapping. Story 4.0 intentionally restricts the public
+# surface to the four values exposed via the HA add-on option so callers
+# can never request a level the UI cannot offer (e.g. CRITICAL, NOTSET).
+_LEVEL_NAME_TO_INT: dict[str, int] = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+}
+
 # Derive the set of stdlib-owned LogRecord attributes at import time from the
 # real record class. This keeps the reserved set in sync with the running
 # Python version (e.g. `taskName` was added in 3.12) without a hand-maintained
@@ -71,16 +81,48 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
-def configure_logging(log_dir: Path, level: int = logging.INFO) -> None:
+def _normalize_level(level: int | str) -> int:
+    """Map a public level (string from the add-on option, or stdlib int) to
+    a stdlib level int.
+
+    Centralised so call-sites never parse logging levels themselves
+    (CLAUDE.md Rule 5 — Logging single-source). Strings outside the public
+    set raise ``ValueError`` instead of silently degrading to INFO.
+    """
+    if isinstance(level, int) and not isinstance(level, bool):
+        return level
+    if isinstance(level, str):
+        try:
+            return _LEVEL_NAME_TO_INT[level.lower()]
+        except KeyError:
+            raise ValueError(
+                f"unsupported log level {level!r} — "
+                f"expected one of {sorted(_LEVEL_NAME_TO_INT)}"
+            ) from None
+    raise TypeError(f"log level must be int or str, got {type(level).__name__}")
+
+
+def configure_logging(log_dir: Path, level: int | str = logging.INFO) -> None:
     """Install the JSON formatter + rotating file handler on the root logger.
 
-    Idempotent for the same `log_dir`: a second call with an unchanged dir
-    is a no-op. When the dir differs (e.g. across tests), the previous
-    handlers are closed and replaced to avoid FD leaks and stale writes.
+    Idempotent for the same `log_dir`: handlers are kept in place to avoid
+    FD churn, but the requested level is always re-applied so an add-on
+    restart with a changed `log_level` option takes effect even when the
+    log directory is unchanged. When the dir differs (e.g. across tests),
+    the previous handlers are closed and replaced.
     """
     global _current_log_dir
 
+    resolved_level = _normalize_level(level)
+
     if _current_log_dir == log_dir and _installed_handlers:
+        # Same directory — keep existing handlers, just re-apply the level.
+        # The early no-op of the original implementation blocked level
+        # switching across configure_logging() calls (Story 4.0 AC 5).
+        root = logging.getLogger()
+        root.setLevel(resolved_level)
+        for handler in _installed_handlers:
+            handler.setLevel(resolved_level)
         return
 
     _close_installed_handlers()
@@ -97,12 +139,14 @@ def configure_logging(log_dir: Path, level: int = logging.INFO) -> None:
         encoding="utf-8",
     )
     file_handler.setFormatter(formatter)
+    file_handler.setLevel(resolved_level)
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(resolved_level)
 
     root = logging.getLogger()
-    root.setLevel(level)
+    root.setLevel(resolved_level)
     # Replace any pre-existing handlers to avoid duplicate output when
     # uvicorn installs its own before our lifespan runs.
     root.handlers = [file_handler, stream_handler]

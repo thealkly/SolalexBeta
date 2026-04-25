@@ -55,7 +55,10 @@ async def initialize_database(db_path: str) -> None:
 
 async def run_startup(settings: Settings) -> None:
     """Run the full startup sequence. Invoked from FastAPI's lifespan."""
-    configure_logging(settings.log_dir)
-    _logger.info("solalex starting", extra={"port": settings.port})
+    configure_logging(settings.log_dir, level=settings.log_level)
+    _logger.info(
+        "solalex starting",
+        extra={"port": settings.port, "log_level": settings.log_level},
+    )
 
     await initialize_database(str(settings.db_path))

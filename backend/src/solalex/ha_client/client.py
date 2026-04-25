@@ -24,6 +24,25 @@ log = get_logger(__name__)
 
 EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
+
+def _extract_subscribe_entity_id(payload: dict[str, Any]) -> str | None:
+    """Best-effort entity_id read from a subscribe payload.
+
+    HA accepts several shapes (``subscribe_trigger`` with a ``trigger`` block,
+    ``subscribe_events`` with bare data). When the entity is not derivable
+    we return ``None`` and the caller falls back to ``payload_type`` so the
+    debug record stays compact.
+    """
+    trigger = payload.get("trigger")
+    if isinstance(trigger, dict):
+        eid = trigger.get("entity_id")
+        if isinstance(eid, str) and eid:
+            return eid
+    eid = payload.get("entity_id")
+    if isinstance(eid, str) and eid:
+        return eid
+    return None
+
 # Upper bound for synchronous result-message replies (subscribe/call_service).
 # HA responds well under a second for these; 10 s is enough slack that a
 # transient pause doesn't trip a timeout but short enough to surface hangs.
@@ -112,6 +131,17 @@ class HaWebSocketClient:
         # leave a phantom subscription that gets replayed on reconnect.
         await self._ws.send(json.dumps(message))
         self._subscriptions.append(payload)
+        # Story 4.0 AC 12 — entity_id when derivable from the payload, else
+        # only the payload type. Tokens and full WS frames are never logged.
+        log.debug(
+            "ha_ws_subscribe",
+            extra={
+                "action": "subscribe",
+                "subscription_id": msg_id,
+                "entity_id": _extract_subscribe_entity_id(payload),
+                "payload_type": payload.get("type"),
+            },
+        )
         return msg_id
 
     async def get_states(self) -> list[dict[str, Any]]:

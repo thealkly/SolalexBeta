@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-25 (Story 3.4 → done nach Code-Review-Patch-Fix: 8 Review-Findings behoben — Ramping relativ zu letztem bestätigtem Setpoint, Speicher-Memo erst nach nicht-vetoed Dispatch, SoC-Bounds validiert, Cap-Flags resetten bei Band-Exit, SoC-lose Pool-Member geblockt, gemeinsamer Command-Timestamp pro Sensor-Event, AC10-Latenztest + Policy-Deadband-Test ergänzt. Verifikation: 228 Backend-Tests grün, Ruff + MyPy grün. Vorher: Story 4.0 → ready-for-dev via create-story: Debug-Logging-Toggle + Hot-Path-Debug-Trace Story erstellt; Epic 4 gestartet.)
+last_updated: 2026-04-25 (Story 4.0 → review nach dev-story Implementation: Add-on-Option `log_level` + s6-Env-Export + level-switch-fähiges `configure_logging` + Hot-Path-Debug-Traces in Controller/Dispatcher/Readback/BatteryPool/HA-WS — 30 neue Tests, 249 backend-tests grün, Ruff + MyPy --strict grün, keine SQL-Migration. Vorher: Story 3.4 → done nach Code-Review-Patch-Fix: 8 Review-Findings behoben — Ramping relativ zu letztem bestätigtem Setpoint, Speicher-Memo erst nach nicht-vetoed Dispatch, SoC-Bounds validiert, Cap-Flags resetten bei Band-Exit, SoC-lose Pool-Member geblockt, gemeinsamer Command-Timestamp pro Sensor-Event, AC10-Latenztest + Policy-Deadband-Test ergänzt. Verifikation: 228 Backend-Tests grün, Ruff + MyPy grün. Vorher: Story 4.0 → ready-for-dev via create-story: Debug-Logging-Toggle + Hot-Path-Debug-Trace Story erstellt; Epic 4 gestartet.)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -84,7 +84,7 @@ development_status:
   # Epic 4: Diagnose, Latenz-Messung & Support-Workflow
   epic-4: in-progress
   # Neu 2026-04-25: Voraussetzung für 4.1, kleiner Scope (~halber Tag) — Add-on-Option `log_level` + Hot-Path-Debug-Trace
-  4-0-debug-logging-toggle-und-hot-path-debug-trace: ready-for-dev
+  4-0-debug-logging-toggle-und-hot-path-debug-trace: review
   4-1-diagnose-route-mit-abgesetztem-opening-letzte-100-regelzyklen: backlog
   4-2-letzte-20-fehler-warnungen-mit-klartext-handlungsempfehlung: backlog
   4-3-verbindungs-status-panel-ha-ws-entities-lizenz: backlog

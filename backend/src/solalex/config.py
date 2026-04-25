@@ -10,9 +10,12 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+LogLevel = Literal["debug", "info", "warning", "error"]
 
 
 class Settings(BaseSettings):
@@ -32,6 +35,14 @@ class Settings(BaseSettings):
     log_dir: Path = Field(
         default=Path("/data/logs"),
         description="Directory for rotating JSON log files.",
+    )
+    log_level: LogLevel = Field(
+        default="info",
+        description=(
+            "Root log level. Set to 'debug' only for support cases — "
+            "Hot-Path-Traces inflate log volume. Validated as enum: "
+            "invalid values fail loud at startup."
+        ),
     )
     port: int = Field(default=8099, ge=1, le=65535)
     supervisor_token: str | None = Field(

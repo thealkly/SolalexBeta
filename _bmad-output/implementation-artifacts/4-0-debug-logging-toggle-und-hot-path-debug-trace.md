@@ -1,6 +1,6 @@
 # Story 4.0: Debug-Logging-Toggle & Hot-Path-Debug-Trace
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,76 +52,76 @@ so that ich Beta-Probleme über das HA-Add-on-Log-Tab live nachvollziehen kann o
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Add-on-Manifest um `log_level` erweitern** (AC: 1)
-  - [ ] `addon/config.yaml`: `schema.log_level` als `list(debug|info|warning|error)` ergänzen.
-  - [ ] `addon/config.yaml`: `options.log_level: info` setzen.
-  - [ ] Beschreibung/Optionstext deutsch und kurz halten. Keine neue UI-Route, kein Frontend-Code.
+- [x] **Task 1: Add-on-Manifest um `log_level` erweitern** (AC: 1)
+  - [x] `addon/config.yaml`: `schema.log_level` als `list(debug|info|warning|error)` ergänzen.
+  - [x] `addon/config.yaml`: `options.log_level: info` setzen.
+  - [x] Beschreibung/Optionstext deutsch und kurz halten. Keine neue UI-Route, kein Frontend-Code.
 
-- [ ] **Task 2: s6-Run-Datei exportiert `SOLALEX_LOG_LEVEL`** (AC: 2)
-  - [ ] `addon/rootfs/etc/services.d/solalex/run`: per `bashio::config 'log_level'` lesen.
-  - [ ] Leere oder fehlende Option auf `info` fallbacken.
-  - [ ] `export SOLALEX_LOG_LEVEL="..."` vor dem `uvicorn`-Start setzen.
-  - [ ] Nicht den Supervisor-Token, HA-Payloads oder sonstige Secrets loggen.
+- [x] **Task 2: s6-Run-Datei exportiert `SOLALEX_LOG_LEVEL`** (AC: 2)
+  - [x] `addon/rootfs/etc/services.d/solalex/run`: per `bashio::config 'log_level'` lesen.
+  - [x] Leere oder fehlende Option auf `info` fallbacken.
+  - [x] `export SOLALEX_LOG_LEVEL="..."` vor dem `uvicorn`-Start setzen.
+  - [x] Nicht den Supervisor-Token, HA-Payloads oder sonstige Secrets loggen.
 
-- [ ] **Task 3: Settings + Startup verdrahten** (AC: 3, 4)
-  - [ ] `backend/src/solalex/config.py`: `log_level` als Literal/Enum mit Default `info` aufnehmen.
-  - [ ] `backend/src/solalex/startup.py`: `configure_logging(settings.log_dir, level=settings.log_level)` verwenden.
-  - [ ] Startup-Info-Log darf `log_level` nennen, aber keine Secrets.
+- [x] **Task 3: Settings + Startup verdrahten** (AC: 3, 4)
+  - [x] `backend/src/solalex/config.py`: `log_level` als Literal/Enum mit Default `info` aufnehmen.
+  - [x] `backend/src/solalex/startup.py`: `configure_logging(settings.log_dir, level=settings.log_level)` verwenden.
+  - [x] Startup-Info-Log darf `log_level` nennen, aber keine Secrets.
 
-- [ ] **Task 4: `common/logging.py` level-switch-fähig machen** (AC: 5, 6)
-  - [ ] `configure_logging` akzeptiert `int | str` und normalisiert zentral.
-  - [ ] Frühe Rückkehr bei gleichem `log_dir` darf nur noch Handler-Rebuild überspringen, nicht Level-Update.
-  - [ ] Root-Level und installierte Handler-Level konsistent setzen.
-  - [ ] `reset_logging_for_tests()` unverändert als Test-Helfer behalten.
-  - [ ] Neue Datei `backend/tests/unit/test_common_logging.py` anlegen.
+- [x] **Task 4: `common/logging.py` level-switch-fähig machen** (AC: 5, 6)
+  - [x] `configure_logging` akzeptiert `int | str` und normalisiert zentral.
+  - [x] Frühe Rückkehr bei gleichem `log_dir` darf nur noch Handler-Rebuild überspringen, nicht Level-Update.
+  - [x] Root-Level und installierte Handler-Level konsistent setzen.
+  - [x] `reset_logging_for_tests()` unverändert als Test-Helfer behalten.
+  - [x] Neue Datei `backend/tests/unit/test_common_logging.py` anlegen.
 
-- [ ] **Task 5: Controller-Zyklus-Debug ergänzen** (AC: 7, 13, 15)
-  - [ ] `backend/src/solalex/controller.py`: nach `_dispatch_by_mode(...)` genau einen `controller_cycle_decision`-Debug-Record pro Event schreiben.
-  - [ ] Für Drossel: `derived_setpoint_w` = Zielwert der einen Decision.
-  - [ ] Für Speicher: `derived_setpoint_w` = Summe aller Decision-Zielwerte.
-  - [ ] Für Noop: `derived_setpoint_w=None`, `decision_count=0`.
-  - [ ] Nur Debug-Payload bauen, wenn DEBUG aktiv ist.
+- [x] **Task 5: Controller-Zyklus-Debug ergänzen** (AC: 7, 13, 15)
+  - [x] `backend/src/solalex/controller.py`: nach `_dispatch_by_mode(...)` genau einen `controller_cycle_decision`-Debug-Record pro Event schreiben.
+  - [x] Für Drossel: `derived_setpoint_w` = Zielwert der einen Decision.
+  - [x] Für Speicher: `derived_setpoint_w` = Summe aller Decision-Zielwerte.
+  - [x] Für Noop: `derived_setpoint_w=None`, `decision_count=0`.
+  - [x] Nur Debug-Payload bauen, wenn DEBUG aktiv ist.
 
-- [ ] **Task 6: Executor-Dispatch-Stufen debuggen** (AC: 8, 9, 13, 15)
-  - [ ] `backend/src/solalex/executor/dispatcher.py`: DEBUG für unknown adapter, range pass/block, rate-limit pass/block, service-call-built, HA-WS-Recheck und dispatch completion.
-  - [ ] Bestehende WARNING/INFO-Records nicht löschen oder zu DEBUG degradieren.
-  - [ ] `dispatch_service_call_built` direkt vor `call_service(...)` schreiben.
-  - [ ] Payload begrenzen auf `domain`, `service`, `service_data` und erwarteten Readback-Wert; keine Tokens/Frames.
+- [x] **Task 6: Executor-Dispatch-Stufen debuggen** (AC: 8, 9, 13, 15)
+  - [x] `backend/src/solalex/executor/dispatcher.py`: DEBUG für unknown adapter, range pass/block, rate-limit pass/block, service-call-built, HA-WS-Recheck und dispatch completion.
+  - [x] Bestehende WARNING/INFO-Records nicht löschen oder zu DEBUG degradieren.
+  - [x] `dispatch_service_call_built` direkt vor `call_service(...)` schreiben.
+  - [x] Payload begrenzen auf `domain`, `service`, `service_data` und erwarteten Readback-Wert; keine Tokens/Frames.
 
-- [ ] **Task 7: Readback-Vergleich debuggen** (AC: 10, 13, 15)
-  - [ ] `backend/src/solalex/executor/readback.py`: `readback_compare` bei numeric compare schreiben.
-  - [ ] `extra` enthält `expected`, `observed`, `delta`, `tolerance_w`, `within_tolerance`.
-  - [ ] Timeout-/Unavailable-/Non-Numeric-Pfade behalten ihre heutigen WARN/Failure-Semantiken.
+- [x] **Task 7: Readback-Vergleich debuggen** (AC: 10, 13, 15)
+  - [x] `backend/src/solalex/executor/readback.py`: `readback_compare` bei numeric compare schreiben.
+  - [x] `extra` enthält `expected`, `observed`, `delta`, `tolerance_w`, `within_tolerance`.
+  - [x] Timeout-/Unavailable-/Non-Numeric-Pfade behalten ihre heutigen WARN/Failure-Semantiken.
 
-- [ ] **Task 8: Akku-Pool-Debug ergänzen** (AC: 11, 13, 15)
-  - [ ] `backend/src/solalex/battery_pool.py`: bei `set_setpoint(...)` Debug mit `pool_setpoint`, `online_member_count`, `per_member_setpoints`.
-  - [ ] Bei `get_soc(...)` Debug mit `aggregated_pct` und `per_member`, wenn ein Breakdown entsteht.
-  - [ ] Keine Abhängigkeit von `controller.py` hinzufügen; Pool bleibt synchron und IO-frei.
+- [x] **Task 8: Akku-Pool-Debug ergänzen** (AC: 11, 13, 15)
+  - [x] `backend/src/solalex/battery_pool.py`: bei `set_setpoint(...)` Debug mit `pool_setpoint`, `online_member_count`, `per_member_setpoints`.
+  - [x] Bei `get_soc(...)` Debug mit `aggregated_pct` und `per_member`, wenn ein Breakdown entsteht.
+  - [x] Keine Abhängigkeit von `controller.py` hinzufügen; Pool bleibt synchron und IO-frei.
 
-- [ ] **Task 9: HA-WS-Client-Subscription-Debug ergänzen** (AC: 12, 13, 15)
-  - [ ] `backend/src/solalex/ha_client/client.py`: `subscribe(...)` debuggt `action="subscribe"`, `subscription_id`, ableitbare `entity_id`.
-  - [ ] Reconnect-Replay prüfen: falls Re-Subscribe in `ha_client/reconnect.py` passiert, dort ebenfalls `action="resubscribe"` debuggen.
-  - [ ] Keine vollständigen Payloads loggen, wenn sie unnötig groß oder potenziell sensibel sind.
+- [x] **Task 9: HA-WS-Client-Subscription-Debug ergänzen** (AC: 12, 13, 15)
+  - [x] `backend/src/solalex/ha_client/client.py`: `subscribe(...)` debuggt `action="subscribe"`, `subscription_id`, ableitbare `entity_id`.
+  - [x] Reconnect-Replay prüfen: falls Re-Subscribe in `ha_client/reconnect.py` passiert, dort ebenfalls `action="resubscribe"` debuggen.
+  - [x] Keine vollständigen Payloads loggen, wenn sie unnötig groß oder potenziell sensibel sind.
 
-- [ ] **Task 10: Tests für Logging-Behavior ergänzen** (AC: 5, 6, 13, 16)
-  - [ ] `test_common_logging.py`: DEBUG erscheint bei `level="debug"` und verschwindet bei `level="info"`.
-  - [ ] `test_common_logging.py`: Reconfigure gleicher `log_dir` von `info` auf `debug` funktioniert ohne Handler-Duplikate.
-  - [ ] `test_common_logging.py`: ungültiger String-Level wirft `ValueError` oder Pydantic-validiert upstream fail-loud.
-  - [ ] `test_config.py` oder `test_startup.py`: `SOLALEX_LOG_LEVEL=debug` landet in `Settings.log_level`.
+- [x] **Task 10: Tests für Logging-Behavior ergänzen** (AC: 5, 6, 13, 16)
+  - [x] `test_common_logging.py`: DEBUG erscheint bei `level="debug"` und verschwindet bei `level="info"`.
+  - [x] `test_common_logging.py`: Reconfigure gleicher `log_dir` von `info` auf `debug` funktioniert ohne Handler-Duplikate.
+  - [x] `test_common_logging.py`: ungültiger String-Level wirft `ValueError` oder Pydantic-validiert upstream fail-loud.
+  - [x] `test_config.py` oder `test_startup.py`: `SOLALEX_LOG_LEVEL=debug` landet in `Settings.log_level`.
 
-- [ ] **Task 11: Hot-Path-Trace-Tests erweitern** (AC: 7-12, 15, 16)
-  - [ ] Controller-Test mit `caplog.at_level(logging.DEBUG)`: genau ein `controller_cycle_decision` pro Event.
-  - [ ] Dispatcher-Test: Range-Veto und Rate-Limit-Veto erzeugen Debug-Pass/Block-Records, ohne Service-Call.
-  - [ ] Dispatcher-Happy-Path-Test: `dispatch_service_call_built` enthält Service und Ziel-Entity.
-  - [ ] Readback-Test: Successful compare erzeugt `readback_compare`.
-  - [ ] BatteryPool-Test: `set_setpoint` und `get_soc` erzeugen Debug-Records bei DEBUG.
-  - [ ] HA-WS-Test: `subscribe` erzeugt Debug-Record ohne Token/Payload-Dump.
+- [x] **Task 11: Hot-Path-Trace-Tests erweitern** (AC: 7-12, 15, 16)
+  - [x] Controller-Test mit `caplog.at_level(logging.DEBUG)`: genau ein `controller_cycle_decision` pro Event.
+  - [x] Dispatcher-Test: Range-Veto und Rate-Limit-Veto erzeugen Debug-Pass/Block-Records, ohne Service-Call.
+  - [x] Dispatcher-Happy-Path-Test: `dispatch_service_call_built` enthält Service und Ziel-Entity.
+  - [x] Readback-Test: Successful compare erzeugt `readback_compare`.
+  - [x] BatteryPool-Test: `set_setpoint` und `get_soc` erzeugen Debug-Records bei DEBUG.
+  - [x] HA-WS-Test: `subscribe` erzeugt Debug-Record ohne Token/Payload-Dump.
 
-- [ ] **Task 12: CI-Gates lokal ausführen** (AC: 16)
-  - [ ] Backend: `ruff check`.
-  - [ ] Backend: `mypy --strict`.
-  - [ ] Backend: `pytest`.
-  - [ ] SQL-Migrations-Ordering-Check bleibt unverändert; diese Story legt keine Migration an.
+- [x] **Task 12: CI-Gates lokal ausführen** (AC: 16)
+  - [x] Backend: `ruff check`.
+  - [x] Backend: `mypy --strict`.
+  - [x] Backend: `pytest`.
+  - [x] SQL-Migrations-Ordering-Check bleibt unverändert; diese Story legt keine Migration an.
 
 ## Dev Notes
 
@@ -187,11 +187,68 @@ Story 4.0 ist die erste Story in Epic 4, daher gibt es keine vorherige Epic-4-St
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7 (1M context)
 
 ### Debug Log References
 
+CI-Gates lokal grün:
+
+- `uv run ruff check` → All checks passed.
+- `uv run mypy --strict` → Success: no issues found in 86 source files.
+- `uv run pytest` → 249 passed in ~1.7 s (vorher 219+; +30 neue Tests durch 4.0).
+- SQL-Migrations-Ordering: keine neue Migration, `sql/001_initial.sql` + `sql/002_control_cycles_latency.sql` unverändert.
+
 ### Completion Notes List
 
+- **AC 1 — Add-on-Option:** `addon/config.yaml` exponiert `log_level: list(debug|info|warning|error)` mit Default `info`. Beschreibung über `addon/translations/de.yaml` (`Nur fuer Support-Anfragen auf debug stellen - produziert mehr Logs.`) — Standard-HA-Mechanismus, der unabhängig von der Frontend-i18n-Strategie funktioniert.
+- **AC 2 — Env-Export:** s6-Run-Script liest `bashio::config 'log_level'` und exportiert `SOLALEX_LOG_LEVEL`, mit Fallback auf `info` bei `null`/leer. Bestehende Env-Variablen (`SOLALEX_DB_PATH`, `SOLALEX_PORT`, `PYTHONPATH`) bleiben unverändert. Weder Token noch HA-Payloads landen in Logs.
+- **AC 3 — Settings:** `Settings.log_level: Literal["debug","info","warning","error"]` mit Default `info`. Pydantic `ValidationError` bei unbekannten Werten — fail-loud at startup statt stiller Default-Übernahme.
+- **AC 4 — Startup:** `run_startup` reicht `settings.log_level` an `configure_logging(...)` durch und nennt das aktive Level im `solalex starting`-Info-Log (ohne Secrets).
+- **AC 5/6 — `configure_logging`:** Neue zentrale `_normalize_level(int|str)`-Helferfunktion, frühe Rückkehr aktualisiert nur Root- + Handler-Level statt Handler-Rebuild zu überspringen. Public Surface auf `debug|info|warning|error` begrenzt; ungültige Strings werfen `ValueError`. Keine doppelten Handler — `len(root.handlers) == 2` getestet.
+- **AC 7 — Controller-Trace:** Genau ein `controller_cycle_decision`-DEBUG pro Sensor-Event nach `_dispatch_by_mode(...)`, geschützt durch `_logger.isEnabledFor(logging.DEBUG)`. Drossel → Single-Setpoint, Speicher → Pool-Sum, Noop → `None`/0.
+- **AC 8/9 — Executor-Stufen:** `dispatch_stage`-DEBUG für Adapter-Lookup, Range, Rate-Limit, HA-WS-Recheck und Dispatch-Completion (jeweils `pass`/`block`). `dispatch_service_call_built` direkt vor `call_service(...)`, Payload auf `domain.service`, `target_entity`, `service_data` und `expected_readback` begrenzt — keine Tokens, keine Frames. Bestehende `dispatch_complete`-INFO unverändert.
+- **AC 10 — Readback-Compare:** `readback_compare`-DEBUG am numeric-compare-Punkt für Pass und Fail. Timeout/Unavailable/Non-Numeric-Pfade behalten ihre WARN-Semantik.
+- **AC 11 — Akku-Pool:** `pool_set_setpoint` (mit `pool_setpoint`, `online_member_count`, `per_member_setpoints`, Offline-Liste) und `pool_get_soc` (mit `aggregated_pct`, `per_member`). Pool bleibt synchron und IO-frei — kein neuer Import von `controller.py`, keine `state_cache.update`-Aufrufe.
+- **AC 12 — HA-WS:** `ha_ws_subscribe`-DEBUG mit `action`, `subscription_id`, `entity_id` (best-effort aus Payload abgeleitet) und `payload_type`. Re-Subscribe in `reconnect._replay_subscriptions(...)` markiert `action="resubscribe"`. Tokens werden nicht geloggt.
+- **AC 13 — Idle-Volumen:** Alle neuen Records sind `_logger.debug(...)`. Hot-Path-Builds nutzen `isEnabledFor(DEBUG)`-Guards, sodass bei Default `info` keine Payload erstellt wird. Bestehende INFO/WARN-Records sind unverändert.
+- **AC 14 — Diagnose-Export-Naht:** Aktive DEBUG-Records landen in `/data/logs/solalex.log` über den vorhandenen `RotatingFileHandler`; keine separate Sanitizing-Logik (Story 4.5 liest die Files).
+- **AC 15 — Keine Hot-Path-Side-Effects:** Bestehende Controller-/Dispatcher-/Readback-/Battery-Pool-Tests aus Epic 3 bleiben grün. Es wurde keine Policy-Logik, kein Rate-Limit-Timing, kein Readback-Pfad und kein `control_cycles`-Insert verändert.
+- **AC 16 — Tests:** Neue Tests in `tests/unit/test_common_logging.py`, `tests/unit/test_config.py`, `tests/unit/test_debug_traces.py` plus Erweiterung in `tests/unit/test_startup.py`. Suite-Total: 249 passed (vorher 219+).
+
+**Architektur-Hinweise:**
+
+- `_extract_subscribe_entity_id` ist als Module-Level-Helfer in `ha_client/client.py` exportiert und wird auch von `reconnect.py` benutzt — leichtgewichtig, kein neues Modul, keine doppelte Logik.
+- `_build_cycle_debug_extra(...)` lebt direkt in `controller.py` (kein neues Submodul), erfüllt CLAUDE.md-Vorgabe „ein Mono-Modul mit Enum-Dispatch".
+- `_LEVEL_NAME_TO_INT` exportiert das public-Set explizit; falls Story 4.5 später per CLI/REST das Level umschalten will, wäre `_normalize_level` der einzige Erweiterungspunkt.
+
 ### File List
+
+**Modified:**
+
+- `addon/config.yaml` — `log_level` Schema + Default `info`.
+- `addon/rootfs/etc/services.d/solalex/run` — `bashio::config` + `SOLALEX_LOG_LEVEL` Export mit Fallback.
+- `backend/src/solalex/config.py` — `LogLevel`-Literal + `Settings.log_level`-Feld.
+- `backend/src/solalex/startup.py` — Level wird an `configure_logging` durchgereicht.
+- `backend/src/solalex/common/logging.py` — `_LEVEL_NAME_TO_INT`, `_normalize_level`, Level-Switch über bestehende Handler.
+- `backend/src/solalex/controller.py` — `_build_cycle_debug_extra` + `controller_cycle_decision` Hot-Path-DEBUG.
+- `backend/src/solalex/executor/dispatcher.py` — `dispatch_stage` + `dispatch_service_call_built` Stufen-DEBUG.
+- `backend/src/solalex/executor/readback.py` — `readback_compare` Numeric-Compare-DEBUG.
+- `backend/src/solalex/battery_pool.py` — `pool_set_setpoint` + `pool_get_soc` DEBUG.
+- `backend/src/solalex/ha_client/client.py` — `_extract_subscribe_entity_id` + `ha_ws_subscribe` DEBUG.
+- `backend/src/solalex/ha_client/reconnect.py` — `ha_ws_subscribe` Resubscribe-DEBUG.
+- `backend/tests/unit/test_startup.py` — `test_run_startup_routes_log_level_into_logging`.
+
+**Added:**
+
+- `addon/translations/de.yaml` — Add-on-Option-Beschreibung Deutsch.
+- `addon/translations/en.yaml` — Add-on-Option-Beschreibung Englisch (Standard-HA-Konvention).
+- `backend/tests/unit/test_common_logging.py` — Level-Switch + Normalisierung + Handler-Dup-Tests.
+- `backend/tests/unit/test_config.py` — `Settings.log_level` Default + Env + Reject-Unknown.
+- `backend/tests/unit/test_debug_traces.py` — Hot-Path-Trace-Coverage über alle 6 Module.
+
+## Change Log
+
+| Datum      | Änderung                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2026-04-25 | Initial-Implementierung Story 4.0 — Debug-Logging-Toggle (Add-on-Option `log_level`) + Hot-Path-Debug-Traces in Controller, Executor, Readback, Battery-Pool und HA-WS-Client. `configure_logging` ist jetzt level-switch-fähig, `Settings` validiert das Level fail-loud. 30 neue Tests (Total 249 grün); Ruff + Mypy `--strict` grün. Keine SQL-Migration, keine UI-Änderung, keine neue Dependency. |
 

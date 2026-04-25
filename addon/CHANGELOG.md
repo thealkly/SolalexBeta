@@ -3,6 +3,12 @@
 Dieses Changelog betrifft nur das HA-Add-on-Artefakt (Container + Manifest).
 Repo-weites Changelog: `/CHANGELOG.md`.
 
+## 0.1.1-beta.7 — 2026-04-25
+
+- Manifest/Release-Stand auf `0.1.1-beta.7` aktualisiert.
+- Runtime- und Debug-Logging-Verbesserungen aus Story-4.0-Zyklus integriert.
+- Speicher-/Controller-Stabilisierung inklusive begleitender Test-Erweiterungen.
+
 ## 0.1.0-beta.1 — 2026-04-23
 
 - Initiales Add-on-Skeleton (Multi-Arch, amd64 + aarch64).

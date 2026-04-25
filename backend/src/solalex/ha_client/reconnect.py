@@ -22,7 +22,12 @@ from websockets.exceptions import (
 )
 
 from solalex.common.logging import get_logger
-from solalex.ha_client.client import AuthError, EventHandler, HaWebSocketClient
+from solalex.ha_client.client import (
+    AuthError,
+    EventHandler,
+    HaWebSocketClient,
+    _extract_subscribe_entity_id,
+)
 
 log = get_logger(__name__)
 
@@ -175,7 +180,20 @@ class ReconnectingHaClient:
         self._client._subscriptions = []  # noqa: SLF001
         for index, payload in enumerate(previous):
             try:
-                await self._client.subscribe(payload)
+                msg_id = await self._client.subscribe(payload)
+                # Story 4.0 AC 12 — surface the resubscribe action distinct
+                # from the initial subscribe (the client logs `subscribe` at
+                # send time; this DEBUG marks reconnect-replay).
+                log.debug(
+                    "ha_ws_subscribe",
+                    extra={
+                        "action": "resubscribe",
+                        "subscription_id": msg_id,
+                        "entity_id": _extract_subscribe_entity_id(payload),
+                        "payload_type": payload.get("type"),
+                        "reconnect_attempt": self._reconnect_attempt,
+                    },
+                )
             except Exception:
                 # Partial failure: restore the untried tail (including the one
                 # that just failed) so the next reconnect picks them up.

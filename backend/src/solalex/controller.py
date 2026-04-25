@@ -13,6 +13,7 @@ every branch returns ``None`` (noop).
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 import time
 from collections import deque
@@ -210,6 +211,22 @@ class Controller:
         # latency_measurements.latency_ms. AC 1's ≤ 1 s budget applies to
         # this synchronous segment.
         pipeline_ms = int((time.monotonic() - t0) * 1000)
+
+        # Story 4.0 — exactly one DEBUG record per sensor event, written
+        # after the policy dispatch so the row reflects the real decision
+        # (Drossel: single setpoint, Speicher: pool sum, Noop: None).
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(
+                "controller_cycle_decision",
+                extra=_build_cycle_debug_extra(
+                    device=device,
+                    source=source,
+                    mode=self._current_mode,
+                    sensor_value_w=sensor_value,
+                    decisions=decisions,
+                    pipeline_ms=pipeline_ms,
+                ),
+            )
 
         if not decisions:
             if source != "solalex":
@@ -873,6 +890,44 @@ def _clamp_step(current: int, proposed: int, max_step: int) -> int:
 # HA wire-format helpers — isolated so the two event shapes (subscribe_trigger
 # vs. state_changed) don't leak into the source-attribution code path.
 # ---------------------------------------------------------------------------
+
+
+def _build_cycle_debug_extra(
+    *,
+    device: DeviceRecord,
+    source: Source,
+    mode: Mode,
+    sensor_value_w: float | None,
+    decisions: list[PolicyDecision],
+    pipeline_ms: int,
+) -> dict[str, Any]:
+    """Story 4.0 AC 7 — `controller_cycle_decision` payload.
+
+    Drossel produces at most one decision so the setpoint is its only
+    target. Speicher distributes across the pool so the debug payload
+    sums per-member targets. Noop emits ``derived_setpoint_w=None`` and
+    ``decision_count=0`` to make filtering by intent trivial in the
+    Diagnose-Export (Story 4.5).
+    """
+    if not decisions:
+        derived_setpoint_w: int | None = None
+    elif len(decisions) == 1:
+        derived_setpoint_w = decisions[0].target_value_w
+    else:
+        derived_setpoint_w = sum(d.target_value_w for d in decisions)
+    command_kinds = sorted({d.command_kind for d in decisions})
+    return {
+        "device_id": device.id,
+        "entity_id": device.entity_id,
+        "role": device.role,
+        "source": source,
+        "mode": mode.value,
+        "sensor_value_w": sensor_value_w,
+        "derived_setpoint_w": derived_setpoint_w,
+        "decision_count": len(decisions),
+        "command_kinds": command_kinds,
+        "pipeline_ms": pipeline_ms,
+    }
 
 
 def _truncate_reason(reason: str) -> str:

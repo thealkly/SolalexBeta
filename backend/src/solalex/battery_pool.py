@@ -17,6 +17,7 @@ vendor-side ``get_default_capacity_wh`` override.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from typing import Any
@@ -196,11 +197,27 @@ class BatteryPool:
         """
         online = self._online_members(state_cache)
         if not online:
+            if _logger.isEnabledFor(logging.DEBUG):
+                offline_ids = [
+                    m.charge_device.id
+                    for m in self._members
+                    if m.charge_device.id is not None
+                ]
+                _logger.debug(
+                    "pool_set_setpoint",
+                    extra={
+                        "pool_setpoint": watts,
+                        "online_member_count": 0,
+                        "per_member_setpoints": {},
+                        "offline_member_ids": offline_ids,
+                    },
+                )
             return []
         n = len(online)
         base, rem = divmod(watts, n)
         first_count = n - rem
         decisions: list[PolicyDecision] = []
+        per_member: dict[int, int] = {}
         for idx, member in enumerate(online):
             share = base if idx < first_count else base + 1
             decisions.append(
@@ -211,6 +228,25 @@ class BatteryPool:
                     command_kind="set_charge",
                     sensor_value_w=None,
                 )
+            )
+            if member.charge_device.id is not None:
+                per_member[member.charge_device.id] = share
+        if _logger.isEnabledFor(logging.DEBUG):
+            online_ids = {m.charge_device.id for m in online}
+            offline_ids = [
+                m.charge_device.id
+                for m in self._members
+                if m.charge_device.id is not None and m.charge_device.id not in online_ids
+            ]
+            _logger.debug(
+                "pool_set_setpoint",
+                extra={
+                    "pool_setpoint": watts,
+                    "online_member_count": n,
+                    "per_member_setpoints": per_member,
+                    "offline_member_count": len(offline_ids),
+                    "offline_member_ids": offline_ids,
+                },
             )
         return decisions
 
@@ -250,6 +286,15 @@ class BatteryPool:
             for m, soc in entries
             if m.charge_device.id is not None
         }
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug(
+                "pool_get_soc",
+                extra={
+                    "aggregated_pct": aggregated,
+                    "per_member": per_member,
+                    "contributing_member_count": len(entries),
+                },
+            )
         return SocBreakdown(aggregated_pct=aggregated, per_member=per_member)
 
 

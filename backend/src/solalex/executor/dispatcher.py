@@ -12,6 +12,7 @@ the controller's fail-safe wrapper can write the vetoed row.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
@@ -154,11 +155,32 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             reason=f"unknown_adapter: {decision.device.adapter_key!r}",
         )
         await _persist_cycle(ctx, cycle)
+        _logger.debug(
+            "dispatch_stage",
+            extra={
+                "stage": "adapter_lookup",
+                "decision": "block",
+                "device_id": cycle.device_id,
+                "adapter_key": decision.device.adapter_key,
+                "target_w": decision.target_value_w,
+                "reason": "unknown_adapter",
+            },
+        )
         _logger.warning(
             "dispatch_vetoed_unknown_adapter",
             extra={"device_id": cycle.device_id, "adapter_key": decision.device.adapter_key},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
+    _logger.debug(
+        "dispatch_stage",
+        extra={
+            "stage": "adapter_lookup",
+            "decision": "pass",
+            "device_id": decision.device.id,
+            "adapter_key": decision.device.adapter_key,
+            "target_w": decision.target_value_w,
+        },
+    )
 
     # --- Gate (a): Range check ---
     try:
@@ -221,11 +243,36 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             ),
         )
         await _persist_cycle(ctx, cycle)
+        _logger.debug(
+            "dispatch_stage",
+            extra={
+                "stage": "range_check",
+                "decision": "block",
+                "device_id": cycle.device_id,
+                "adapter_key": decision.device.adapter_key,
+                "target_w": decision.target_value_w,
+                "limit_min": limit_min,
+                "limit_max": limit_max,
+                "reason": "out_of_range",
+            },
+        )
         _logger.warning(
             "dispatch_vetoed_range",
             extra={"device_id": cycle.device_id, "reason": cycle.reason},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
+    _logger.debug(
+        "dispatch_stage",
+        extra={
+            "stage": "range_check",
+            "decision": "pass",
+            "device_id": decision.device.id,
+            "adapter_key": decision.device.adapter_key,
+            "target_w": decision.target_value_w,
+            "limit_min": limit_min,
+            "limit_max": limit_max,
+        },
+    )
 
     # --- Gate (b): Rate-limit (persistent) ---
     min_interval_s = adapter.get_rate_limit_policy().min_interval_s
@@ -257,11 +304,36 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             reason=reason,
         )
         await _persist_cycle(ctx, cycle)
+        _logger.debug(
+            "dispatch_stage",
+            extra={
+                "stage": "rate_limit",
+                "decision": "block",
+                "device_id": cycle.device_id,
+                "adapter_key": decision.device.adapter_key,
+                "target_w": decision.target_value_w,
+                "min_interval_s": min_interval_s,
+                "last_write_at": (
+                    last_write_at.isoformat() if last_write_at else None
+                ),
+            },
+        )
         _logger.info(
             "dispatch_vetoed_rate_limit",
             extra={"device_id": cycle.device_id, "reason": reason},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
+    _logger.debug(
+        "dispatch_stage",
+        extra={
+            "stage": "rate_limit",
+            "decision": "pass",
+            "device_id": decision.device.id,
+            "adapter_key": decision.device.adapter_key,
+            "target_w": decision.target_value_w,
+            "min_interval_s": min_interval_s,
+        },
+    )
 
     # --- Build + send the HA service call ---
     if decision.command_kind == "set_limit":
@@ -273,7 +345,52 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
     # check and the actual send. If it dropped in-between, raise so the
     # fail-safe wrapper writes a vetoed row with no mark_write.
     if not ctx.ha_ws_connected_fn():
+        _logger.debug(
+            "dispatch_stage",
+            extra={
+                "stage": "ha_ws_recheck",
+                "decision": "block",
+                "device_id": decision.device.id,
+                "adapter_key": decision.device.adapter_key,
+                "target_w": decision.target_value_w,
+                "reason": "ha_ws_disconnected",
+            },
+        )
         raise RuntimeError("ha_ws_disconnected_between_check_and_send")
+    _logger.debug(
+        "dispatch_stage",
+        extra={
+            "stage": "ha_ws_recheck",
+            "decision": "pass",
+            "device_id": decision.device.id,
+            "adapter_key": decision.device.adapter_key,
+            "target_w": decision.target_value_w,
+        },
+    )
+
+    if _logger.isEnabledFor(logging.DEBUG):
+        # Built directly before the send so a downstream WS failure leaves
+        # a precise breadcrumb of what was about to leave the loop. Payload
+        # is restricted to domain/service/service_data + expected readback —
+        # no Supervisor token, no raw WS frame, no envelope.
+        _logger.debug(
+            "dispatch_service_call_built",
+            extra={
+                "device_id": decision.device.id,
+                "adapter_key": decision.device.adapter_key,
+                "command_kind": decision.command_kind,
+                "service": f"{command.domain}.{command.service}",
+                "target_entity": (
+                    command.service_data.get("entity_id")
+                    if isinstance(command.service_data, dict)
+                    else None
+                ),
+                "payload": dict(command.service_data)
+                if isinstance(command.service_data, dict)
+                else command.service_data,
+                "expected_readback": decision.target_value_w,
+            },
+        )
 
     await ctx.ha_client.call_service(command.domain, command.service, command.service_data)
     # Flag the 2-s solalex attribution window only after the call returned
@@ -341,6 +458,20 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             )
         await conn.commit()
 
+    _logger.debug(
+        "dispatch_stage",
+        extra={
+            "stage": "dispatch_complete",
+            "decision": "pass" if readback_result.status == "passed" else "block",
+            "device_id": cycle.device_id,
+            "adapter_key": decision.device.adapter_key,
+            "target_w": decision.target_value_w,
+            "readback_status": readback_result.status,
+            "actual_w": readback_result.actual_value_w,
+            "latency_ms": readback_result.latency_ms,
+            "cycle_duration_ms": cycle_duration_ms,
+        },
+    )
     _logger.info(
         "dispatch_complete",
         extra={
