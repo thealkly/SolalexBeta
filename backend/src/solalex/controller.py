@@ -157,6 +157,11 @@ class Controller:
         # one pool; the dict reserves room for v1.5 multi-pool without a
         # signature refactor.
         self._speicher_last_setpoint_w: dict[int, int] = {}
+        # Pending dispatch intents keyed by charge device id. The policy
+        # records the requested pool setpoint here, but the "last dispatched"
+        # memo is only updated once the executor confirms that a command was
+        # actually sent (not when range/rate-limit/fail-safe vetoes it).
+        self._speicher_pending_setpoints: dict[int, tuple[int, int]] = {}
         # Boolean flags drive the once-per-band log line so the diagnostics
         # log does not spam an entry on every sensor event while the pool is
         # parked at the Hard-Cap (analogous to test_in_progress flag pattern).
@@ -227,7 +232,7 @@ class Controller:
         # ones are logged via the task's default handler.
         for decision in decisions:
             task = asyncio.create_task(
-                self._safe_dispatch(decision, pipeline_ms),
+                self._safe_dispatch(decision, pipeline_ms, command_at=now),
                 name=f"controller_dispatch_{decision.device.id}",
             )
             # Prevent "Task was destroyed but it is pending" at shutdown by
@@ -444,9 +449,6 @@ class Controller:
         buf.append(sensor_value_w)
         smoothed = sum(buf) / len(buf)
 
-        if abs(smoothed) <= params.deadband_w:
-            return []
-
         # Refuse to charge / discharge blindly without a SoC reading.
         soc_breakdown = pool.get_soc(self._state_cache)
         if soc_breakdown is None:
@@ -455,44 +457,47 @@ class Controller:
 
         max_soc, min_soc = _read_soc_bounds(first_charge)
 
-        if smoothed < 0:
-            # Feed-in: would charge the pool — gate on Max-SoC.
-            if aggregated >= max_soc:
-                if not self._speicher_max_soc_capped:
-                    _logger.info(
-                        "speicher_mode_at_max_soc",
-                        extra={
-                            "aggregated_pct": aggregated,
-                            "max_soc": max_soc,
-                        },
-                    )
-                    self._speicher_max_soc_capped = True
-                return []
+        if aggregated < max_soc:
             self._speicher_max_soc_capped = False
-
-        if smoothed > 0:
-            # Import: would discharge the pool — gate on Min-SoC.
-            if aggregated <= min_soc:
-                if not self._speicher_min_soc_capped:
-                    _logger.info(
-                        "speicher_mode_at_min_soc",
-                        extra={
-                            "aggregated_pct": aggregated,
-                            "min_soc": min_soc,
-                        },
-                    )
-                    self._speicher_min_soc_capped = True
-                return []
+        if aggregated > min_soc:
             self._speicher_min_soc_capped = False
+
+        if abs(smoothed) <= params.deadband_w:
+            return []
+
+        # Feed-in: would charge the pool — gate on Max-SoC.
+        if smoothed < 0 and aggregated >= max_soc:
+            if not self._speicher_max_soc_capped:
+                _logger.info(
+                    "speicher_mode_at_max_soc",
+                    extra={
+                        "aggregated_pct": aggregated,
+                        "max_soc": max_soc,
+                    },
+                )
+                self._speicher_max_soc_capped = True
+            return []
+
+        # Import: would discharge the pool — gate on Min-SoC.
+        if smoothed > 0 and aggregated <= min_soc:
+            if not self._speicher_min_soc_capped:
+                _logger.info(
+                    "speicher_mode_at_min_soc",
+                    extra={
+                        "aggregated_pct": aggregated,
+                        "min_soc": min_soc,
+                    },
+                )
+                self._speicher_min_soc_capped = True
+            return []
 
         # Sign-flip: feed-in (negative smoothed) → positive charge setpoint;
         # import (positive smoothed) → negative discharge setpoint. ``round``
         # gives symmetric nearest-integer steps (Story 3.2 Review P5).
-        proposed = -int(round(smoothed))
-        proposed = _clamp_step(0, proposed, params.limit_step_clamp_w)
-
         pool_key = id(pool)
         last = self._speicher_last_setpoint_w.get(pool_key, 0)
+        raw_proposed = -int(round(smoothed))
+        proposed = _clamp_step(last, raw_proposed, params.limit_step_clamp_w)
         if abs(proposed - last) < params.min_step_w:
             return []
 
@@ -503,7 +508,23 @@ class Controller:
             # a value that never reached hardware.
             return []
 
-        self._speicher_last_setpoint_w[pool_key] = proposed
+        soc_member_ids = set(soc_breakdown.per_member)
+        decision_device_ids = {
+            d.device.id for d in decisions if d.device.id is not None
+        }
+        if decision_device_ids != soc_member_ids:
+            # Never dispatch to a pool member whose SoC did not contribute to
+            # the aggregate. A partial SoC view would otherwise allow blind
+            # charge/discharge for the missing member.
+            return []
+
+        for decision in decisions:
+            if decision.device.id is not None:
+                self._speicher_pending_setpoints[decision.device.id] = (
+                    pool_key,
+                    proposed,
+                )
+
         # Inject the smoothed grid reading per-decision so the cycle row
         # carries it (NFR-consistent with Drossel). Pool ``set_setpoint``
         # leaves sensor_value_w=None by default; this rebuild keeps the
@@ -600,7 +621,13 @@ class Controller:
             self._state_cache.update_mode(self._current_mode.value)
             await kpi_record(row)
 
-    async def _safe_dispatch(self, decision: PolicyDecision, pipeline_ms: int) -> None:
+    async def _safe_dispatch(
+        self,
+        decision: PolicyDecision,
+        pipeline_ms: int,
+        *,
+        command_at: datetime | None = None,
+    ) -> None:
         """Fail-safe wrapper around :func:`executor.dispatcher.dispatch`.
 
         If the HA WS client is disconnected or ``call_service`` raises, we
@@ -617,7 +644,9 @@ class Controller:
         asymmetry is deliberate — see dispatcher.dispatch() for the
         happy-path mark_write; the fail-safe path here never marks.
         """
+        command_ts = command_at if command_at is not None else self._now_fn()
         if not self._ha_ws_connected_fn():
+            self._finalize_speicher_pending(decision, sent=False)
             await self._write_failsafe_cycle(
                 decision=decision,
                 reason="fail_safe: ha_ws_disconnected",
@@ -630,7 +659,7 @@ class Controller:
             state_cache=self._state_cache,
             db_conn_factory=self._db_conn_factory,
             adapter_registry=self._adapter_registry,
-            now_fn=self._now_fn,
+            now_fn=lambda: command_ts,
             ha_ws_connected_fn=self._ha_ws_connected_fn,
         )
         result: DispatchResult | None = None
@@ -652,6 +681,7 @@ class Controller:
             # reason carries only the exception type name — full trace goes
             # to the logger above. Avoids leaking stack or PII into the
             # diagnostics UI (cf. CLAUDE.md Security-Hygiene).
+            self._finalize_speicher_pending(decision, sent=False)
             await self._write_failsafe_cycle(
                 decision=decision,
                 reason=_truncate_reason(f"fail_safe: {type(exc).__name__}"),
@@ -660,11 +690,26 @@ class Controller:
             return
 
         if result is not None:
+            self._finalize_speicher_pending(decision, sent=result.status != "vetoed")
             # Cycle row was persisted by executor.dispatch() — mirror the
             # active mode (Story 5.1a AC 11, same heartbeat semantics as
             # _record_noop_cycle).
             self._state_cache.update_mode(self._current_mode.value)
             await kpi_record(result.cycle)
+
+    def _finalize_speicher_pending(
+        self, decision: PolicyDecision, *, sent: bool
+    ) -> None:
+        """Apply or discard a pending pool setpoint after dispatch completes."""
+        device_id = decision.device.id
+        if device_id is None:
+            return
+        pending = self._speicher_pending_setpoints.pop(device_id, None)
+        if pending is None:
+            return
+        pool_key, proposed = pending
+        if sent:
+            self._speicher_last_setpoint_w[pool_key] = proposed
 
     async def _write_failsafe_cycle(
         self,
@@ -767,16 +812,39 @@ def _read_soc_bounds(charge_device: DeviceRecord) -> tuple[int, int]:
             extra={"entity_id": charge_device.entity_id},
         )
         return (95, 15)
+    if not isinstance(cfg, dict):
+        _logger.warning(
+            "speicher_config_invalid_shape",
+            extra={
+                "entity_id": charge_device.entity_id,
+                "shape": type(cfg).__name__,
+            },
+        )
+        return (95, 15)
     raw_max = cfg.get("max_soc", 95)
     raw_min = cfg.get("min_soc", 15)
     try:
+        if isinstance(raw_max, bool):
+            raise ValueError
         max_soc = int(raw_max)
     except (ValueError, TypeError):
         max_soc = 95
     try:
+        if isinstance(raw_min, bool):
+            raise ValueError
         min_soc = int(raw_min)
     except (ValueError, TypeError):
         min_soc = 15
+    if not (0 <= min_soc < max_soc <= 100):
+        _logger.warning(
+            "speicher_config_invalid_soc_bounds",
+            extra={
+                "entity_id": charge_device.entity_id,
+                "min_soc": min_soc,
+                "max_soc": max_soc,
+            },
+        )
+        return (95, 15)
     return (max_soc, min_soc)
 
 

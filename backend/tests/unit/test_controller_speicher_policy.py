@@ -6,6 +6,7 @@ Covers ACs 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 15, 16, 17, 18, 20.
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -15,7 +16,7 @@ import pytest
 from solalex.adapters import ADAPTERS
 from solalex.adapters.base import DeviceRecord
 from solalex.battery_pool import BatteryPool
-from solalex.controller import Controller, Mode
+from solalex.controller import Controller, Mode, _read_soc_bounds
 from solalex.executor import dispatcher as executor_dispatcher
 from solalex.executor import rate_limiter
 from solalex.executor.dispatcher import DispatchResult, PolicyDecision
@@ -357,6 +358,30 @@ async def test_speicher_max_soc_log_fires_only_once_until_band_exit(
     assert controller._speicher_max_soc_capped is False
 
 
+@pytest.mark.asyncio
+async def test_speicher_max_soc_flag_resets_on_opposite_direction(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=96.0
+    )
+
+    controller._policy_speicher(seeds["grid_meter"], sensor_value_w=-200.0)
+    assert controller._speicher_max_soc_capped is True
+
+    soc_entity = seeds["pool_devices"][0][1].entity_id
+    state_cache.last_states[soc_entity] = HaStateEntry(
+        entity_id=soc_entity,
+        state="80",
+        attributes={},
+    )
+    controller._policy_speicher(seeds["grid_meter"], sensor_value_w=200.0)
+    assert controller._speicher_max_soc_capped is False
+
+
 # ----- AC 4: Hard-Cap bei Min-SoC -----------------------------------------
 
 
@@ -405,6 +430,30 @@ async def test_speicher_min_soc_log_fires_only_once_until_band_exit(
     assert controller._speicher_min_soc_capped is False
 
 
+@pytest.mark.asyncio
+async def test_speicher_min_soc_flag_resets_on_opposite_direction(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=10.0
+    )
+
+    controller._policy_speicher(seeds["grid_meter"], sensor_value_w=200.0)
+    assert controller._speicher_min_soc_capped is True
+
+    soc_entity = seeds["pool_devices"][0][1].entity_id
+    state_cache.last_states[soc_entity] = HaStateEntry(
+        entity_id=soc_entity,
+        state="50",
+        attributes={},
+    )
+    controller._policy_speicher(seeds["grid_meter"], sensor_value_w=-200.0)
+    assert controller._speicher_min_soc_capped is False
+
+
 # ----- AC 5: Deadband + Min-Step -----------------------------------------
 
 
@@ -427,10 +476,9 @@ async def test_speicher_deadband_suppresses_dispatch(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_speicher_min_step_suppresses_dispatch_after_first_send(
+async def test_speicher_marstek_tolerance_policy_suppresses_sinus_samples(
     tmp_path: Path,
 ) -> None:
-    """A second proposal within ±20 W of the last dispatched value drops."""
     db = tmp_path / "test.db"
     seeds = await _seed_speicher_devices(db, pool_size=1)
     state_cache = StateCache()
@@ -438,10 +486,30 @@ async def test_speicher_min_step_suppresses_dispatch_after_first_send(
         db, seeds, state_cache=state_cache, aggregated_pct=50.0
     )
 
+    samples = [25.0, 17.6, 0.0, -17.6, -25.0, -17.6, 0.0, 17.6]
+    for sample in samples:
+        assert controller._policy_speicher(
+            seeds["grid_meter"], sensor_value_w=sample
+        ) == []
+
+
+@pytest.mark.asyncio
+async def test_speicher_min_step_suppresses_dispatch_after_first_send(
+    tmp_path: Path,
+) -> None:
+    """A second proposal within ±20 W of the last dispatched value drops."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+
     # First batch: -200 W → +200 W stored as last setpoint.
     initial = _prime_buffer(controller, seeds["grid_meter"], sample_w=-200.0)
     assert len(initial) == 1
     assert initial[0].target_value_w == 200
+    controller._speicher_last_setpoint_w[id(pool)] = 200
 
     # Reset the smoothing buffer and feed a value whose proposed setpoint
     # is within 20 W of the last dispatched 200 W.
@@ -449,6 +517,97 @@ async def test_speicher_min_step_suppresses_dispatch_after_first_send(
     suppressed = _prime_buffer(controller, seeds["grid_meter"], sample_w=-210.0)
     # |proposed=210 - last=200| = 10 < min_step=20 → no dispatch.
     assert suppressed == []
+
+
+@pytest.mark.asyncio
+async def test_speicher_ramps_from_last_dispatched_setpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sustained 2000 W request ramps 500 → 1000 instead of sticking at 500."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+
+    async def _fake_dispatch(decision, ctx):  # type: ignore[no-untyped-def]
+        del ctx
+        cycle = ControlCycleRow(
+            id=None,
+            ts=datetime(2026, 4, 25, 12, 0, tzinfo=UTC),
+            device_id=decision.device.id or 0,
+            mode=decision.mode,
+            source="solalex",
+            sensor_value_w=decision.sensor_value_w,
+            target_value_w=decision.target_value_w,
+            readback_status="passed",
+            readback_actual_w=float(decision.target_value_w),
+            readback_mismatch=False,
+            latency_ms=10,
+            cycle_duration_ms=5,
+            reason=None,
+        )
+        return DispatchResult(status="passed", cycle=cycle, readback=None)
+
+    monkeypatch.setattr(executor_dispatcher, "dispatch", _fake_dispatch)
+
+    await controller.on_sensor_update(
+        _grid_event(_GRID_METER_ENTITY, state_w=-2000.0), seeds["grid_meter"]
+    )
+    if controller._dispatch_tasks:
+        await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
+    assert controller._speicher_last_setpoint_w[id(pool)] == 500
+
+    await controller.on_sensor_update(
+        _grid_event(_GRID_METER_ENTITY, state_w=-2000.0), seeds["grid_meter"]
+    )
+    if controller._dispatch_tasks:
+        await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
+    assert controller._speicher_last_setpoint_w[id(pool)] == 1000
+
+
+@pytest.mark.asyncio
+async def test_speicher_does_not_memoize_vetoed_dispatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+
+    async def _fake_dispatch(decision, ctx):  # type: ignore[no-untyped-def]
+        del ctx
+        cycle = ControlCycleRow(
+            id=None,
+            ts=datetime(2026, 4, 25, 12, 0, tzinfo=UTC),
+            device_id=decision.device.id or 0,
+            mode=decision.mode,
+            source="solalex",
+            sensor_value_w=decision.sensor_value_w,
+            target_value_w=decision.target_value_w,
+            readback_status="vetoed",
+            readback_actual_w=None,
+            readback_mismatch=False,
+            latency_ms=None,
+            cycle_duration_ms=5,
+            reason="rate_limit: test",
+        )
+        return DispatchResult(status="vetoed", cycle=cycle, readback=None)
+
+    monkeypatch.setattr(executor_dispatcher, "dispatch", _fake_dispatch)
+
+    await controller.on_sensor_update(
+        _grid_event(_GRID_METER_ENTITY, state_w=-200.0), seeds["grid_meter"]
+    )
+    if controller._dispatch_tasks:
+        await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
+    assert id(pool) not in controller._speicher_last_setpoint_w
+    assert controller._speicher_pending_setpoints == {}
 
 
 # ----- AC 6: Rate-Limit-Veto pro Member -----------------------------------
@@ -485,12 +644,6 @@ async def test_speicher_rate_limit_veto_per_member(tmp_path: Path) -> None:
         _grid_event(_GRID_METER_ENTITY, state_w=-400.0),
         seeds["grid_meter"],
     )
-    # Smoothing buffer needs to fill — call several times.
-    for _ in range(4):
-        await controller.on_sensor_update(
-            _grid_event(_GRID_METER_ENTITY, state_w=-400.0),
-            seeds["grid_meter"],
-        )
     if controller._dispatch_tasks:
         await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
 
@@ -550,6 +703,30 @@ async def test_speicher_returns_empty_when_pool_has_no_online_members(
         attributes={},
     )
     decisions = _prime_buffer(controller, seeds["grid_meter"], sample_w=-200.0)
+    assert decisions == []
+
+
+@pytest.mark.asyncio
+async def test_speicher_returns_empty_when_pool_member_lacks_soc(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=2)
+    state_cache = StateCache()
+    grid = seeds["grid_meter"]
+    charge_a, soc_a = seeds["pool_devices"][0]
+    charge_b, _soc_b = seeds["pool_devices"][1]
+    pool = BatteryPool.from_devices([grid, charge_a, soc_a, charge_b], ADAPTERS)
+
+    controller, _pool = _make_speicher_controller(
+        db,
+        seeds,
+        state_cache=state_cache,
+        aggregated_pct=50.0,
+        pool=pool,
+    )
+
+    decisions = _prime_buffer(controller, grid, sample_w=-400.0)
     assert decisions == []
 
 
@@ -794,6 +971,41 @@ async def test_speicher_min_max_soc_defaults_when_config_json_empty(
     assert decisions == []
 
 
+def test_read_soc_bounds_falls_back_for_non_object_config() -> None:
+    charge = DeviceRecord(
+        id=1,
+        type="marstek_venus",
+        role="wr_charge",
+        entity_id="number.venus_charge_power",
+        adapter_key="marstek_venus",
+        config_json="[]",
+    )
+
+    assert _read_soc_bounds(charge) == (95, 15)
+
+
+def test_read_soc_bounds_falls_back_for_invalid_ranges() -> None:
+    inverted = DeviceRecord(
+        id=1,
+        type="marstek_venus",
+        role="wr_charge",
+        entity_id="number.venus_charge_power",
+        adapter_key="marstek_venus",
+        config_json='{"min_soc": 90, "max_soc": 80}',
+    )
+    out_of_range = DeviceRecord(
+        id=2,
+        type="marstek_venus",
+        role="wr_charge",
+        entity_id="number.venus_2_charge_power",
+        adapter_key="marstek_venus",
+        config_json='{"min_soc": -1, "max_soc": 120}',
+    )
+
+    assert _read_soc_bounds(inverted) == (95, 15)
+    assert _read_soc_bounds(out_of_range) == (95, 15)
+
+
 # ----- AC 16: Mode-Gate ---------------------------------------------------
 
 
@@ -895,6 +1107,30 @@ async def test_smoothing_buffer_in_memory_separate_from_drossel(
         mode=Mode.SPEICHER,
     )
     assert grid_id not in new_controller._speicher_buffers
+
+
+# ----- AC 10: Pipeline-Latenz ---------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_speicher_policy_path_stays_under_one_second(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=2)
+    state_cache = StateCache()
+    controller, _pool = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+
+    t0 = time.perf_counter()
+    decisions = controller._policy_speicher(
+        seeds["grid_meter"], sensor_value_w=-400.0
+    )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+
+    assert len(decisions) == 2
+    assert elapsed_ms < 1000
 
 
 # ----- AC 20: Sign-Konvention ---------------------------------------------

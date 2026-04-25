@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-25 (Story 4.0 → ready-for-dev via create-story: Debug-Logging-Toggle + Hot-Path-Debug-Trace Story erstellt; Epic 4 gestartet. Vorher: Story 3.4 → review via dev-story: Speicher-Modus produktiv — _policy_speicher ersetzt Stub mit Smoothing/Hard-Cap/Sign-Flip; SpeicherParams in adapters/base; Marstek-Override + signed Range (-2500, 2500); _dispatch_by_mode list-signature für Multi-Member-Dispatch; battery_pool an Controller durchgereicht. 31 neue Tests + 2 angepasste, 219 Tests total grün; Ruff + MyPy strict + 5 Drift-Checks grün; keine SQL-Migration, keine API-/Frontend-Änderung, keine neue Dependency)
+last_updated: 2026-04-25 (Story 3.4 → done nach Code-Review-Patch-Fix: 8 Review-Findings behoben — Ramping relativ zu letztem bestätigtem Setpoint, Speicher-Memo erst nach nicht-vetoed Dispatch, SoC-Bounds validiert, Cap-Flags resetten bei Band-Exit, SoC-lose Pool-Member geblockt, gemeinsamer Command-Timestamp pro Sensor-Event, AC10-Latenztest + Policy-Deadband-Test ergänzt. Verifikation: 228 Backend-Tests grün, Ruff + MyPy grün. Vorher: Story 4.0 → ready-for-dev via create-story: Debug-Logging-Toggle + Hot-Path-Debug-Trace Story erstellt; Epic 4 gestartet.)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -75,7 +75,7 @@ development_status:
   3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: done
   3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: done
   3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: done
-  3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: review
+  3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: done
   3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog
   3-6-user-config-min-max-soc-nacht-entlade-zeitfenster: backlog
   3-7-fail-safe-bei-kommunikations-ausfall: backlog

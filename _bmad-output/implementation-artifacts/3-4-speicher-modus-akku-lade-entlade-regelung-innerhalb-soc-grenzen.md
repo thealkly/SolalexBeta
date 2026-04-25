@@ -1,6 +1,6 @@
 # Story 3.4: Speicher-Modus — Akku-Lade/-Entlade-Regelung innerhalb SoC-Grenzen
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -323,6 +323,22 @@ so that mein Strom im Haus bleibt und die Akku-Gesundheit nicht durch Tiefentlad
   - [x] Drift-Check 4: `grep -rE "marstek_venus|hoymiles|shelly" backend/src/solalex/battery_pool.py` → **0 Treffer** (3.3 AC 5 bleibt gewahrt).
   - [x] Drift-Check 5: `grep -rE "set_mode\(Mode\.\w+\)" backend/src/solalex/controller.py | grep -v test` → **0 Treffer in `_policy_speicher`** (Mode-Switching ist Story 3.5).
   - [x] Manual-Smoke lokal im HA-Add-on (optional, kein Blocker für Review): `controller.set_mode(Mode.SPEICHER)` per Diagnose-Hook (nicht UI), ein Real-Marstek-Setup, beobachten dass Charge bei Einspeisung > 30 W reagiert und Discharge bei Bezug > 30 W. Beta-Gate-Empirie ±30 W läuft empirisch durch Alex; Unit-Tests sichern Policy-Charakteristik.
+
+### Review Findings
+
+- [x] [Review][Patch] Setpoint-Ramping bleibt bei ±500 W hängen [backend/src/solalex/controller.py:491] — `_clamp_step(0, proposed, params.limit_step_clamp_w)` clampet jeden Zyklus relativ zu `0` statt relativ zum letzten gesetzten Speicher-Setpoint. Bei dauerhaft 2000 W Bezug/Einspeisung entsteht immer wieder nur `±500 W`; danach unterdrückt `min_step_w`, weil `last == proposed`. Fix: `raw_proposed` berechnen, `last` vor dem Clamp lesen und `_clamp_step(last, raw_proposed, params.limit_step_clamp_w)` verwenden; Regressionstest für mehrstufiges Rampen ergänzen.
+- [x] [Review][Patch] Letzter Speicher-Setpoint wird vor erfolgreichem Dispatch gemerkt [backend/src/solalex/controller.py:506] — `_speicher_last_setpoint_w` wird aktualisiert, bevor der Executor Range/Rate-Limit/Fail-Safe/Readback abgeschlossen hat. Bei `rate_limit` oder Fail-Safe kann ein nie gesendeter Setpoint spätere identische gültige Commands unterdrücken. Fix: Memo erst nach bestätigtem Dispatch-Erfolg aktualisieren oder die Semantik explizit als `last_requested` modellieren und Min-Step nicht gegen nie gesendete Werte anwenden.
+- [x] [Review][Patch] SoC-Grenzen behandeln non-dict und invalide Werte nicht sicher [backend/src/solalex/controller.py:762] — `_read_soc_bounds` fängt JSON-Parse-Exceptions, aber `DeviceRecord.config()` kann auch eine Liste/Zahl/String liefern; dann crasht `cfg.get(...)`. Außerdem laufen `min_soc >= max_soc` oder Werte außerhalb `0..100` durch und können Schutzgrenzen faktisch aushebeln. Fix: `isinstance(cfg, dict)` prüfen und `0 <= min_soc < max_soc <= 100` erzwingen; bei invalidem Payload sichere Defaults mit Warnlog oder fail-loud wählen und testen.
+- [x] [Review][Patch] Hard-Cap-Log-Flags resetten nicht bei jedem Band-Exit [backend/src/solalex/controller.py:458] — `_speicher_max_soc_capped` wird nur im Lade-Zweig zurückgesetzt und `_speicher_min_soc_capped` nur im Entlade-Zweig. Verlässt der SoC das Max-Band während Bezug-Events oder das Min-Band während Einspeise-/Deadband-Events, kann der nächste Cap-Eintritt den geforderten einmaligen Diagnose-Log überspringen. Fix: Flags unmittelbar nach SoC/Bounds-Read anhand `aggregated < max_soc` bzw. `aggregated > min_soc` resetten; Tests für Gegenrichtung/Deadband ergänzen.
+- [x] [Review][Patch] Pool kann Member ohne eigene SoC-Lesung dispatchen [backend/src/solalex/controller.py:450] — `_policy_speicher` prüft nur, ob `pool.get_soc(...)` irgendeinen Aggregatwert liefert. Wenn ein Pool-Member kein `soc_device` hat, kann `get_soc` den Aggregatwert aus anderen Membern bilden, während `pool.set_setpoint(...)` den Member ohne SoC wegen vorhandener Charge-Entity trotzdem als online dispatcht. Fix: Speicher-Policy muss vor Dispatch sicherstellen, dass alle zu dispatchenden Members einen gültigen SoC-Beitrag haben, oder SoC-lose Members in 3.4 vom Speicher-Dispatch ausschließen.
+- [x] [Review][Patch] `last_command_at` wird nicht einmal pro Sensor-Event gesetzt [backend/src/solalex/controller.py:228] — Bei N Pool-Decisions startet `on_sensor_update` N `_safe_dispatch`-Tasks; jeder Dispatch ruft selbst `state_cache.set_last_command_at(now)`. AC 12 fordert den Cache-Schreibzeitpunkt nur einmal pro Sensor-Event bzw. beim ersten erfolgreichen Dispatch. Fix: gemeinsamen Command-Timestamp/Batch-Guard durchreichen oder `last_command_at` zentral pro Decision-Batch setzen; Regressionstest mit zwei erfolgreichen Pool-Membern ergänzen.
+- [x] [Review][Patch] AC10-Latenztest fehlt [backend/tests/unit/test_controller_speicher_policy.py] — Die Story fordert einen isolierten Test, dass der synchrone Speicher-Policy-Pfad unter 1000 ms bleibt. Aktuelle `cycle_duration_ms=5`-Werte sind Fake-Dispatch-Testdaten und messen nicht die Policy. Fix: dedizierten Test für `_policy_speicher` oder Sensor-Event bis Task-Spawn mit N=1 und N=2 ergänzen.
+- [x] [Review][Patch] `test_speicher_marstek_tolerance` prüft nicht das Policy-Verhalten [backend/tests/unit/test_marstek_venus_speicher_params.py:1536] — Der Test verifiziert nur, dass Beispielwerte innerhalb `deadband_w` liegen; er ruft die Speicher-Policy nicht auf und beweist keinen ausbleibenden Dispatch für die Sinus-Last im ±25-W-Bereich. Fix: Test in `test_controller_speicher_policy.py` ergänzen oder erweitern, sodass die Samples durch `_policy_speicher` laufen und `[]`/keine Dispatch-Tasks assertiert werden.
+
+Review-Fix-Verifikation 2026-04-25:
+- `cd backend && uv run pytest -q` → 228 passed.
+- `cd backend && uv run ruff check .` → All checks passed.
+- `cd backend && uv run mypy` → Success, 83 source files.
 
 ## Dev Notes
 
