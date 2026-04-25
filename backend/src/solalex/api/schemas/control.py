@@ -67,3 +67,24 @@ class StateSnapshot(BaseModel):
     current_mode: Literal["drossel", "speicher", "multi", "idle"] = "idle"
     recent_cycles: list[RecentCycle] = Field(default_factory=list)
     rate_limit_status: list[RateLimitEntry] = Field(default_factory=list)
+
+
+# Story 3.5 — manual mode override.
+ForcedMode = Literal["drossel", "speicher", "multi"]
+
+
+class ForcedModeRequest(BaseModel):
+    """PUT /api/v1/control/mode body — override the regulator mode.
+
+    ``forced_mode = null`` clears the override and resumes auto-detection.
+    """
+
+    forced_mode: ForcedMode | None = None
+
+
+class ControlModeResponse(BaseModel):
+    """GET / PUT /api/v1/control/mode response."""
+
+    forced_mode: ForcedMode | None
+    active_mode: Literal["drossel", "speicher", "multi"]
+    baseline_mode: Literal["drossel", "speicher", "multi"]

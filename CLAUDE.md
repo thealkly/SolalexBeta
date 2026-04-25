@@ -218,7 +218,11 @@ solalex/
 - Wenn Du Wrapper-Hülle `{data: ..., success: true}` um JSON legst — **STOP**. Direkt das Objekt.
 - Wenn Du Anker Solix- oder Generic-HA-Entity-Code für v1 schreibst — **STOP**. Diese kommen in v1.5.
 - Wenn Du `i18n`-Wrapper (`$t('key')`) oder `locales/*.json` für v1 anlegst — **STOP**. Deutsche Strings direkt.
-- Wenn Du Controller in Submodule splittest (`drossel.py`, `speicher.py`, …) — **STOP**. Ein `controller.py` mit Enum-Dispatch.
+- Wenn Du Controller in Submodule splittest (`drossel.py`, `speicher.py`, `export.py`, …) — **STOP**. Ein `controller.py` mit Enum-Dispatch.
+- Wenn Du Surplus-Export als Patch in `_policy_drossel` einbaust statt eigener Methode `_policy_export` + Mode-Enum-Wert `Mode.EXPORT` — **STOP**. Audit-Trail-Klarheit (mode='export' im Log) ist non-verhandelbar (Amendment 2026-04-25 Surplus-Export).
+- Wenn Du einen 5. Mode einführst — **STOP**. Mode-Enum bleibt 4-fach: `DROSSEL`, `SPEICHER`, `MULTI`, `EXPORT`. Spotpreis-Steuerung o. ä. ist v2-Scope.
+- Wenn Du den Surplus-Export-Toggle global in `meta`-Tabelle ablegst statt pro WR in `device.config_json.allow_surplus_export` — **STOP**. Mixed-Setups (ein angemeldeter WR + ein Balkonkraftwerk ohne Anmeldung) müssen unabhängig schaltbar sein.
+- Wenn Du Surplus-Export ohne den Validierungs-Check „`max_limit_w` muss gesetzt sein" zulässt — **STOP**. Ohne Hardware-Max kennt `_policy_export` den Ziel-Wert nicht.
 - Wenn Du ein Monorepo-Workspace-`pyproject.toml` auf Root anlegst — **STOP**. Nur `backend/pyproject.toml` + `frontend/package.json`.
 - Wenn Du `lib/tokens/colors.ts` (o. ä.) im Frontend anlegst — **STOP**. CSS Custom Properties in `app.css`.
 - Wenn Du `[data-theme='dark']`-Overrides oder einen HA-Theme-Observer/Subscriber baust — **STOP**. Dark-Mode gestrichen (Amendment 2026-04-23), Light-only in v1.

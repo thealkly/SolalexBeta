@@ -39,11 +39,12 @@ from solalex.api.routes.setup import router as setup_router
 from solalex.battery_pool import BatteryPool
 from solalex.common.logging import get_logger
 from solalex.config import get_settings
-from solalex.controller import Controller, Mode
+from solalex.controller import Controller, Mode, select_initial_mode
 from solalex.ha_client import ReconnectingHaClient
 from solalex.persistence.db import connection_context
 from solalex.persistence.migrate import run as run_migration
 from solalex.persistence.repositories.devices import list_devices
+from solalex.persistence.repositories.meta import get_meta
 from solalex.setup.test_session import ensure_entity_subscriptions
 from solalex.startup import run_startup
 from solalex.state_cache import StateCache
@@ -216,6 +217,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         extra={"member_count": len(battery_pool.members) if battery_pool else 0},
     )
 
+    # Story 3.5 — derive the initial regulator mode from the device registry
+    # (devices_by_role + battery pool member count) and restore any persisted
+    # manual override. Override loading happens BEFORE Controller construction
+    # so the constructor receives a coherent (active, baseline, forced)
+    # triple. Restoring a forced_mode does NOT write an audit cycle (AC 30).
+    forced_mode = await _load_forced_mode(settings.db_path)
+    initial_mode, baseline_mode = select_initial_mode(
+        devices_by_role, battery_pool, forced_mode=forced_mode
+    )
+    _logger.info(
+        "controller_initial_mode_selected",
+        extra={
+            "active_mode": initial_mode.value,
+            "baseline_mode": baseline_mode.value,
+            "forced_mode": forced_mode.value if forced_mode is not None else None,
+            "pool_member_count": len(battery_pool.members) if battery_pool else 0,
+        },
+    )
+
     controller = Controller(
         ha_client=app.state.ha_client.client,
         state_cache=_app_state_cache,
@@ -224,7 +244,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ha_ws_connected_fn=lambda: app.state.ha_client.ha_ws_connected,
         devices_by_role=devices_by_role,
         battery_pool=battery_pool,
-        mode=Mode.DROSSEL,
+        mode=initial_mode,
+        baseline_mode=baseline_mode,
+        forced_mode=forced_mode,
     )
     _app_controller = controller
     app.state.controller = controller
@@ -269,6 +291,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await ha_client_task
         _app_controller = None
         _app_devices_by_entity = {}
+
+
+async def _load_forced_mode(db_path: Path) -> Mode | None:
+    """Load the persisted manual mode override from ``meta.forced_mode``.
+
+    Returns ``None`` when the key is unset or carries a value the Mode
+    enum does not accept. Invalid payloads are logged but do not crash
+    the lifespan startup (a hand-edited DB or a future schema change
+    must not lock the user out).
+    """
+    async with connection_context(db_path) as conn:
+        raw = await get_meta(conn, "forced_mode")
+    if raw is None:
+        return None
+    if raw in {"drossel", "speicher", "multi"}:
+        return Mode(raw)
+    _logger.warning("forced_mode_invalid_value", extra={"value": raw})
+    return None
 
 
 async def _subscribe_controller_entities(

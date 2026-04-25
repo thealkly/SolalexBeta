@@ -760,9 +760,12 @@ async def test_speicher_only_one_noop_attribution_cycle_per_event(
     db = tmp_path / "test.db"
     seeds = await _seed_speicher_devices(db, pool_size=2)
     state_cache = StateCache()
-    # Aggregated SoC at Max-SoC → policy returns [].
+    # SoC well inside the hysteresis band so Story 3.5 does not trigger
+    # a SPEICHER→DROSSEL switch alongside the noop attribution cycle —
+    # the hard-cap on the speicher policy still has to come from the
+    # max_soc=95 default (96 > 95 → cap-hit, [] returned).
     controller, _pool = _make_speicher_controller(
-        db, seeds, state_cache=state_cache, aggregated_pct=98.0
+        db, seeds, state_cache=state_cache, aggregated_pct=96.0
     )
 
     # Manual user_id in the event so the event is attributed to "manual"
@@ -785,10 +788,16 @@ async def test_speicher_only_one_noop_attribution_cycle_per_event(
 
     async with connection_context(db) as conn:
         cycles = await control_cycles.list_recent(conn)
-    # Exactly one noop cycle row, regardless of pool size.
-    assert len(cycles) == 1
-    assert cycles[0].readback_status == "noop"
-    assert cycles[0].source == "manual"
+    # Filter to non-mode-switch rows — Story 3.5 may produce a mode-switch
+    # audit cycle, but the AC under test is "exactly one *noop attribution*
+    # cycle, regardless of pool size".
+    noop_attribution = [
+        c for c in cycles
+        if c.reason is None or not c.reason.startswith("mode_switch")
+    ]
+    assert len(noop_attribution) == 1
+    assert noop_attribution[0].readback_status == "noop"
+    assert noop_attribution[0].source == "manual"
 
 
 # ----- AC 9: Per-Member Lock — parallel Dispatch --------------------------
@@ -1018,6 +1027,11 @@ async def test_not_invoked_in_drossel_mode(tmp_path: Path) -> None:
         db, seeds, state_cache=state_cache, aggregated_pct=50.0
     )
     controller.set_mode(Mode.DROSSEL)
+    # Pin the baseline to DROSSEL so the Story 3.5 hysteresis helper does
+    # not flip back to SPEICHER on aggregated_pct=50% (≤ 93%). The AC
+    # under test is "speicher policy not invoked in DROSSEL mode" — the
+    # auto-flip is its own dedicated test in test_controller_mode_switch.
+    controller._mode_baseline = Mode.DROSSEL
 
     called: list[int] = []
     original = controller._policy_speicher

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import * as client from '../lib/api/client.js';
   import { isApiError } from '../lib/api/errors.js';
-  import type { EntityOption } from '../lib/api/types.js';
+  import type { EntityOption, ForcedMode, ForcedModeChoice } from '../lib/api/types.js';
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
@@ -28,6 +28,16 @@
 
   let saving = $state(false);
   let saveError = $state<string | null>(null);
+
+  // Story 3.5 — manual mode override (Beta-tester escape hatch).
+  // null GET response = controller wired but no override active; choice
+  // 'auto' maps to forced_mode null. Errors revert the radio so the UI
+  // never lies about backend state.
+  let modeOverrideAvailable = $state(false);
+  let modeChoice = $state<ForcedModeChoice>('auto');
+  let modeBaseline = $state<ForcedMode | null>(null);
+  let modeOverrideError = $state<string | null>(null);
+  let modeOverridePending = $state(false);
 
   let canSave = $derived(
     hardwareType !== null &&
@@ -74,7 +84,39 @@
       }
       loading = false;
     }
+    // Mode-override card surfaces only when the backend has a controller
+    // wired up (post-commissioning or in development). Failure here keeps
+    // the section hidden — the rest of the wizard stays usable.
+    try {
+      const mode = await client.fetchControlMode();
+      modeBaseline = mode.baseline_mode;
+      modeChoice = mode.forced_mode ?? 'auto';
+      modeOverrideAvailable = true;
+    } catch {
+      modeOverrideAvailable = false;
+    }
   });
+
+  async function handleModeChange(next: ForcedModeChoice): Promise<void> {
+    const previousChoice = modeChoice;
+    if (next === modeChoice) return;
+    modeChoice = next;
+    modeOverrideError = null;
+    modeOverridePending = true;
+    try {
+      const mode = await client.setForcedMode(next === 'auto' ? null : next);
+      modeBaseline = mode.baseline_mode;
+      modeChoice = mode.forced_mode ?? 'auto';
+    } catch (err) {
+      // Revert the radio so the UI cannot diverge from backend state.
+      modeChoice = previousChoice;
+      modeOverrideError = isApiError(err)
+        ? err.detail
+        : 'Modus-Wechsel fehlgeschlagen. Bitte erneut versuchen.';
+    } finally {
+      modeOverridePending = false;
+    }
+  }
 
   function selectType(type: 'generic' | 'marstek_venus'): void {
     hardwareType = type;
@@ -332,6 +374,42 @@
         {/if}
       </div>
     {/if}
+
+    {#if modeOverrideAvailable}
+      <section class="config-section" data-testid="mode-override-section">
+        <h2>Regelungs-Modus</h2>
+        <p class="hint" style="margin-bottom: 12px;">
+          Solalex erkennt den Modus normalerweise selbst. Diese Option überschreibt die
+          Auto-Erkennung — nur für Tests oder wenn der Auto-Modus nicht passt.
+        </p>
+        <div class="mode-radio-group" role="radiogroup" aria-label="Regelungs-Modus">
+          {#each [{ value: 'auto', label: 'Automatisch (empfohlen)' }, { value: 'drossel', label: 'Drossel' }, { value: 'speicher', label: 'Speicher' }, { value: 'multi', label: 'Multi' }] as opt (opt.value)}
+            <label class="mode-radio-row">
+              <input
+                type="radio"
+                name="forced_mode"
+                value={opt.value}
+                checked={modeChoice === opt.value}
+                disabled={modeOverridePending}
+                onchange={() => handleModeChange(opt.value as ForcedModeChoice)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          {/each}
+        </div>
+        {#if modeChoice !== 'auto' && modeBaseline}
+          <p class="hint" style="margin-top: 12px;" data-testid="mode-baseline-hint">
+            Manuell überschrieben: <strong>{modeChoice}</strong> — auto-erkannter Modus wäre:
+            <strong>{modeBaseline}</strong>.
+          </p>
+        {/if}
+        {#if modeOverrideError}
+          <p class="error-line" style="margin-top: 12px;" data-testid="mode-override-error">
+            {modeOverrideError}
+          </p>
+        {/if}
+      </section>
+    {/if}
   {/if}
 </main>
 
@@ -557,6 +635,28 @@
     width: 16px;
     height: 16px;
     accent-color: var(--color-accent-primary);
+  }
+
+  .mode-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mode-radio-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    cursor: pointer;
+    font-size: 0.92rem;
+  }
+
+  .mode-radio-row input[type='radio'] {
+    accent-color: var(--color-accent-primary);
+  }
+
+  .mode-radio-row input[type='radio']:disabled {
+    cursor: default;
   }
 
   .save-row {

@@ -88,6 +88,18 @@ export interface RateLimitEntry {
 
 export type ControlMode = 'drossel' | 'speicher' | 'multi' | 'idle';
 
+// Story 3.5 — manual mode override.
+// Backend Literal["drossel","speicher","multi"] | null mirrors here:
+// `null` = auto-detection active; the radio UI maps null to "auto".
+export type ForcedMode = 'drossel' | 'speicher' | 'multi';
+export type ForcedModeChoice = ForcedMode | 'auto';
+
+export interface ControlModeResponse {
+  forced_mode: ForcedMode | null;
+  active_mode: ForcedMode;
+  baseline_mode: ForcedMode;
+}
+
 export interface StateSnapshot {
   entities: EntitySnapshot[];
   test_in_progress: boolean;

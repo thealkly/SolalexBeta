@@ -1123,3 +1123,77 @@ Alle Keys optional. Editierbar in v1 nur per direktem DB-Update oder zukünftige
 - Epic 5 Story 5.1a (`done`): Frontend-Type-Update zieht automatisch nach.
 
 **Detail-Spezifikation:** siehe Sprint Change Proposal `sprint-change-proposal-2026-04-25.md`.
+
+---
+
+### Amendment 2026-04-25 (Surplus-Export) — `Mode.EXPORT` als 4. Mode
+
+**Trigger:** Konzeptionelle Lücke entdeckt beim Durchsprechen DC-gekoppelter Hybrid-Setups (PV → Akku → WR), die auch AC-gekoppelte Beta-Sweet-Spot-Setups (Marstek Venus + Hoymiles parallel am Hausnetz) trifft: Bei Pool-Voll switcht Story 3.5 zu DROSSEL und reduziert das WR-Limit — die überschüssige PV wird dadurch abgeregelt, statt eingespeist. Wirtschaftlich verschenkt das im Sommer 1–3 kWh/Tag pro Beta-Tester der Klasse „Eigenverbrauchs-Maximierer mit angemeldeter Anlage" (DACH-Mehrheit).
+
+**Cut:** Mode-Enum wird von 3-fach (DROSSEL, SPEICHER, MULTI) auf 4-fach erweitert. Neuer Wert `Mode.EXPORT = "export"`. Neue Policy `Controller._policy_export(self, device, sensor_value_w) -> list[PolicyDecision]` am Mono-Modul-Controller (kein neues Modul, Architektur-Cut 9 bleibt). Die Policy setzt das WR-Limit auf den Hardware-Max-Wert aus `wr_limit_device.config_json.max_limit_w` (Schema aus dem Generic-Adapter-Amendment 2026-04-25 wiederverwendet — additiver Schlüssel `allow_surplus_export` ergänzt).
+
+**Trigger-Logik:**
+
+- Hysterese-Erweiterung in `_evaluate_mode_switch` (Story 3.5 Helper):
+  - SPEICHER + `aggregated_pct ≥ 97 %` + `wr_limit.config_json.allow_surplus_export == True` → Switch zu EXPORT (statt DROSSEL).
+  - EXPORT + `aggregated_pct ≤ 93 %` → Switch zurück zu `_mode_baseline` (üblicherweise SPEICHER oder MULTI).
+- MULTI-Cap-Branch in `_policy_multi` (Story 3.5):
+  - `_speicher_max_soc_capped == True` + Toggle ON → ruft `_policy_export` statt `_policy_drossel` auf. MULTI bleibt MULTI (kein Mode-Switch), die Decision wird einfach mit Hardware-Max-Limit produziert.
+
+**Toggle-Persistenz:** Pro WR im bestehenden `device.config_json`-Override-Schema:
+
+```json
+{
+  "max_limit_w": 600,
+  "allow_surplus_export": true
+}
+```
+
+- Default `allow_surplus_export = false` (Status-quo-Verhalten preserve).
+- Validierung: `allow_surplus_export = true` ist nur akzeptabel, wenn `max_limit_w` ebenfalls gesetzt ist (sonst kennt die Policy den Wert nicht). API-Validierung im neuen `PATCH /api/v1/devices/{id}/config`-Endpunkt.
+- Editierbar in v1 über Frontend Config-Page (Toggle pro WR-Tile).
+
+**Was NICHT geändert wird:**
+
+- `AdapterBase`-Interface bleibt unverändert.
+- Closed-Loop-Readback-Pflicht (Regel 3) — unverändert. EXPORT-Decisions durchlaufen die normale Veto-Kaskade + Readback im Executor.
+- Range-Check, Rate-Limit, Fail-Safe — unverändert.
+- `_mode_baseline`-Field aus 3.5 — bleibt; EXPORT setzt es nicht.
+- Hysterese-Konstanten 97/93 % aus 3.5 — werden wiederverwendet, kein separater EXPORT-Schwellenwert.
+- Mindest-Verweildauer 60 s aus 3.5 — gilt auch für EXPORT-Switch.
+- JSON-Template-Verbot — unverändert.
+
+**SQL-Migration 004:** Forward-only Recreate-Pattern — erweitert CHECK-Constraint auf `control_cycles.mode` und `latency_measurements.mode` um Wert `'export'`. SQLite kennt kein `ALTER TABLE ... ALTER CONSTRAINT`, daher Standard-Pattern `CREATE TABLE _new` + `INSERT ... SELECT` + `DROP` + `RENAME` + `CREATE INDEX`.
+
+**Konsequenz für CLAUDE.md:**
+
+- Stolperstein-Eintrag „Mode-Enum bleibt 3-fach" wird ersetzt durch „Mode-Enum bleibt 4-fach: DROSSEL, SPEICHER, MULTI, EXPORT — kein 5. Mode in v1".
+- Neuer Stop-Eintrag: „Wenn du Surplus-Export als Patch in `_policy_drossel` einbauen willst statt eigenem `Mode.EXPORT` + `_policy_export` — STOP. Audit-Trail-Klarheit (mode='export' im Log) ist non-verhandelbar."
+
+**Konsequenz für Default-User-Verhalten:**
+
+- Status-quo bleibt erhalten. Beta-Tester der Klasse „strenge Nulleinspeisung" (z. B. Anlagen ohne Inbetriebnahme-Anmeldung) bemerken ohne Toggle-Aktivierung keinerlei Verhaltensänderung.
+- Beta-Tester der Klasse „Eigenverbrauchs-Maximierer" können den Toggle pro WR aktivieren und vermeiden damit PV-Abregelung bei vollem Akku.
+
+**Erweitertes `device.config_json`-Schema (additiv zum 2026-04-25-Generic-Adapter):**
+
+```json
+{
+  "deadband_w": 10,
+  "min_step_w": 5,
+  "smoothing_window": 5,
+  "limit_step_clamp_w": 200,
+  "min_limit_w": 2,
+  "max_limit_w": 600,
+  "allow_surplus_export": false
+}
+```
+
+**Epics-Rückwirkungen:**
+
+- Epic 3 Story 3.8 (neu): Surplus-Export-Mode bei Akku-Voll — `Mode.EXPORT` + `_policy_export` + DB-Migration 004 + Frontend-Toggle. Beta-Launch-blocking.
+- Epic 3 Story 3.5 (`done`): `_evaluate_mode_switch` und `_policy_multi` werden in 3.8 additiv erweitert; Story 3.5 wird **nicht** re-opened.
+- Epic 2 Story 2.1 (`done`): Frontend-Erweiterung Config.svelte (Toggle) wird in 3.8 mitgenommen.
+- Epic 5 Story 5.1a (`done`): Mode-Label-Mapping `'export'` → „Einspeisung" wird in 3.8 mitgenommen.
+
+**Detail-Spezifikation:** siehe Sprint Change Proposal `sprint-change-proposal-2026-04-25-surplus-export.md`.

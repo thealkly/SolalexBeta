@@ -1,8 +1,10 @@
 import { ApiError } from './errors.js';
 import type {
   CommissioningResponse,
+  ControlModeResponse,
   DeviceResponse,
   EntitiesResponse,
+  ForcedMode,
   FunctionalTestResponse,
   HardwareConfigRequest,
   SaveDevicesResponse,
@@ -69,4 +71,16 @@ export async function getStateSnapshot(): Promise<StateSnapshot> {
 
 export async function getDevices(): Promise<DeviceResponse[]> {
   return request<DeviceResponse[]>('/api/v1/devices/');
+}
+
+export async function fetchControlMode(): Promise<ControlModeResponse> {
+  return request<ControlModeResponse>('/api/v1/control/mode');
+}
+
+export async function setForcedMode(mode: ForcedMode | null): Promise<ControlModeResponse> {
+  return request<ControlModeResponse>('/api/v1/control/mode', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ forced_mode: mode }),
+  });
 }

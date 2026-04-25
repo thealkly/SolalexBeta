@@ -19,3 +19,9 @@ async def set_meta(conn: aiosqlite.Connection, key: str, value: str) -> None:
         (key, value),
     )
     await conn.commit()
+
+
+async def delete_meta(conn: aiosqlite.Connection, key: str) -> None:
+    """Remove *key* from the meta table. No-op if it does not exist."""
+    await conn.execute("DELETE FROM meta WHERE key = ?", (key,))
+    await conn.commit()

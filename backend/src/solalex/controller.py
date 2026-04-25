@@ -66,6 +66,14 @@ _HA_SENSOR_SENTINELS: frozenset[str] = frozenset(
 # cannot bloat the diagnostics UI.
 _REASON_MAX_LEN: int = 200
 
+# Adaptive mode switching (Story 3.5). 97/93 % is FR16 spec; 60 s dwell
+# follows PRD Zeile 402 anti-oscillation. Constants live at module top
+# (CLAUDE.md Regel 2 — controller-specific, not adapter-specific). No
+# user override in v1; per-device override via device.config_json is v1.5.
+MODE_SWITCH_HIGH_SOC_PCT: float = 97.0
+MODE_SWITCH_LOW_SOC_PCT: float = 93.0
+MODE_SWITCH_MIN_DWELL_S: float = 60.0
+
 Source = Literal["solalex", "manual", "ha_automation"]
 
 
@@ -104,6 +112,52 @@ def _utc_now() -> datetime:
     return datetime.now(tz=UTC)
 
 
+def select_initial_mode(
+    devices_by_role: dict[str, DeviceRecord],
+    battery_pool: BatteryPool | None,
+    forced_mode: Mode | None = None,
+) -> tuple[Mode, Mode]:
+    """Derive the controller startup mode from the device registry.
+
+    Returns ``(active_mode, baseline_mode)``. Baseline encodes the
+    auto-detected setup regime (used by the hysteresis helper to gate
+    DROSSEL→SPEICHER returns); active is what the controller starts in.
+    With ``forced_mode`` set, ``active = forced_mode`` while baseline
+    keeps the auto-detected value, so clearing the override resumes
+    hysteresis at the correct setup regime.
+
+    Decision table (AC 1, AC 10):
+      * ``wr_limit`` only (or with empty pool)            → DROSSEL
+      * ``wr_limit`` + pool with 1 member                 → SPEICHER
+      * ``wr_limit`` + pool with ≥ 2 members              → MULTI
+      * Pool-only setup (no ``wr_limit``, ≥ 1 member)     → SPEICHER
+      * Empty registry / no pool                          → DROSSEL (degenerate)
+    """
+    has_wr_limit = "wr_limit" in devices_by_role
+    pool_size = len(battery_pool.members) if battery_pool is not None else 0
+
+    if has_wr_limit and pool_size >= 2:
+        baseline = Mode.MULTI
+    elif pool_size >= 1:
+        baseline = Mode.SPEICHER
+    else:
+        baseline = Mode.DROSSEL
+
+    active = forced_mode if forced_mode is not None else baseline
+    if _logger.isEnabledFor(logging.INFO):
+        _logger.info(
+            "mode_selected",
+            extra={
+                "active_mode": active.value,
+                "baseline_mode": baseline.value,
+                "has_wr_limit": has_wr_limit,
+                "pool_member_count": pool_size,
+                "forced_mode": forced_mode.value if forced_mode is not None else None,
+            },
+        )
+    return (active, baseline)
+
+
 class Controller:
     """Mono-Modul controller — enum dispatch, direct calls, fail-safe wrapper."""
 
@@ -124,6 +178,8 @@ class Controller:
         devices_by_role: dict[str, DeviceRecord] | None = None,
         battery_pool: BatteryPool | None = None,
         mode: Mode = Mode.DROSSEL,
+        baseline_mode: Mode | None = None,
+        forced_mode: Mode | None = None,
         setpoint_provider: SetpointProvider | None = None,
         now_fn: Callable[[], datetime] = _utc_now,
     ) -> None:
@@ -133,6 +189,15 @@ class Controller:
         self._adapter_registry = adapter_registry
         self._ha_ws_connected_fn = ha_ws_connected_fn
         self._current_mode = mode
+        # Story 3.5 — baseline encodes the auto-detected setup regime
+        # (used by the hysteresis helper to gate DROSSEL→SPEICHER returns).
+        # Baseline is immutable after construction; callers pass an explicit
+        # value so a manual override does not collapse the setup-regime
+        # signal. Default to ``mode`` for backwards-compat with tests that
+        # build a Controller without going through select_initial_mode.
+        self._mode_baseline: Mode = baseline_mode if baseline_mode is not None else mode
+        self._mode_switched_at: datetime | None = None
+        self._forced_mode: Mode | None = forced_mode
         self._dispatch_tasks = set()
         self._setpoint_provider: SetpointProvider = (
             setpoint_provider if setpoint_provider is not None else _NoopSetpointProvider()
@@ -178,8 +243,16 @@ class Controller:
         return self._setpoint_provider
 
     def set_mode(self, mode: Mode) -> None:
-        """Allow callers (diagnostics, Story 3.5) to switch modes at runtime."""
+        """Switch the active mode. Baseline stays untouched (Story 3.5)."""
         self._current_mode = mode
+
+    @property
+    def mode_baseline(self) -> Mode:
+        return self._mode_baseline
+
+    @property
+    def forced_mode(self) -> Mode | None:
+        return self._forced_mode
 
     # ------------------------------------------------------------------
     # Public entry point — wired from main.py::_dispatch_event.
@@ -202,6 +275,22 @@ class Controller:
 
         source = self._classify_source(event_msg, device, now)
         sensor_value = _extract_sensor_w(event_msg)
+
+        # Story 3.5 — evaluate the hysteresis switch BEFORE dispatching so
+        # the first decision after a switch already runs under the new mode
+        # (AC 9). The audit cycle is persisted synchronously inside
+        # _record_mode_switch_cycle, also before the dispatch tasks spawn.
+        switch = self._evaluate_mode_switch(sensor_device=device, now=now)
+        if switch is not None:
+            new_mode, reason_detail = switch
+            old_mode = self._current_mode
+            await self._record_mode_switch_cycle(
+                old_mode=old_mode,
+                new_mode=new_mode,
+                reason_detail=reason_detail,
+                sensor_device=device,
+                now=now,
+            )
 
         decisions = self._dispatch_by_mode(self._current_mode, device, sensor_value)
 
@@ -309,9 +398,10 @@ class Controller:
 
         Drossel produces at most one decision (wrapped in a single-element
         list). Speicher consumes the battery pool and produces N decisions
-        — one per online pool member. Multi remains a stub returning ``[]``
-        (Story 3.5). Amendment 2026-04-22 forbids splitting this into
-        per-mode modules.
+        — one per online pool member. Multi (Story 3.5) calls speicher
+        first; drossel is a fallback only when the pool is capped at
+        Max-SoC with active feed-in. Amendment 2026-04-22 forbids splitting
+        this into per-mode modules.
         """
         match mode:
             case Mode.DROSSEL:
@@ -320,7 +410,7 @@ class Controller:
             case Mode.SPEICHER:
                 return self._policy_speicher(device, sensor_value_w)
             case Mode.MULTI:
-                return _policy_multi_stub(device, sensor_value_w)
+                return self._policy_multi(device, sensor_value_w)
             case _:  # pragma: no cover — exhaustiveness guard
                 assert_never(mode)
 
@@ -410,6 +500,293 @@ class Controller:
             command_kind="set_limit",
             sensor_value_w=smoothed,
         )
+
+    # ------------------------------------------------------------------
+    # Story 3.5 — adaptive mode switching (hysteresis helper, audit
+    # persist, manual override, MULTI policy). Pure-function discipline:
+    # _evaluate_mode_switch is IO-free and only returns the desired
+    # transition; _record_mode_switch_cycle owns the side effects.
+    # ------------------------------------------------------------------
+    def _evaluate_mode_switch(
+        self,
+        *,
+        sensor_device: DeviceRecord,
+        now: datetime,
+    ) -> tuple[Mode, str] | None:
+        """Return ``(new_mode, reason_detail)`` if a switch is due, else ``None``.
+
+        Pure-function discipline (AC 17): no DB write, no state_cache
+        update, no set_mode call. Caller in :meth:`on_sensor_update` runs
+        the side effects via :meth:`_record_mode_switch_cycle`.
+        """
+        del sensor_device
+        # Manual override fully suppresses the hysteresis (AC 29 — user
+        # will trumps auto). Cleared overrides return through the normal
+        # path on the next sensor event.
+        if self._forced_mode is not None:
+            return None
+        # MULTI never switches via hysteresis (AC 7). Drossel-as-fallback
+        # is implemented inside _policy_multi — switching to DROSSEL would
+        # disable pool charging entirely instead of suspending it at Max-SoC.
+        if self._current_mode == Mode.MULTI:
+            return None
+        pool = self._battery_pool
+        if pool is None or not pool.members:
+            return None
+        # Dwell-time gate (AC 8) — prevents oscillation in the hysteresis
+        # boundary band. Use the injected ``now`` so tests can advance
+        # the clock deterministically (CLAUDE.md / now_fn pattern).
+        if self._mode_switched_at is not None:
+            elapsed = (now - self._mode_switched_at).total_seconds()
+            if elapsed < MODE_SWITCH_MIN_DWELL_S:
+                return None
+        soc_breakdown = pool.get_soc(self._state_cache)
+        if soc_breakdown is None:
+            return None
+        aggregated = soc_breakdown.aggregated_pct
+
+        if (
+            self._current_mode == Mode.SPEICHER
+            and aggregated >= MODE_SWITCH_HIGH_SOC_PCT
+        ):
+            return (Mode.DROSSEL, f"pool_full (soc={aggregated:.1f}%)")
+        if (
+            self._current_mode == Mode.DROSSEL
+            and self._mode_baseline in (Mode.SPEICHER, Mode.MULTI)
+            and aggregated <= MODE_SWITCH_LOW_SOC_PCT
+        ):
+            return (
+                Mode.SPEICHER,
+                f"pool_below_low_threshold (soc={aggregated:.1f}%)",
+            )
+        return None
+
+    async def _record_mode_switch_cycle(
+        self,
+        *,
+        old_mode: Mode,
+        new_mode: Mode,
+        reason_detail: str,
+        sensor_device: DeviceRecord,
+        now: datetime,
+    ) -> None:
+        """Apply the mode switch and persist a ``noop`` audit cycle.
+
+        Side-effect order (AC 9):
+          1. ``set_mode`` so the next dispatch already uses the new mode.
+          2. Update dwell-time tracker.
+          3. Reset Speicher cap-flags so a later return logs the cap-entry
+             again (AC 12).
+          4. Emit info log + state_cache mirror (UI heartbeat for 5.1a).
+          5. Persist the audit row in ``control_cycles`` with
+             ``readback_status='noop'`` and ``reason='mode_switch: …'``.
+
+        Persist failures do not block the mode switch — audit-only
+        (AC 9). KPI record likewise tolerated to fail.
+        """
+        self.set_mode(new_mode)
+        self._mode_switched_at = now
+        # Resetting the cap-flags ensures the next visit to the cap-band
+        # logs an info line again instead of being deduped by the prior
+        # cycle's flag (Story 3.4 flag pattern, AC 12).
+        self._speicher_max_soc_capped = False
+        self._speicher_min_soc_capped = False
+
+        _logger.info(
+            "mode_switch",
+            extra={
+                "old_mode": old_mode.value,
+                "new_mode": new_mode.value,
+                "reason": reason_detail,
+                "baseline_mode": self._mode_baseline.value,
+                "sensor_device_id": sensor_device.id,
+            },
+        )
+        self._state_cache.update_mode(new_mode.value)
+
+        device_id = sensor_device.id
+        if device_id is None:
+            return
+        row = ControlCycleRow(
+            id=None,
+            ts=now,
+            device_id=device_id,
+            mode=new_mode.value,
+            source="solalex",
+            sensor_value_w=None,
+            target_value_w=None,
+            readback_status="noop",
+            readback_actual_w=None,
+            readback_mismatch=False,
+            latency_ms=None,
+            cycle_duration_ms=0,
+            reason=_truncate_reason(
+                f"mode_switch: {old_mode.value}→{new_mode.value} ({reason_detail})"
+            ),
+        )
+        try:
+            async with self._db_conn_factory() as conn:
+                await control_cycles.insert(conn, row)
+                await conn.commit()
+        except Exception:
+            _logger.exception(
+                "mode_switch_cycle_persist_failed",
+                extra={
+                    "old_mode": old_mode.value,
+                    "new_mode": new_mode.value,
+                    "device_id": device_id,
+                },
+            )
+            return
+        try:
+            await kpi_record(row)
+        except Exception:
+            _logger.exception(
+                "mode_switch_kpi_record_failed",
+                extra={"device_id": device_id},
+            )
+
+    async def set_forced_mode(self, mode: Mode | None) -> None:
+        """Apply or clear a manual mode override (Beta-tester escape hatch).
+
+        Setting a non-``None`` mode pins the controller to that mode and
+        suppresses the hysteresis (AC 29). Clearing the override (``None``)
+        resumes auto-detection on the next sensor event; the dwell-time
+        tracker is bumped so the first auto-switch waits the full window.
+        Switching the active mode synchronously persists an audit cycle
+        with ``reason='mode_switch: <old>→<new> (manual_override)'``
+        (AC 33). Clearing an override does not write a cycle — the next
+        auto-triggered switch will produce one normally.
+        """
+        old_forced = self._forced_mode
+        self._forced_mode = mode
+        if mode is not None:
+            _logger.info(
+                "mode_override_set",
+                extra={
+                    "old_forced_mode": (
+                        old_forced.value if old_forced is not None else None
+                    ),
+                    "new_forced_mode": mode.value,
+                    "active_mode": self._current_mode.value,
+                    "baseline_mode": self._mode_baseline.value,
+                },
+            )
+            if mode != self._current_mode:
+                anchor = self._anchor_device_for_audit()
+                if anchor is None:
+                    _logger.warning(
+                        "manual_override_no_anchor_device",
+                        extra={"new_forced_mode": mode.value},
+                    )
+                    self.set_mode(mode)
+                    self._state_cache.update_mode(mode.value)
+                    return
+                await self._record_mode_switch_cycle(
+                    old_mode=self._current_mode,
+                    new_mode=mode,
+                    reason_detail="manual_override",
+                    sensor_device=anchor,
+                    now=self._now_fn(),
+                )
+        else:
+            _logger.info(
+                "mode_override_cleared",
+                extra={
+                    "previous_forced_mode": (
+                        old_forced.value if old_forced is not None else None
+                    ),
+                    "active_mode": self._current_mode.value,
+                    "baseline_mode": self._mode_baseline.value,
+                },
+            )
+            # Bump dwell so the first auto-switch waits the full window.
+            self._mode_switched_at = self._now_fn()
+            self._state_cache.update_mode(self._current_mode.value)
+
+    def _anchor_device_for_audit(self) -> DeviceRecord | None:
+        """Pick a device the audit cycle's ``device_id`` FK can point at.
+
+        ``control_cycles.device_id`` has a FK on ``devices.id``; the
+        audit row therefore needs a real anchor. Prefer ``grid_meter``
+        (the natural sensor anchor for the controller), then ``wr_limit``,
+        then the first pool member's charge device. Returns ``None`` only
+        in degenerate setups without commissioned devices.
+        """
+        for role in ("grid_meter", "wr_limit"):
+            dev = self._devices_by_role.get(role)
+            if dev is not None and dev.id is not None:
+                return dev
+        if self._battery_pool is not None and self._battery_pool.members:
+            charge = self._battery_pool.members[0].charge_device
+            if charge.id is not None:
+                return charge
+        return None
+
+    def _policy_multi(
+        self,
+        device: DeviceRecord,
+        sensor_value_w: float | None,
+    ) -> list[PolicyDecision]:
+        """MULTI mode — Speicher first, Drossel as Pool-Voll fallback.
+
+        Decision flow (AC 2, 3, 19, 20, 21):
+          1. Non-grid_meter event or non-finite sensor → ``[]``.
+          2. No pool / empty pool → defensive Drossel-only fallback (the
+             selector should never produce MULTI without a pool, but a
+             hand-edited DB or a pool reload race could; defaulting to
+             nothing would silently drop control).
+          3. Call ``_policy_speicher`` first. The speicher path runs its
+             own smoothing/deadband/cap logic and may set
+             ``_speicher_max_soc_capped`` as a side effect.
+          4. If speicher returned decisions → return them; the pool
+             absorbs the surplus and Drossel is not needed (AC 21).
+          5. If speicher returned ``[]`` AND ``_speicher_max_soc_capped``
+             is True AND the smoothed grid meter shows feed-in → call
+             Drossel as the fallback. Drossel reads the speicher buffer
+             via ``_is_feed_in_after_smoothing`` (AC 22 — no double
+             buffer fill).
+          6. Otherwise (deadband, min-step gate, min-SoC cap with import,
+             non-feed-in) → ``[]``.
+        """
+        if device.role != "grid_meter":
+            return []
+        if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            return []
+
+        pool = self._battery_pool
+        if pool is None or not pool.members:
+            decision = self._policy_drossel(device, sensor_value_w)
+            return [decision] if decision is not None else []
+
+        speicher_decisions = self._policy_speicher(device, sensor_value_w)
+        if speicher_decisions:
+            return speicher_decisions
+
+        # Speicher returned [] — only Drossel-fallback when the pool is at
+        # Max-SoC AND there is feed-in. Min-SoC + import (AC 3 + 19) must
+        # NOT raise the WR-Limit (PV is delivering 0 W, the command would
+        # be a noop on hardware).
+        if self._speicher_max_soc_capped and self._is_feed_in_after_smoothing(device):
+            drossel_decision = self._policy_drossel(device, sensor_value_w)
+            return [drossel_decision] if drossel_decision is not None else []
+        return []
+
+    def _is_feed_in_after_smoothing(self, grid_meter_device: DeviceRecord) -> bool:
+        """Return True if the smoothed grid meter sits in the feed-in band.
+
+        Reads the existing ``_speicher_buffers`` slot — :meth:`_policy_speicher`
+        already populated it on this very same call (AC 22 forbids a
+        second append). Empty buffer collapses to ``False`` (defensive).
+        """
+        grid_meter_id = grid_meter_device.id
+        if grid_meter_id is None:
+            return False
+        buf = self._speicher_buffers.get(grid_meter_id)
+        if not buf:
+            return False
+        smoothed = sum(buf) / len(buf)
+        return smoothed < 0.0
 
     # ------------------------------------------------------------------
     # Story 3.4 — Speicher policy: reactive battery charge/discharge to
@@ -799,18 +1176,10 @@ class Controller:
 
 
 # ---------------------------------------------------------------------------
-# Per-mode policy stubs — 3.5 will replace the body.
-# Kept inline per Amendment 2026-04-22 (no drossel.py / speicher.py split).
-# Story 3.2 promoted the former _policy_drossel_stub to a method on Controller;
-# Story 3.4 promoted the former _policy_speicher_stub to a method as well.
+# Per-mode policy stubs — Story 3.2 / 3.4 / 3.5 promoted them all to methods
+# on Controller. Drossel / Speicher / Multi live as methods now (Amendment
+# 2026-04-22 — no drossel.py / speicher.py / multi.py split).
 # ---------------------------------------------------------------------------
-
-
-def _policy_multi_stub(
-    device: DeviceRecord, sensor_value_w: float | None
-) -> list[PolicyDecision]:
-    del device, sensor_value_w
-    return []
 
 
 def _read_soc_bounds(charge_device: DeviceRecord) -> tuple[int, int]:
@@ -1003,7 +1372,11 @@ def _extract_sensor_w(event_msg: dict[str, Any]) -> float | None:
 
 
 __all__ = [
+    "MODE_SWITCH_HIGH_SOC_PCT",
+    "MODE_SWITCH_LOW_SOC_PCT",
+    "MODE_SWITCH_MIN_DWELL_S",
     "Controller",
     "Mode",
     "SetpointProvider",
+    "select_initial_mode",
 ]

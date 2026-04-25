@@ -1059,6 +1059,54 @@ So that mein Netz-Export und meine Hardware nie unkontrolliert aus dem Ruder lau
 **When** er läuft
 **Then** 0 unbehandelte Exceptions, keine Schwingungen, keine unkontrollierten Einspeisungen unter `load_profile_sine_wave.csv` 0–3000 W
 
+### Story 3.8: Surplus-Export-Mode bei Akku-Voll (opt-in pro WR)
+
+As a Beta-Tester mit angemeldeter Anlage und Akku-Speicher,
+I want dass Solalex bei vollem Akku das WR-Limit nicht eindrosselt (PV-Abregelung), sondern auf Hardware-Max öffnet (Einspeisung), wenn ich diesen Modus pro Wechselrichter explizit aktiviert habe,
+So that ich keine PV-Energie verschenke, aber Mixed-Setups (ein angemeldeter WR + ein Balkonkraftwerk ohne Anmeldung) trotzdem unabhängig konfigurieren kann.
+
+**Begründung (für Beta-Launch-blocking):** Story 3.5 schaltet bei Pool-Voll automatisch auf DROSSEL (WR-Limit runter auf Last-Niveau, Nulleinspeisung). Bei DC-gekoppelten Setups (PV → Akku → WR) und AC-gekoppelten Setups (Marstek + Hoymiles parallel — Beta-Sweet-Spot!) führt das zu PV-Abregelung am MPPT, sobald der Akku nichts mehr aufnehmen kann. Wirtschaftlich verschenkt das im Sommer 1–3 kWh/Tag pro Beta-Tester der Klasse „Eigenverbrauchs-Maximierer mit angemeldeter Anlage" (DACH-Mehrheit). Ein opt-in `Mode.EXPORT` schließt diese Lücke ohne das Default-Verhalten (Nulleinspeisung) zu brechen — strenge Klasse-1-User (ohne Netzbetreiber-Anmeldung) bleiben unbeeinflusst.
+
+**Architektur-Bezug:** Sprint Change Proposal `sprint-change-proposal-2026-04-25-surplus-export.md` + Architecture-Amendment 2026-04-25 (Surplus-Export). Mode-Enum von 3-fach auf 4-fach erweitert. Toggle-Persistenz in bestehendem `device.config_json`-Override-Schema (additive Schlüssel `allow_surplus_export`).
+
+**Acceptance Criteria:**
+
+**Given** das Add-on startet ohne aktivierten Toggle
+**When** der Pool-SoC ≥ 97 % erreicht
+**Then** Solalex switcht wie bisher auf `Mode.DROSSEL` (Status-quo-Verhalten preserve)
+
+**Given** ein User aktiviert den Surplus-Export-Toggle für einen WR (`device.config_json.allow_surplus_export = true`)
+**When** der Pool-SoC ≥ 97 % erreicht und 60 s Mindest-Verweildauer abgelaufen sind
+**Then** Solalex switcht auf `Mode.EXPORT` statt DROSSEL und setzt das WR-Limit auf `device.config_json.max_limit_w`; ein Audit-Cycle mit `mode='export'`, `reason='pool_full_export (soc=97.5%)'` wird in `control_cycles` persistiert
+
+**Given** `Mode.EXPORT` ist aktiv
+**When** der Pool-SoC ≤ 93 % sinkt und Dwell-Time abgelaufen
+**Then** Solalex switcht zurück auf `_mode_baseline` (üblicherweise SPEICHER oder MULTI), Audit-Cycle mit `reason='pool_below_low_threshold_export_exit (soc=92.4%)'`
+
+**Given** `Mode.MULTI` ist aktiv und Toggle ON
+**When** Pool an Max-SoC + Einspeisung anliegt (`_speicher_max_soc_capped == True`)
+**Then** ruft `_policy_multi` `_policy_export` statt `_policy_drossel` auf; MULTI bleibt MULTI (kein Mode-Switch), aber das WR-Limit geht auf Hardware-Max statt eingedrosselt
+
+**Given** ein User versucht, den Toggle zu aktivieren ohne `max_limit_w` im config_json
+**When** er den PATCH-Request sendet (`PATCH /api/v1/devices/{id}/config { allow_surplus_export: true }`)
+**Then** das Backend antwortet mit `422 Unprocessable Entity` und Klartext-Fehlermeldung „Surplus-Einspeisung erfordert ein konfiguriertes Hardware-Max-Limit (`max_limit_w`)"
+
+**Given** SQL-Migration 004 läuft auf einer bestehenden DB
+**When** die Migration abgeschlossen ist
+**Then** `control_cycles.mode` und `latency_measurements.mode` akzeptieren zusätzlich `'export'`; alle bisherigen Rows bleiben erhalten
+
+**Given** das Frontend rendert die Hardware-Config-Page
+**When** ein WR-Device dargestellt wird
+**Then** ein Toggle „Surplus-Einspeisung erlauben (statt PV-Abregelung) bei vollem Akku" wird gerendert; bei fehlendem `max_limit_w` ist der Toggle disabled mit Inline-Hint zur Voraussetzung
+
+**Given** `current_mode == 'export'` im `state_cache`
+**When** die Running-View rendert
+**Then** der Modus-Label zeigt „Einspeisung" (deutsche UI-Strings gemäß CLAUDE.md)
+
+**Given** alle 4 CI-Gates
+**When** Story 3.8 mergt
+**Then** Ruff/MyPy/Pytest grün (~14 neue Tests), ESLint/svelte-check/Vitest grün, SQL-Migrations-Ordering grün (`004_mode_export.sql` lückenlos), Egress-Whitelist grün
+
 ---
 
 ## Epic 4: Diagnose, Latenz-Messung & Support-Workflow

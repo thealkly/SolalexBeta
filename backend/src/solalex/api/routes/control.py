@@ -20,13 +20,18 @@ from fastapi import APIRouter, Request
 
 from solalex.adapters.base import AdapterBase
 from solalex.api.schemas.control import (
+    ControlModeResponse,
     EntitySnapshot,
+    ForcedMode,
+    ForcedModeRequest,
     RateLimitEntry,
     RecentCycle,
     StateSnapshot,
 )
 from solalex.common.logging import get_logger
+from solalex.controller import Controller, Mode
 from solalex.persistence.repositories import control_cycles
+from solalex.persistence.repositories.meta import delete_meta, set_meta
 
 ModeValue = Literal["drossel", "speicher", "multi", "idle"]
 
@@ -127,6 +132,73 @@ async def get_control_state(request: Request) -> StateSnapshot:
         recent_cycles=recent_cycles,
         rate_limit_status=rate_limit_status,
     )
+
+
+@router.get("/mode", response_model=ControlModeResponse)
+async def get_control_mode(request: Request) -> ControlModeResponse:
+    """Return the current mode override + active + baseline (Story 3.5).
+
+    ``active_mode`` reflects the controller's real-time mode (post any
+    runtime ``set_mode`` call); ``baseline_mode`` is the auto-detected
+    setup regime, captured at startup and never mutated by the
+    controller. The Config UI uses ``baseline_mode`` to show the user
+    what auto-detection would have picked.
+    """
+    controller = _require_controller(request)
+    return ControlModeResponse(
+        forced_mode=cast("ForcedMode | None", _mode_or_none(controller.forced_mode)),
+        active_mode=controller.current_mode.value,
+        baseline_mode=controller.mode_baseline.value,
+    )
+
+
+@router.put("/mode", response_model=ControlModeResponse)
+async def put_control_mode(
+    request: Request, body: ForcedModeRequest
+) -> ControlModeResponse:
+    """Set or clear the manual mode override (Story 3.5).
+
+    Persists ``meta.forced_mode`` and applies the override to the live
+    controller in one atomic API call. Clearing the override
+    (``forced_mode = null``) deletes the meta key and resumes
+    auto-detection on the next sensor event.
+    """
+    controller = _require_controller(request)
+    db_conn_factory = cast(
+        "Callable[[], AbstractAsyncContextManager[aiosqlite.Connection]] | None",
+        getattr(request.app.state, "db_conn_factory", None),
+    )
+    if db_conn_factory is None:
+        # Lifespan never wired the factory — refuse rather than silently
+        # losing the persistence half of the override.
+        raise RuntimeError("db_conn_factory not initialised")
+
+    new_mode_value = body.forced_mode
+    async with db_conn_factory() as conn:
+        if new_mode_value is None:
+            await delete_meta(conn, "forced_mode")
+        else:
+            await set_meta(conn, "forced_mode", new_mode_value)
+
+    new_mode = Mode(new_mode_value) if new_mode_value is not None else None
+    await controller.set_forced_mode(new_mode)
+
+    return ControlModeResponse(
+        forced_mode=cast("ForcedMode | None", _mode_or_none(controller.forced_mode)),
+        active_mode=controller.current_mode.value,
+        baseline_mode=controller.mode_baseline.value,
+    )
+
+
+def _require_controller(request: Request) -> Controller:
+    controller = cast("Controller | None", getattr(request.app.state, "controller", None))
+    if controller is None:
+        raise RuntimeError("controller not initialised")
+    return controller
+
+
+def _mode_or_none(mode: Mode | None) -> str | None:
+    return mode.value if mode is not None else None
 
 
 def _resolve_current_mode(
