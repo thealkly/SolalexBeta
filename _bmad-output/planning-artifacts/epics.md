@@ -1525,6 +1525,46 @@ So that ich Vertrauen gewinne, dass die Regelung arbeitet, bevor Epic 4 (Diagnos
 **When** der Fallback greift
 **Then** nach Commissioning landet der User auf einem statischen Hinweis-Screen „Solalex regelt — detaillierte Ansicht folgt in v1.0" mit Link zur Diagnose-Route (Epic 4, sobald verfügbar)
 
+### Story 5.1d: Live-Betrieb mit Klartext-Diagnose und erweiterten Status-Infos
+
+**Status:** `ready-for-dev` (gespawnt 2026-04-25 nach Smoke-Test Alex' lokales HA-Setup)
+
+**Trigger:** Story 5.1a liefert die Mini-Shell mit Mode-Chip + Chart + Cycle-Liste, aber die Cycle-Liste zeigt für Beta-Tester nur kryptische `noop`-Einträge ohne Begründung. Es ist heute nicht erkennbar, ob Solalex (a) im Toleranzbereich pausiert, (b) keinen Wechselrichter findet, (c) auf SoC-Daten wartet oder (d) der Sensor kaputt ist. Außerdem ist die Liste auf 10 Einträge gedeckelt, der Scroll-Container ist nutzlos. Beta-Launch-blocking, weil ohne diese Klartext-Anzeige weder „Setup gesund" noch „was passiert gerade" erkennbar ist.
+
+As a Beta-Tester auf der Live-Betriebs-Seite,
+I want eine Cycle-Liste mit Klartext-Status statt kryptischer „noop"-Einträge, eine sichtbare Aufschlüsselung aktueller Live-Werte (Sensor, WR-Limit-Readback, SoC, HA-WS-Verbindung) und eine kurze Erklärung des aktuellen Modus,
+So that ich auf einen Blick verstehe, ob mein Setup gesund läuft und im Problemfall den Grund selbst diagnostizieren kann, ohne den Diagnose-Export rauszuziehen.
+
+**Acceptance Criteria (Auszug — Story-Datei `5-1d-live-betrieb-klartext-diagnose.md` ist autoritativ; enthält die vollständige Reason-Vokabular-Tabelle als Single-Source):**
+
+**Given** ein Sensor-Event landet in einem `_policy_drossel`/`_policy_speicher` Early-Exit
+**When** der Noop-Cycle persistiert wird
+**Then** trägt er einen sprechenden `reason`-Klartext mit (z. B. `"noop: deadband (smoothed=3w, deadband=10w)"`, `"noop: kein_wr_limit_device"`, `"noop: kein_soc_messwert"`)
+
+**Given** die Cycle-Liste auf `/running`
+**When** sie rendert
+**Then** zeigt sie eine Header-Zeile mit Spaltentiteln „vor / Quelle / Ziel / Status / Latenz", Status mit deutschen Labels („Im Toleranzbereich" / „Übernommen" / „Abgelehnt" / „Fail-Safe" / „Mode-Wechsel" / „Kein Wechselrichter" / …), bei Noops das Sub-Label `(gemessen Xw)`, und einen nativen `title`-Tooltip mit dem vollen Backend-Reason
+
+**Given** das Backend-`_RECENT_CYCLES_LIMIT` und das Frontend-`slice`
+**When** Story 5.1d gemergt ist
+**Then** beide auf 50; `max-height: 320px` aus 5.1a wird durch Scroll endlich genutzt
+
+**Given** der `/running`-Header
+**When** die Page rendert
+**Then** zeigt sie unter dem Mode-Chip eine Erklärungs-Zeile (`drossel` → „Drossel — verhindert ungewollte Einspeisung durch WR-Limit-Anpassung", `speicher` → „Speicher — Akku gleicht Einspeisung und Bezug aus", `multi`, `export`, `idle` analog)
+
+**Given** der `/running`-Page über dem Chart
+**When** sie rendert
+**Then** zeigt sie eine Status-Tile-Reihe mit Live-Werten (Netz-Leistung mit Konvention-Sub-Label, WR-Limit, Akku-SoC, HA-WS-Verbindung); Tile-Werte sind nackt, kein Trend-Icon (UX-DR30); Connection-Tile hat „Getrennt — vor Xs"-Counter bei Disconnect
+
+**Given** das `EntitySnapshot`-Schema
+**When** Story 5.1d gemergt ist
+**Then** trägt es `effective_value_w: float | None` (post-`invert_sign`-Anwendung aus Story 2.5) und `display_label: str | None` mit deutschem Glossar-Mapping; `StateSnapshot` trägt zusätzlich `ha_ws_connected: bool` und `ha_ws_disconnected_since: datetime | None`
+
+**Notiz:** Die Story koppelt mit 2.5 (`effective_value_w` nutzt `invert_sign`). Falls 2.5 noch nicht gemergt ist, fällt der Endpoint auf Pass-Through zurück (`effective_value_w == state`). Story bleibt mergebar. Komplementär zu 5.1c (Chart-Legende + Update-Indikator) — beide modifizieren Running.svelte; bei Merge-Konflikten rebased die zweitgemergte. Story-Datei enthält 19 ACs, 10 Tasks, vollständige Reason-Vokabular-Tabelle, CLAUDE.md-Glossar-Erweiterung („Im Toleranzbereich" als Standard für Deadband) und Manual-Smoke-Test SD-01.
+
+---
+
 ### Story 5.1b: Dashboard-Hero + Euro-Wert + Responsive Navigation (Rest-Scope nach 5.1a — Amendment Sprint Change Proposal 2026-04-24)
 
 **Preamble:** Story 5.1a (Live-Betriebs-View, vorgezogen) hat bereits den Shell-Grundbestand geliefert (Route, `LineChart.svelte`-Integration, Modus-Chip, Mini-Zyklen-Liste, Skeleton-State). Story 5.1b ergänzt darauf aufbauend die Hero-Zone mit Euro-Wert, Bezugspreis-Transparenz-Overlay, Responsive Bottom-/Left-Nav mit Glass-Effect, Tastatur-Shortcuts und Footer. Die AC-Semantik „Hero-Zone in < 2 s sichtbar" bezieht sich auf die bereits existierende 5.1a-Route — es wird keine neue Route angelegt.

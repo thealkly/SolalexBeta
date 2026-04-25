@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isApiError } from './errors.js';
-import { getEntities, getEntityState, saveDevices } from './client.js';
+import { getEntities, getEntityState, saveDevices, updateDevices } from './client.js';
 import type { EntitiesResponse, EntityState } from './types.js';
 
 const mockFetch = vi.fn();
@@ -125,6 +125,42 @@ describe('saveDevices', () => {
         expect(err.detail).toBe('wr_limit_entity_id ist erforderlich.');
       }
     }
+  });
+});
+
+describe('updateDevices', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('sends a PUT and returns the new device list', async () => {
+    mockFetch.mockResolvedValue(
+      okResponse([
+        {
+          id: 1,
+          type: 'generic',
+          role: 'wr_limit',
+          entity_id: 'input_number.x',
+          adapter_key: 'generic',
+          config_json: '{}',
+          last_write_at: null,
+          commissioned_at: null,
+          created_at: '2026-04-25T00:00:00Z',
+          updated_at: '2026-04-25T00:00:00Z',
+        },
+      ]),
+    );
+
+    const result = await updateDevices({
+      hardware_type: 'generic',
+      wr_limit_entity_id: 'input_number.x',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.role).toBe('wr_limit');
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe('PUT');
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
   });
 });
 

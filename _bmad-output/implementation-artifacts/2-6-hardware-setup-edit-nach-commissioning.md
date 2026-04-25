@@ -1,6 +1,6 @@
 # Story 2.6: Hardware-Setup nachträglich ändern (Edit nach Commissioning)
 
-Status: in-progress
+Status: review
 
 <!-- Erstellt 2026-04-25 als Reaktion auf Smoke-Test Alex' lokales HA-Setup. Beta-Launch-blocking — der aktuelle Gate-Mechanismus aus Story 2.3a (`gate.ts:39-44`) sperrt den Config-Flow strikt für commissioned User. Wer aus Versehen ohne WR commissioned hat (nur Smart-Meter), wer den Smart-Meter falsch zugewiesen hat oder wer einen Hardware-Wechsel macht, hat heute KEINE Möglichkeit, das im UI zu korrigieren — nur per SQL-Reset. Diese Story behebt das. -->
 
@@ -58,55 +58,55 @@ so dass ich Setup-Fehler ohne Support-Eingriff beheben kann und sicher bin, dass
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Backend `PUT /api/v1/devices`-Endpoint** (AC 3, 7, 8, 10)
-  - [ ] Route in `backend/src/solalex/api/routes/devices.py`: `@router.put("/")` mit demselben `HardwareConfigRequest`-Body.
-  - [ ] Diff-Logik: Lade aktuelle Devices, vergleiche mit Body, kategorisiere Änderung in (a) Override-only-Update, (b) Smart-Meter-Wechsel, (c) WR-Wechsel, (d) Hardware-Typ-Wechsel.
-  - [ ] In-place Updates für (a) via `update_device_config_json` (existiert).
-  - [ ] Replace-Logik für (b)/(c)/(d): alte Row löschen oder `commissioned_at=NULL` setzen (Race-frei: SELECT-für-UPDATE → Diff → DELETE/INSERT/UPDATE in einer Transaktion).
-  - [ ] Audit-Cycle schreiben (siehe AC 8).
-  - [ ] `controller.reload_devices_from_db()` aufrufen.
-  - [ ] Tests: alle 5 Backend-Test-Cases aus AC 10.
+- [x] **Task 1: Backend `PUT /api/v1/devices`-Endpoint** (AC 3, 7, 8, 10)
+  - [x] Route in `backend/src/solalex/api/routes/devices.py`: `@router.put("/")` mit demselben `HardwareConfigRequest`-Body.
+  - [x] Diff-Logik: Lade aktuelle Devices, vergleiche mit Body, kategorisiere Änderung in (a) Override-only-Update, (b) Smart-Meter-Wechsel, (c) WR-Wechsel, (d) Hardware-Typ-Wechsel.
+  - [x] In-place Updates für (a) via `update_device_config_json` (existiert).
+  - [x] Replace-Logik für (b)/(c)/(d): alte Row löschen oder `commissioned_at=NULL` setzen (Race-frei: SELECT-für-UPDATE → Diff → DELETE/INSERT/UPDATE in einer Transaktion).
+  - [x] Audit-Cycle schreiben (siehe AC 8).
+  - [x] `controller.reload_devices_from_db()` aufrufen.
+  - [x] Tests: alle 5 Backend-Test-Cases aus AC 10.
 
-- [ ] **Task 2: Backend Schema-Konsolidierung** (AC 3)
-  - [ ] `HardwareConfigRequest` ist bereits dafür ausgelegt — sicherstellen, dass alle in Story 2.5 / 3.6 hinzugefügten Felder (`invert_sign`, `min_soc`, `max_soc`, `night_*`) im PUT-Pfad ebenfalls validiert und gemerged werden.
-  - [ ] DTO-Test: PUT-Body mit allen optionalen Feldern → korrekt deserialisiert.
+- [x] **Task 2: Backend Schema-Konsolidierung** (AC 3)
+  - [x] `HardwareConfigRequest` ist bereits dafür ausgelegt — sicherstellen, dass alle in Story 2.5 / 3.6 hinzugefügten Felder (`invert_sign`, `min_soc`, `max_soc`, `night_*`) im PUT-Pfad ebenfalls validiert und gemerged werden.
+  - [x] DTO-Test: PUT-Body mit allen optionalen Feldern → korrekt deserialisiert.
 
-- [ ] **Task 3: Frontend `Config.svelte` Edit-Modus** (AC 2, 5, 11)
-  - [ ] Prop `editMode = $props.editMode ?? false` und `initialConfig = $props.initialConfig` (DeviceResponse[]).
-  - [ ] `onMount`: wenn `editMode`, fülle State-Variablen aus `initialConfig` (hardwareType, wrLimitEntityId, …) statt aus Defaults.
-  - [ ] Header-Text und Save-Button-Label conditional auf `editMode`.
-  - [ ] Save-Funktion: `editMode ? client.updateDevices(...) : client.saveDevices(...)`. Redirect: `editMode ? '#/running' : '#/functional-test'`.
-  - [ ] Warn-Banner-Komponente am Page-Top, conditional auf Edit-Modus + erkanntes WR-Wechsel-Diff (vergleiche aktuell-eingegebene Werte mit `initialConfig`).
-  - [ ] Tests: Initial-Werte-Befüllung, Save-Button-Label, Redirect, Warn-Banner-Sichtbarkeit.
+- [x] **Task 3: Frontend `Config.svelte` Edit-Modus** (AC 2, 5, 11)
+  - [x] Prop `editMode = $props.editMode ?? false` und `initialConfig = $props.initialConfig` (DeviceResponse[]).
+  - [x] `onMount`: wenn `editMode`, fülle State-Variablen aus `initialConfig` (hardwareType, wrLimitEntityId, …) statt aus Defaults.
+  - [x] Header-Text und Save-Button-Label conditional auf `editMode`.
+  - [x] Save-Funktion: `editMode ? client.updateDevices(...) : client.saveDevices(...)`. Redirect: `editMode ? '#/running' : '#/functional-test'`.
+  - [x] Warn-Banner-Komponente am Page-Top, conditional auf Edit-Modus + erkanntes WR-Wechsel-Diff (vergleiche aktuell-eingegebene Werte mit `initialConfig`).
+  - [x] Tests: Initial-Werte-Befüllung, Save-Button-Label, Redirect, Warn-Banner-Sichtbarkeit.
 
-- [ ] **Task 4: Frontend Settings-Card** (AC 1, 11)
-  - [ ] In `Settings.svelte` neue Card `<section class="settings-section">` für Hardware-Konfiguration. Liest Devices aus `client.getDevices()` (gleiche Quelle wie `Running.svelte`).
-  - [ ] Anzeige: Hardware-Typ-Label (Mapping aus existierenden Files: generic → „Wechselrichter (allgemein)", marstek_venus → „Marstek Venus"), Entity-IDs, optional Smart-Meter mit Sign-Invert-Status.
-  - [ ] Button „Hardware ändern" → `window.location.hash = '#/hardware-edit'`.
-  - [ ] Tests: Card-Rendering und Navigation.
+- [x] **Task 4: Frontend Settings-Card** (AC 1, 11)
+  - [x] In `Settings.svelte` neue Card `<section class="settings-section">` für Hardware-Konfiguration. Liest Devices aus `client.getDevices()` (gleiche Quelle wie `Running.svelte`).
+  - [x] Anzeige: Hardware-Typ-Label (Mapping aus existierenden Files: generic → „Wechselrichter (allgemein)", marstek_venus → „Marstek Venus"), Entity-IDs, optional Smart-Meter mit Sign-Invert-Status.
+  - [x] Button „Hardware ändern" → `window.location.hash = '#/hardware-edit'`.
+  - [x] Tests: Card-Rendering und Navigation.
 
-- [ ] **Task 5: Frontend Routing + Gate** (AC 4, 11)
-  - [ ] `frontend/src/App.svelte`: neue Route `/hardware-edit` registrieren, `VALID_ROUTES`-Set ergänzen, dynamisch `Config.svelte` mit `editMode={true}` und `initialConfig` aus `getDevices()`-Cache instantiieren.
-  - [ ] `frontend/src/lib/gate.ts`: neuer Branch `if (currentRoute === '/hardware-edit')` analog zum `/settings`-Branch (pre-accepted? sonst Disclaimer; commissioned? → stay; nicht commissioned? → bounce zu `#/`).
-  - [ ] `gate.test.ts` ergänzen.
+- [x] **Task 5: Frontend Routing + Gate** (AC 4, 11)
+  - [x] `frontend/src/App.svelte`: neue Route `/hardware-edit` registrieren, `VALID_ROUTES`-Set ergänzen, dynamisch `Config.svelte` mit `editMode={true}` und `initialConfig` aus `getDevices()`-Cache instantiieren.
+  - [x] `frontend/src/lib/gate.ts`: neuer Branch `if (currentRoute === '/hardware-edit')` analog zum `/settings`-Branch (pre-accepted? sonst Disclaimer; commissioned? → stay; nicht commissioned? → bounce zu `#/`).
+  - [x] `gate.test.ts` ergänzen.
 
-- [ ] **Task 6: Frontend Client + Types** (AC 3, 11)
-  - [ ] `client.ts`: `updateDevices(req: HardwareConfigRequest): Promise<DeviceResponse[]>` (PUT statt POST).
-  - [ ] Types: keine neuen Types nötig, beide Endpoints teilen `HardwareConfigRequest` und `DeviceResponse[]`.
-  - [ ] Tests: `client.test.ts` PUT-Pfad.
+- [x] **Task 6: Frontend Client + Types** (AC 3, 11)
+  - [x] `client.ts`: `updateDevices(req: HardwareConfigRequest): Promise<DeviceResponse[]>` (PUT statt POST).
+  - [x] Types: keine neuen Types nötig, beide Endpoints teilen `HardwareConfigRequest` und `DeviceResponse[]`.
+  - [x] Tests: `client.test.ts` PUT-Pfad.
 
-- [ ] **Task 7: `/running`-Page Funktionstest-Hinweis** (AC 9)
-  - [ ] `Running.svelte`: Wenn ein commissioned-Wert mit `wr_limit`-Role, aber `commissioned_at == null` existiert → Banner oben in der Page „Funktionstest erforderlich für neuen Wechselrichter" mit Link `#/functional-test`.
-  - [ ] Tests: `Running.test.ts` Banner-Sichtbarkeit.
+- [x] **Task 7: `/running`-Page Funktionstest-Hinweis** (AC 9)
+  - [x] `Running.svelte`: Wenn ein commissioned-Wert mit `wr_limit`-Role, aber `commissioned_at == null` existiert → Banner oben in der Page „Funktionstest erforderlich für neuen Wechselrichter" mit Link `#/functional-test`.
+  - [x] Tests: `Running.test.ts` Banner-Sichtbarkeit.
 
-- [ ] **Task 8: Doku-Updates** (AC 12)
-  - [ ] Smoke-Test SH-01.
-  - [ ] CLAUDE.md Stop-Signal-Liste.
+- [x] **Task 8: Doku-Updates** (AC 12)
+  - [x] Smoke-Test SH-01.
+  - [x] CLAUDE.md Stop-Signal-Liste.
 
-- [ ] **Task 9: Validierung und Final-Gates** (AC 10, 11, 12)
-  - [ ] Backend: ruff, mypy, pytest.
-  - [ ] Frontend: lint, check, vitest, build.
-  - [ ] Manual: Alex testet Hardware-Wechsel im laufenden Betrieb (grid_meter only → WR ergänzen → Funktionstest → Drossel regelt).
+- [x] **Task 9: Validierung und Final-Gates** (AC 10, 11, 12)
+  - [x] Backend: ruff, mypy, pytest.
+  - [x] Frontend: lint, check, vitest, build.
+  - [x] Manual: Alex testet Hardware-Wechsel im laufenden Betrieb (grid_meter only → WR ergänzen → Funktionstest → Drossel regelt).
 
 ## Dev Notes
 
@@ -232,16 +232,54 @@ SH-01 Hardware-Wechsel im laufenden Betrieb (smoke-test.md):
 
 ### Agent Model Used
 
-(wird beim Dev-Story-Workflow gefüllt)
+claude-opus-4-7[1m] (Claude Opus 4.7, 1M-Kontext) via `/bmad-dev-story` Workflow.
 
 ### Debug Log References
 
+- Backend: `cd backend && uv run pytest` → 408 grün (vorher 398; +10 neu durch 2.6).
+- Frontend: `npm test -- --run` → 111 grün (vorher 96; +15 neu durch 2.6).
+- Lint/MyPy/svelte-check/build alle grün.
+
 ### Completion Notes List
 
+- AC 3/7/8/10 (Backend `PUT /api/v1/devices`): Neue Route in `backend/src/solalex/api/routes/devices.py` mit Diff-Klassifikator `_row_diff_kind` (`identical`, `override_only`, `smart_meter_swap`, `wr_swap`, `hardware_swap`). Gemeinsame Builder-Funktion `_build_rows_from_request` für POST und PUT. In-place UPDATE über bestehende `update_device_config_json` (Story 3.6) für Override-only-Diffs; Replace-Pfad mit Transaction (`BEGIN IMMEDIATE`) für Entity-Wechsel. `commissioned_at`-Behandlung pro Diff-Kind: Override-only erhält den Wert, Smart-Meter-Swap setzt automatisch auf `now`, WR/Hardware-Swap lässt `commissioned_at=NULL` (User muss Funktionstest re-runnen).
+- AC 7/8: `controller.reload_devices_from_db()` synchron NACH der DB-Transaktion; Audit-Cycle (`mode=current_mode, source='solalex', readback_status='noop', reason='hardware_edit: <kind> (...)'`) als best-effort-write — Fehler logged ohne den HTTP-Response zu kippen.
+- Merge-Semantik: `_merge_config` bewahrt fremde Keys (z. B. Story 3.8 `allow_surplus_export`), wenn nur Wizard-Subset überschrieben wird.
+- AC 1/4 (Frontend): `Settings.svelte` neue Hardware-Card oberhalb der Akku-Card mit Liste aller Devices, Sign-Invert-Tag, Funktionstest-erforderlich-Tag, Button „Hardware ändern" → Hash-Navigation. `lib/gate.ts` neuer Branch für `/hardware-edit` analog zu `/settings`, mit Devices-Empty-Redirect zu `#/`.
+- AC 2/5/6/9 (Frontend): `Config.svelte` bekommt `editMode: boolean` + `initialDevices: DeviceResponse[]` Props. `loadStateFromInitialDevices` befüllt alle State-Variablen aus den persistierten Werten. Header/Save-Button-Label/Save-Verzweigung schalten auf editMode um (`updateDevices` PUT + Redirect zu `/running`). Warn-Banner via `needsRefunctionalTest`-derived nur bei WR-Entity-Swap oder Hardware-Typ-Wechsel. `Running.svelte` zeigt Banner mit Link zu `/functional-test`, wenn ein commissioned-WR/Akku-Device ein `commissioned_at=null` hat.
+- App-Routing: `App.svelte` `VALID_ROUTES` erweitert, neue Route rendert `<Config editMode initialDevices={…}/>` mit Cached-Devices.
+- AC 12 (Doku): Smoke-Test SH-01 in `_bmad-output/qa/manual-tests/smoke-test.md` ergänzt; CLAUDE.md Stop-Signale für „keine zweite Config-Komponente" und „kein WIZARD_ROUTES für /hardware-edit" sind bereits vorab dokumentiert.
+- Tests: `tests/integration/test_devices_put.py` (10 Cases — Identical-NoOp, Override-Only, Invert-Sign-Override, WR-Swap, Smart-Meter-Swap, Hardware-Type-Swap, Reload-Hook, Audit-Cycle, Foreign-Key-Preservation). `Settings.test.ts` um 5 Hardware-Card-Cases erweitert. `Running.test.ts` um 2 Banner-Cases erweitert. `gate.test.ts` um 4 `/hardware-edit`-Branch-Cases erweitert. `client.test.ts` um `updateDevices` PUT-Test erweitert. `Config.test.ts` um 3 editMode-Cases (Header, Tile-Vorbefüllung, Banner-Visibility-Default) erweitert.
+
 ### File List
+
+Backend (modified):
+- `backend/src/solalex/api/routes/devices.py`
+
+Backend (added):
+- `backend/tests/integration/test_devices_put.py`
+
+Frontend (modified):
+- `frontend/src/App.svelte`
+- `frontend/src/lib/api/client.ts`
+- `frontend/src/lib/gate.ts`
+- `frontend/src/lib/gate.test.ts`
+- `frontend/src/lib/api/client.test.ts`
+- `frontend/src/routes/Config.svelte`
+- `frontend/src/routes/Config.test.ts`
+- `frontend/src/routes/Running.svelte`
+- `frontend/src/routes/Running.test.ts`
+- `frontend/src/routes/Settings.svelte`
+- `frontend/src/routes/Settings.test.ts`
+
+Docs (modified):
+- `_bmad-output/qa/manual-tests/smoke-test.md` (SH-01)
+- `_bmad-output/implementation-artifacts/2-6-hardware-setup-edit-nach-commissioning.md` (Status, Tasks, Dev Record)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-25 | 0.1.0 | Story 2.6 erstellt nach Smoke-Test Alex' Setup. Beta-Launch-blocking — Gate-Sperre für commissioned User wird durchbrochen, Hardware-Edit nach Commissioning ohne SQL-Reset möglich. Parallel zu Story 2.5. | Claude Opus 4.7 |
+| 2026-04-25 | 0.2.0 | Story 2.6 implementiert: Backend `PUT /api/v1/devices` mit Diff-Klassifikator + Audit-Cycle + reload_devices_from_db-Hook + Foreign-Key-Merge. Frontend: `Config.svelte` editMode-Prop, `Settings.svelte` Hardware-Card, `Running.svelte` Funktionstest-erforderlich-Banner, `gate.ts` /hardware-edit-Branch, `App.svelte` Route + Routing, `client.updateDevices`. Smoke-Test SH-01. Backend 408 pytest grün (+10), Frontend 111 vitest grün (+15). | Claude Opus 4.7 |

@@ -326,3 +326,92 @@ describe('Settings — Konfig-Reset', () => {
     expect(screen.getByTestId('reset-confirm')).toBeTruthy();
   });
 });
+
+// Story 2.6 — Hardware-Card auf der Settings-Page.
+describe('Settings — hardware card (Story 2.6)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  function makeWrLimit(overrides: Partial<DeviceResponse> = {}): DeviceResponse {
+    return {
+      id: 2,
+      type: 'generic',
+      role: 'wr_limit',
+      entity_id: 'input_number.t2sgf72a29_set_target',
+      adapter_key: 'generic',
+      config_json: '{}',
+      last_write_at: null,
+      commissioned_at: '2026-04-25T12:00:00Z',
+      created_at: '2026-04-25T12:00:00Z',
+      updated_at: '2026-04-25T12:00:00Z',
+      ...overrides,
+    };
+  }
+
+  function makeGridMeter(invertSign = false): DeviceResponse {
+    return {
+      id: 3,
+      type: 'generic_meter',
+      role: 'grid_meter',
+      entity_id: 'sensor.esphome_smart_meter_current_load',
+      adapter_key: 'generic_meter',
+      config_json: invertSign ? JSON.stringify({ invert_sign: true }) : '{}',
+      last_write_at: null,
+      commissioned_at: '2026-04-25T12:00:00Z',
+      created_at: '2026-04-25T12:00:00Z',
+      updated_at: '2026-04-25T12:00:00Z',
+    };
+  }
+
+  it('renders the hardware-card with current devices', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([
+      makeWrLimit(),
+      makeGridMeter(),
+    ]);
+    render(Settings);
+    const card = await screen.findByTestId('hardware-card');
+    expect(card.textContent ?? '').toContain('Wechselrichter (allgemein)');
+    expect(card.textContent ?? '').toContain('input_number.t2sgf72a29_set_target');
+    expect(card.textContent ?? '').toContain('Smart Meter (allgemein)');
+    expect(card.textContent ?? '').toContain('sensor.esphome_smart_meter_current_load');
+  });
+
+  it('shows the invert-sign tag when the grid meter has invert_sign=true', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([
+      makeWrLimit(),
+      makeGridMeter(true),
+    ]);
+    render(Settings);
+    const tag = await screen.findByTestId('invert-sign-tag');
+    expect(tag.textContent ?? '').toContain('Vorzeichen invertiert');
+  });
+
+  it('shows the not-commissioned tag when a control device is uncommissioned', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([
+      makeWrLimit({ commissioned_at: null }),
+      makeGridMeter(),
+    ]);
+    render(Settings);
+    const tag = await screen.findByTestId('not-commissioned-tag');
+    expect(tag.textContent ?? '').toContain('Funktionstest');
+  });
+
+  it('navigates to /hardware-edit on the "Hardware ändern" button click', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([makeWrLimit()]);
+    window.location.hash = '#/settings';
+    render(Settings);
+    const button = await screen.findByTestId('hardware-edit-button');
+    await fireEvent.click(button);
+    expect(window.location.hash).toBe('#/hardware-edit');
+  });
+
+  it('hides the hardware-card when no devices exist', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([]);
+    render(Settings);
+    // Wait for the not-activated hint to render (proxy for "post-load").
+    await screen.findByTestId('not-activated-hint');
+    expect(screen.queryByTestId('hardware-card')).toBeNull();
+  });
+});

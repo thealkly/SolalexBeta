@@ -1,14 +1,27 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import * as client from '../lib/api/client.js';
   import { isApiError } from '../lib/api/errors.js';
-  import { usePolling } from '../lib/polling/usePolling.js';
+  import LivePreviewCard from '../lib/components/LivePreviewCard.svelte';
   import type {
+    DeviceResponse,
     EntityOption,
-    EntityState,
     ForcedMode,
     ForcedModeChoice,
+    HardwareConfigRequest,
   } from '../lib/api/types.js';
+
+  // Story 2.6 — single-source-of-truth Config component used both for
+  // initial setup (default) and for post-commissioning hardware edits
+  // (editMode + initialDevices). Edit-mode pre-fills state from the
+  // existing devices, swaps Save semantics to PUT, and routes back to
+  // /running on success rather than /functional-test.
+  interface Props {
+    editMode?: boolean;
+    initialDevices?: DeviceResponse[];
+  }
+
+  let { editMode = false, initialDevices = [] }: Props = $props();
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
@@ -27,15 +40,15 @@
   let nightEnd = $state('06:00');
   let useSmartMeter = $state(false);
   let gridMeterEntityId = $state('');
-  // Story 2.5 — sign-convention override + live preview.
-  // The toggle value is buffered in component state and only persisted
-  // alongside the rest of the config when the user hits "Speichern".
+  // Story 2.6 — captures the pre-edit snapshot so the warn-banner can
+  // detect WR / hardware-type swaps that would force a re-functional-test.
+  let initialWrEntityId = $state('');
+  let initialHardwareType = $state<'generic' | 'marstek_venus' | null>(null);
+  // Story 2.5 — sign-convention override. The toggle value is buffered
+  // here and only persisted alongside the rest of the config when the
+  // user hits "Speichern". The polling + watt readout live in the
+  // dedicated <LivePreviewCard> sub-component.
   let invertSign = $state(false);
-  let livePreviewValueW = $state<number | null>(null);
-  let livePreviewError = $state<string | null>(null);
-  let livePreviewPolling: ReturnType<typeof usePolling<EntityState>> | null =
-    null;
-  let livePreviewEntityId = '';
   // Generic-inverter limit-range override (Story 2.4 Review D3).
   // Empty string = use adapter default (2 / 3000 W).
   let minLimitW = $state<string>('');
@@ -53,22 +66,6 @@
   let modeBaseline = $state<ForcedMode | null>(null);
   let modeOverrideError = $state<string | null>(null);
   let modeOverridePending = $state(false);
-
-  // Live-Preview effective value derives from the raw cached watt reading
-  // and the current toggle state — invert client-side so toggling does not
-  // require a backend round-trip.
-  const ZERO_HINT_THRESHOLD_W = 50;
-  let effectivePreviewValueW = $derived(
-    livePreviewValueW === null
-      ? null
-      : invertSign
-        ? -livePreviewValueW
-        : livePreviewValueW,
-  );
-  let livePreviewBelowThreshold = $derived(
-    effectivePreviewValueW !== null &&
-      Math.abs(effectivePreviewValueW) < ZERO_HINT_THRESHOLD_W,
-  );
 
   let canSave = $derived(
     hardwareType !== null &&
@@ -90,6 +87,70 @@
       (hardwareType !== 'marstek_venus' || socEntities.length === 0),
   );
 
+  function safeParseConfig(raw: string): Record<string, unknown> {
+    try {
+      const parsed: unknown = JSON.parse(raw || '{}');
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to empty defaults — malformed config_json must not
+      // poison the edit form.
+    }
+    return {};
+  }
+
+  function loadStateFromInitialDevices(devices: DeviceResponse[]): void {
+    const wrLimit = devices.find((d) => d.role === 'wr_limit');
+    const wrCharge = devices.find((d) => d.role === 'wr_charge');
+    const batterySoc = devices.find((d) => d.role === 'battery_soc');
+    const gridMeter = devices.find((d) => d.role === 'grid_meter');
+
+    if (wrCharge) {
+      hardwareType = 'marstek_venus';
+      wrLimitEntityId = wrCharge.entity_id;
+      const cfg = safeParseConfig(wrCharge.config_json);
+      if (typeof cfg.min_soc === 'number') minSoc = cfg.min_soc;
+      if (typeof cfg.max_soc === 'number') maxSoc = cfg.max_soc;
+      if (typeof cfg.night_discharge_enabled === 'boolean')
+        nightDischargeEnabled = cfg.night_discharge_enabled;
+      if (typeof cfg.night_start === 'string') nightStart = cfg.night_start;
+      if (typeof cfg.night_end === 'string') nightEnd = cfg.night_end;
+    } else if (wrLimit) {
+      hardwareType = 'generic';
+      wrLimitEntityId = wrLimit.entity_id;
+      const cfg = safeParseConfig(wrLimit.config_json);
+      if (typeof cfg.min_limit_w === 'number') minLimitW = String(cfg.min_limit_w);
+      if (typeof cfg.max_limit_w === 'number') maxLimitW = String(cfg.max_limit_w);
+    }
+
+    if (batterySoc) {
+      batterySocEntityId = batterySoc.entity_id;
+    }
+
+    if (gridMeter) {
+      useSmartMeter = true;
+      gridMeterEntityId = gridMeter.entity_id;
+      const cfg = safeParseConfig(gridMeter.config_json);
+      invertSign = cfg.invert_sign === true;
+    }
+
+    initialWrEntityId = wrLimitEntityId;
+    initialHardwareType = hardwareType;
+  }
+
+  // Story 2.6 — warn-banner trigger: WR-entity swap OR hardware-type
+  // swap force a new functional test, so the user gets a heads-up
+  // before clicking save.
+  let needsRefunctionalTest = $derived(
+    editMode &&
+      hardwareType !== null &&
+      ((initialWrEntityId !== '' && wrLimitEntityId !== '' &&
+        wrLimitEntityId !== initialWrEntityId) ||
+        (initialHardwareType !== null &&
+          hardwareType !== initialHardwareType)),
+  );
+
   function entityLabel(opt: EntityOption): string {
     // Avoid "number.x (number.x)" duplication when HA didn't expose a
     // friendly_name and the backend fell back to the entity_id (Story 2.4
@@ -101,6 +162,9 @@
 
   onMount(async () => {
     const startTs = Date.now();
+    if (editMode && initialDevices.length > 0) {
+      loadStateFromInitialDevices(initialDevices);
+    }
     try {
       const entities = await client.getEntities();
       wrLimitEntities = entities.wr_limit_entities;
@@ -155,58 +219,6 @@
     batterySocEntityId = '';
   }
 
-  function startLivePreviewPolling(entityId: string): void {
-    stopLivePreviewPolling();
-    livePreviewEntityId = entityId;
-    livePreviewValueW = null;
-    livePreviewError = null;
-    const polling = usePolling<EntityState>(
-      () => client.getEntityState(entityId),
-      1000,
-    );
-    polling.data.subscribe((snapshot) => {
-      if (snapshot === null) return;
-      livePreviewValueW = snapshot.value_w;
-    });
-    polling.error.subscribe((err) => {
-      if (err === null) {
-        livePreviewError = null;
-        return;
-      }
-      livePreviewError = isApiError(err)
-        ? err.detail
-        : 'Live-Wert konnte nicht geladen werden.';
-    });
-    polling.start();
-    livePreviewPolling = polling;
-  }
-
-  function stopLivePreviewPolling(): void {
-    if (livePreviewPolling !== null) {
-      livePreviewPolling.stop();
-      livePreviewPolling = null;
-    }
-    livePreviewEntityId = '';
-  }
-
-  // Drive the polling lifecycle from the entity selection: start when the
-  // user picks an entity, stop on clear / smart-meter-disable / route exit.
-  $effect(() => {
-    if (useSmartMeter && gridMeterEntityId !== '') {
-      if (livePreviewEntityId !== gridMeterEntityId) {
-        startLivePreviewPolling(gridMeterEntityId);
-      }
-    } else if (livePreviewPolling !== null) {
-      stopLivePreviewPolling();
-      livePreviewValueW = null;
-      livePreviewError = null;
-    }
-  });
-
-  onDestroy(() => {
-    stopLivePreviewPolling();
-  });
-
   async function handleSave(): Promise<void> {
     if (!hardwareType || !canSave) return;
     saving = true;
@@ -214,12 +226,15 @@
     try {
       const minLimitParsed = minLimitW.trim() === '' ? undefined : Number(minLimitW);
       const maxLimitParsed = maxLimitW.trim() === '' ? undefined : Number(maxLimitW);
-      await client.saveDevices({
+      const payload: HardwareConfigRequest = {
         hardware_type: hardwareType,
         wr_limit_entity_id: wrLimitEntityId,
-        battery_soc_entity_id: hardwareType === 'marstek_venus' ? batterySocEntityId : undefined,
-        grid_meter_entity_id: useSmartMeter && gridMeterEntityId ? gridMeterEntityId : undefined,
-        invert_sign: useSmartMeter && gridMeterEntityId ? invertSign : undefined,
+        battery_soc_entity_id:
+          hardwareType === 'marstek_venus' ? batterySocEntityId : undefined,
+        grid_meter_entity_id:
+          useSmartMeter && gridMeterEntityId ? gridMeterEntityId : undefined,
+        invert_sign:
+          useSmartMeter && gridMeterEntityId ? invertSign : undefined,
         min_soc: hardwareType === 'marstek_venus' ? minSoc : undefined,
         max_soc: hardwareType === 'marstek_venus' ? maxSoc : undefined,
         night_discharge_enabled:
@@ -227,15 +242,25 @@
         night_start: hardwareType === 'marstek_venus' ? nightStart : undefined,
         night_end: hardwareType === 'marstek_venus' ? nightEnd : undefined,
         min_limit_w:
-          hardwareType === 'generic' && minLimitParsed !== undefined && Number.isFinite(minLimitParsed)
+          hardwareType === 'generic' &&
+          minLimitParsed !== undefined &&
+          Number.isFinite(minLimitParsed)
             ? minLimitParsed
             : undefined,
         max_limit_w:
-          hardwareType === 'generic' && maxLimitParsed !== undefined && Number.isFinite(maxLimitParsed)
+          hardwareType === 'generic' &&
+          maxLimitParsed !== undefined &&
+          Number.isFinite(maxLimitParsed)
             ? maxLimitParsed
             : undefined,
-      });
-      window.location.hash = '#/functional-test';
+      };
+      if (editMode) {
+        await client.updateDevices(payload);
+        window.location.hash = '#/running';
+      } else {
+        await client.saveDevices(payload);
+        window.location.hash = '#/functional-test';
+      }
     } catch (err) {
       saveError = isApiError(err)
         ? err.detail
@@ -248,9 +273,18 @@
 
 <main class="config-page">
   <header class="config-header">
-    <p class="eyebrow">Solalex Setup</p>
-    <h1>Hardware konfigurieren</h1>
+    <p class="eyebrow">Solalex {editMode ? '' : 'Setup'}</p>
+    <h1>{editMode ? 'Hardware ändern' : 'Hardware konfigurieren'}</h1>
   </header>
+
+  {#if editMode && needsRefunctionalTest}
+    <section class="warn-banner" data-testid="refunctional-test-warn">
+      <p>
+        Diese Änderung erfordert einen erneuten Funktionstest. Solalex pausiert die Drossel-
+        und Speicher-Regelung für den neuen Wechselrichter, bis du den Test bestätigt hast.
+      </p>
+    </section>
+  {/if}
 
   {#if loading}
     <div class="skeleton-section">
@@ -434,49 +468,29 @@
         {/if}
 
         {#if useSmartMeter && gridMeterEntityId !== ''}
-          <label class="checkbox-row" style="margin-top: 16px;">
-            <input
-              type="checkbox"
-              bind:checked={invertSign}
-              data-testid="invert-sign-toggle"
-            />
-            <span class="checkbox-text">
-              <span>Vorzeichen invertieren</span>
-              <span class="checkbox-sub">
-                Aktivieren, wenn der gewählte Sensor Bezug als negative und Einspeisung als
-                positive Werte liefert (häufig bei ESPHome-SML).
-              </span>
-            </span>
-          </label>
-
-          <div class="live-preview" data-testid="live-preview-card">
-            {#if livePreviewError}
-              <p class="error-line">{livePreviewError}</p>
-            {:else if effectivePreviewValueW === null}
-              <div class="skeleton-pulse" style="height: 56px;"></div>
-            {:else}
-              <div class="live-preview-value" data-testid="live-preview-value">
-                {effectivePreviewValueW > 0 ? '+' : ''}{Math.round(effectivePreviewValueW)} W
-              </div>
-              {#if livePreviewBelowThreshold}
-                <p class="hint" data-testid="live-preview-zero-hint">
-                  Sensor zeigt nahezu 0 W — schalt eine große Last (Wasserkocher, Heizlüfter)
-                  ein und beobachte die Richtung.
-                </p>
-              {:else if effectivePreviewValueW > 0}
-                <p class="hint" data-testid="live-preview-direction">Bezug aus dem Netz</p>
-              {:else}
-                <p class="hint" data-testid="live-preview-direction">Einspeisung ins Netz</p>
-              {/if}
-            {/if}
-          </div>
+          <LivePreviewCard
+            entityId={gridMeterEntityId}
+            {invertSign}
+            onInvertSignChange={(next) => (invertSign = next)}
+          />
         {/if}
       </section>
 
       <div class="save-row">
         {#if canSave}
-          <button class="save-button" onclick={handleSave} disabled={saving}>
-            {saving ? 'Speichern…' : 'Speichern'}
+          <button
+            class="save-button"
+            onclick={handleSave}
+            disabled={saving}
+            data-testid="config-save"
+          >
+            {saving
+              ? editMode
+                ? 'Übernehme…'
+                : 'Speichern…'
+              : editMode
+                ? 'Änderungen übernehmen'
+                : 'Speichern'}
           </button>
         {:else}
           <p class="hint">
@@ -837,22 +851,20 @@
     color: var(--color-accent-warning);
   }
 
-  .live-preview {
-    margin-top: 16px;
-    padding: var(--space-2);
-    border-radius: 8px;
-    border: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
-    background: var(--color-bg);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .warn-banner {
+    width: min(100%, 640px);
+    margin: 0 auto;
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--color-accent-warning) 50%, transparent);
+    background: color-mix(in srgb, var(--color-accent-warning) 12%, var(--color-bg) 88%);
+    padding: var(--space-3);
+    color: var(--color-text);
   }
 
-  .live-preview-value {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--color-text);
+  .warn-banner p {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
   }
 
   @media (max-width: 480px) {

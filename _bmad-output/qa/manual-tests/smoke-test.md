@@ -106,6 +106,50 @@ Jeder Fall ist atomar abhakbar. Reihenfolge ist Walkthrough-Reihenfolge — bei 
 
 ---
 
+### SR-01 — Vorzeichen-Verifikation Smart-Meter (Story 2.5)
+
+**Vorbedingung:** Route `#/config`, Smart-Meter wurde gewählt (Schritt 6 aus ST-02), `gridMeterEntityId` ist gesetzt. Eine schaltbare Last mit ≥ 1 kW Aufnahme (Wasserkocher, Heizlüfter, Backofen) ist greifbar.
+
+**Ziel:** Sicherstellen, dass die Vorzeichen-Konvention des Smart-Meters mit Solalex' Erwartung (positiv = Bezug, negativ = Einspeisung) übereinstimmt — vor dem Speichern, ohne nachträgliches Debugging.
+
+| # | Schritt | Erwartung | ☐ |
+|---|---|---|---|
+| 1 | Live-Preview-Card unter dem Smart-Meter-Block lesen | Zeigt aktuellen Sensor-Wert in Watt + Konventions-Hinweis ("Bezug aus dem Netz" / "Einspeisung ins Netz" / "nahezu 0 W") | ☐ |
+| 2 | Last (Wasserkocher) einschalten und ~5 s warten | Live-Wert steigt deutlich an (≥ 1000 W über vorigem Wert) | ☐ |
+| 3 | Hinweis-Satz auswerten | Bei korrekter Konvention: "Bezug aus dem Netz". Bei falscher Konvention: Wert FÄLLT statt zu steigen oder Hinweis sagt "Einspeisung", obwohl Last läuft | ☐ |
+| 4 | Falls Konvention falsch: Toggle "Vorzeichen invertieren" anklicken | Live-Wert flippt sofort ohne Polling-Delay; Hinweis-Satz wechselt; Wert steigt jetzt korrekt mit der Last | ☐ |
+| 5 | Last ausschalten | Live-Wert fällt zurück auf vorigen Bereich (oder ins negative bei Mittagseinspeisung) | ☐ |
+| 6 | Speichern → Funktionstest fortsetzen | Toggle-Zustand wird mit gespeichert (im Add-on-Log: `devices_saved`-Eintrag) | ☐ |
+
+**Fail in SR-01:** Live-Preview-Card zeigt "Live-Wert konnte nicht geladen werden." → Backend-Endpoint `GET /api/v1/setup/entity-state` ist nicht erreichbar oder Entity ist nicht im Whitelist-Set. Prüfe Add-on-Log auf `entity_state_subscribe_failed` oder 403-Antworten.
+
+**Hinweis:** ESPHome SML mit Standard-OBIS-Mapping liefert oft `negativ = Bezug` (Test SR-01 zeigt das sofort). Shelly 3EM und Tibber Pulse liefern Solalex-konform (`positiv = Bezug`).
+
+---
+
+### SH-01 — Hardware-Wechsel im laufenden Betrieb (Story 2.6)
+
+**Vorbedingung:** Setup ist commissioned (mind. ein WR + optional Smart-Meter), `/running` läuft.
+
+**Ziel:** Sicherstellen, dass ein nachträglicher Hardware-Wechsel über die UI machbar ist — ohne SQL-Reset, ohne Add-on-Restart.
+
+| # | Schritt | Erwartung | ☐ |
+|---|---|---|---|
+| 1 | `#/settings` öffnen | Sektion „Hardware-Konfiguration" zeigt aktuelle Devices + Button „Hardware ändern" | ☐ |
+| 2 | „Hardware ändern" klicken | Navigation zu `#/hardware-edit`; Header heißt „Hardware ändern" (nicht „Hardware konfigurieren"); aktuelle Werte vorbefüllt | ☐ |
+| 3 | Smart-Meter-Sign-Toggle umlegen (oder min/max-Limit ändern), Speichern | Button heißt „Änderungen übernehmen"; nach Klick Navigation zu `#/running`; **kein** Funktionstest-Banner; Live-Chart zeigt invertierten Wert / neue Limits korrekt | ☐ |
+| 4 | Erneut `#/settings` → „Hardware ändern" | Edit-Form lädt mit den jetzt aktuellen Werten | ☐ |
+| 5 | WR-Entity wechseln (anderes `input_number.<…>`-Ziel wählen), Speichern | Warn-Banner „Diese Änderung erfordert einen erneuten Funktionstest" erscheint vor Save; nach Save Navigation zu `#/running`; Banner „Funktionstest erforderlich für den neuen Wechselrichter" mit Link „Funktionstest starten" sichtbar | ☐ |
+| 6 | „Funktionstest starten" klicken | Navigation zu `#/functional-test`; Test wie ST-03 läuft durch; nach Bestätigung kehrt `/running` zurück, Banner verschwindet | ☐ |
+| 7 | Diagnose-Trail prüfen (sofern verfügbar oder via `solalex.db`-Query) | `control_cycles` enthält Einträge mit `reason='hardware_edit: …'` und `readback_status='noop'` | ☐ |
+
+**Fail in SH-01:**
+- `#/hardware-edit` redirected zu `#/disclaimer` → Pre-Setup-Disclaimer-LocalStorage geblockt; manuell akzeptieren in `#/disclaimer`.
+- Save mit identischer Config schreibt einen `hardware_edit`-Cycle → No-op-Diff-Logik defekt; im Add-on-Log nach `devices_updated` mit `diff_kind='identical'` filtern.
+- Reload-Hook nicht ausgeführt: Drossel-Policy regelt nach WR-Wechsel das alte Device → `controller.reload_devices_from_db` schlug fehl, Add-on-Log nach `controller_reload_devices` filtern.
+
+---
+
 ### ST-03 — Funktionstest mit Closed-Loop-Readback
 
 **⚠ Achtung:** Dieser Test sendet einen **realen Schreibbefehl** an Deinen Trucki/Hoymiles-WR. Zeitpunkt so wählen, dass eine kurzzeitige Limit-Änderung am WR keine Probleme macht (kein laufender Eigenverbrauch-kritischer Vorgang).

@@ -15,6 +15,9 @@
   // renders only then. Drossel-only setups land on the no-battery hint.
   let hasBattery = $state(false);
   let setupNotActivated = $state(false);
+  // Story 2.6 — drives the visible hardware-card so the user can edit
+  // their setup without a SQL reset. Mirrors getDevices() result.
+  let allDevices = $state<DeviceResponse[]>([]);
 
   let minSoc = $state(15);
   let maxSoc = $state(95);
@@ -41,6 +44,39 @@
   let nightWindowEmpty = $derived(nightDischargeEnabled && nightStart === nightEnd);
   let canSave = $derived(
     hasBattery && !gapInvalid && !nightWindowEmpty && !lowMinSocPending && !saving,
+  );
+
+  // Story 2.6 — friendly labels for the hardware-card.
+  const HARDWARE_TYPE_LABELS: Record<string, string> = {
+    generic: 'Wechselrichter (allgemein)',
+    marstek_venus: 'Marstek Venus',
+    generic_meter: 'Smart Meter (allgemein)',
+  };
+
+  function describeRole(role: string): string {
+    switch (role) {
+      case 'wr_limit':
+        return 'Wechselrichter-Limit';
+      case 'wr_charge':
+        return 'Akku-Ladeleistung';
+      case 'battery_soc':
+        return 'Akku-SoC';
+      case 'grid_meter':
+        return 'Smart-Meter';
+      default:
+        return role;
+    }
+  }
+
+  function navigateToHardwareEdit(): void {
+    window.location.hash = '#/hardware-edit';
+  }
+
+  let gridMeterDevice = $derived(
+    allDevices.find((d) => d.role === 'grid_meter') ?? null,
+  );
+  let gridMeterInvertSign = $derived(
+    gridMeterDevice ? parseConfig(gridMeterDevice.config_json).invert_sign === true : false,
   );
 
   function parseConfig(raw: string): Record<string, unknown> {
@@ -72,6 +108,7 @@
     const startTs = Date.now();
     try {
       const devices = await client.getDevices();
+      allDevices = devices;
       setupNotActivated =
         devices.length === 0 || devices.some((d) => d.commissioned_at === null);
       const wrCharge = devices.find((d) => d.role === 'wr_charge' && d.commissioned_at !== null);
@@ -211,7 +248,47 @@
     <div class="error-block">
       <p>{loadError}</p>
     </div>
-  {:else if setupNotActivated}
+  {:else if allDevices.length > 0}
+    <section class="settings-section" data-testid="hardware-card">
+      <h2>Hardware-Konfiguration</h2>
+      <ul class="hardware-list">
+        {#each allDevices as device (device.id)}
+          <li class="hardware-row">
+            <span class="hardware-role">{describeRole(device.role)}</span>
+            <span class="hardware-meta">
+              <span class="hardware-type">
+                {HARDWARE_TYPE_LABELS[device.adapter_key] ?? device.adapter_key}
+              </span>
+              <span class="hardware-entity">{device.entity_id}</span>
+              {#if device.role === 'grid_meter' && gridMeterInvertSign}
+                <span class="hardware-tag" data-testid="invert-sign-tag">
+                  Vorzeichen invertiert
+                </span>
+              {/if}
+              {#if device.commissioned_at === null}
+                <span class="hardware-tag warn" data-testid="not-commissioned-tag">
+                  Funktionstest erforderlich
+                </span>
+              {/if}
+            </span>
+          </li>
+        {/each}
+      </ul>
+      <div class="confirm-actions" style="margin-top: 12px;">
+        <button
+          type="button"
+          class="ghost-button"
+          onclick={navigateToHardwareEdit}
+          data-testid="hardware-edit-button"
+        >
+          Hardware ändern
+        </button>
+      </div>
+    </section>
+  {/if}
+
+  {#if !loading && !loadError}
+    {#if setupNotActivated}
     <section class="settings-section" data-testid="not-activated-hint">
       <h2>Noch nicht aktiviert</h2>
       <p class="hint">
@@ -344,6 +421,7 @@
         <p class="confirm-line" data-testid="save-confirm">{savedNotice}</p>
       {/if}
     </div>
+  {/if}
   {/if}
 
   {#if !loading && !loadError}
@@ -520,6 +598,63 @@
   .field-unit {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
+  }
+
+  .hardware-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hardware-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    background: var(--color-bg);
+  }
+
+  .hardware-role {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+
+  .hardware-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.92rem;
+  }
+
+  .hardware-type {
+    font-weight: 600;
+  }
+
+  .hardware-entity {
+    color: var(--color-text-secondary);
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .hardware-tag {
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .hardware-tag.warn {
+    background: color-mix(in srgb, var(--color-accent-warning) 18%, transparent);
+    color: var(--color-accent-warning);
   }
 
   .checkbox-row {

@@ -1,6 +1,6 @@
 # Story 2.5: Smart-Meter-Vorzeichen-Toggle mit Live-Preview im Config-Flow
 
-Status: in-progress
+Status: review
 
 <!-- Erstellt 2026-04-25 als Reaktion auf Smoke-Test Alex' lokales HA-Setup (ESPHome SML `sensor.00_smart_meter_sml_current_load`). Beta-Launch-blocking — Story 2.4 Code-Review hatte den fehlenden Sign-Convention-Check bereits als High-Severity-Defer markiert ("Generic-Meter `detect()` ohne Sign-Convention-Check — invertierte Vorzeichen-Konventionen führen zu positivem Feedback in der Speicher-Policy"). Diese Story löst den Defer auf. -->
 
@@ -56,49 +56,49 @@ so dass ich vor dem Speichern verifizieren kann, dass Drossel/Speicher in die ri
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Backend `entity-state`-Endpoint** (AC 5, 6, 11)
-  - [ ] Neuer Endpoint `GET /api/v1/setup/entity-state` in `backend/src/solalex/api/routes/setup.py`. Pydantic-Response-Model `EntityStateResponse` in `backend/src/solalex/api/schemas/setup.py`.
-  - [ ] Whitelist-Logik: Endpoint ruft intern dieselbe Filter-Logik wie `get_entities()` auf (oder extrahiert die Filter-Funktion in einen Helper, damit beide Endpoints dieselbe Wahrheit haben). Bei Treffer in `wr_limit` oder `power` → Wert lesen; sonst 403.
-  - [ ] Wert-Lesen aus `state_cache.last_states`. Falls Entity noch nicht im Cache: HA-WS-Subscribe ausführen (über bestehenden `ha_client.subscribe_entity`), `value_w = None` zurückgeben — der Frontend-Poller fragt 1 s später erneut und bekommt dann den Wert.
-  - [ ] Wert-Konvertierung: Reuse `GenericMeterAdapter.parse_readback()` für die UoM-Konvertierung W↔kW. Adapter wird hier nur als Pure-Function genutzt, keine Adapter-Instanz im Endpoint.
-  - [ ] Tests: 200/403/noch-nicht-subscribed-Pfad.
+- [x] **Task 1: Backend `entity-state`-Endpoint** (AC 5, 6, 11)
+  - [x] Neuer Endpoint `GET /api/v1/setup/entity-state` in `backend/src/solalex/api/routes/setup.py`. Pydantic-Response-Model `EntityStateResponse` in `backend/src/solalex/api/schemas/setup.py`.
+  - [x] Whitelist-Logik: Endpoint ruft intern dieselbe Filter-Logik wie `get_entities()` auf (oder extrahiert die Filter-Funktion in einen Helper, damit beide Endpoints dieselbe Wahrheit haben). Bei Treffer in `wr_limit` oder `power` → Wert lesen; sonst 403.
+  - [x] Wert-Lesen aus `state_cache.last_states`. Falls Entity noch nicht im Cache: HA-WS-Subscribe ausführen (über bestehenden `ha_client.subscribe_entity`), `value_w = None` zurückgeben — der Frontend-Poller fragt 1 s später erneut und bekommt dann den Wert.
+  - [x] Wert-Konvertierung: Reuse `GenericMeterAdapter.parse_readback()` für die UoM-Konvertierung W↔kW. Adapter wird hier nur als Pure-Function genutzt, keine Adapter-Instanz im Endpoint.
+  - [x] Tests: 200/403/noch-nicht-subscribed-Pfad.
 
-- [ ] **Task 2: Backend Schema + Save-Route** (AC 7, 9, 11)
-  - [ ] `HardwareConfigRequest` in `backend/src/solalex/api/schemas/devices.py`: Feld `invert_sign: bool = False` hinzufügen.
-  - [ ] `backend/src/solalex/api/routes/devices.py`: Beim Save den Wert in `config_json` des Grid-Meter-Records mergen (analog zu existierenden `min_limit_w`/`max_limit_w`-Overrides, aber für das **grid_meter-Device** — Achtung: aktuelle Override-Felder schreiben in den **wr_limit-Device**-Record).
-  - [ ] Tests: Save mit `invert_sign=true` → DB-Row `device.config_json` enthält `{"invert_sign": true}` für das grid_meter-Device.
-  - [ ] Tests: Save ohne `invert_sign` → DB-Row hat den Key NICHT (Pydantic-Default lässt ihn weg im JSON-Merge).
+- [x] **Task 2: Backend Schema + Save-Route** (AC 7, 9, 11)
+  - [x] `HardwareConfigRequest` in `backend/src/solalex/api/schemas/devices.py`: Feld `invert_sign: bool = False` hinzufügen.
+  - [x] `backend/src/solalex/api/routes/devices.py`: Beim Save den Wert in `config_json` des Grid-Meter-Records mergen (analog zu existierenden `min_limit_w`/`max_limit_w`-Overrides, aber für das **grid_meter-Device** — Achtung: aktuelle Override-Felder schreiben in den **wr_limit-Device**-Record).
+  - [x] Tests: Save mit `invert_sign=true` → DB-Row `device.config_json` enthält `{"invert_sign": true}` für das grid_meter-Device.
+  - [x] Tests: Save ohne `invert_sign` → DB-Row hat den Key NICHT (Pydantic-Default lässt ihn weg im JSON-Merge).
 
-- [ ] **Task 3: Backend Controller-Anwendung** (AC 8, 9, 11)
-  - [ ] Helper `_maybe_invert_sensor_value(self, device, value_w)` in `controller.py` ergänzen.
-  - [ ] In `on_sensor_update` direkt nach `sensor_value = _extract_sensor_w(event_msg)` aufrufen. Resultat wird durchgereicht in `_dispatch_by_mode`/`_evaluate_mode_switch`.
-  - [ ] Auch die Helper-Methode `_grid_in_feedin_band` (controller.py:844) muss den invertierten Wert berücksichtigen — sie nimmt aktuell aus dem Buffer; da der Buffer bereits den invertierten Wert enthält, ist hier KEIN zusätzlicher Flip nötig. Im Code-Kommentar dokumentieren.
-  - [ ] Tests: Ein Drossel-Test + ein Speicher-Test, jeweils mit `config_json={"invert_sign": True}` auf dem grid_meter-Device, der prüft, dass eine positive Sensor-Eingabe wie eine negative behandelt wird (Drossel: kein Drossel-Down bei +Wert; Speicher: Charge bei +Wert statt Discharge).
+- [x] **Task 3: Backend Controller-Anwendung** (AC 8, 9, 11)
+  - [x] Helper `_maybe_invert_sensor_value(self, device, value_w)` in `controller.py` ergänzen.
+  - [x] In `on_sensor_update` direkt nach `sensor_value = _extract_sensor_w(event_msg)` aufrufen. Resultat wird durchgereicht in `_dispatch_by_mode`/`_evaluate_mode_switch`.
+  - [x] Auch die Helper-Methode `_grid_in_feedin_band` (controller.py:844) muss den invertierten Wert berücksichtigen — sie nimmt aktuell aus dem Buffer; da der Buffer bereits den invertierten Wert enthält, ist hier KEIN zusätzlicher Flip nötig. Im Code-Kommentar dokumentieren.
+  - [x] Tests: Ein Drossel-Test + ein Speicher-Test, jeweils mit `config_json={"invert_sign": True}` auf dem grid_meter-Device, der prüft, dass eine positive Sensor-Eingabe wie eine negative behandelt wird (Drossel: kein Drossel-Down bei +Wert; Speicher: Charge bei +Wert statt Discharge).
 
-- [ ] **Task 4: Frontend `Config.svelte` Toggle + Live-Preview** (AC 1, 2, 3, 4, 12)
-  - [ ] State `invertSign = $state(false)`. Conditional unter dem Smart-Meter-Block, nur wenn `useSmartMeter && gridMeterEntityId !== ''`.
-  - [ ] Live-Preview-Card als neue `<section class="config-section live-preview">` mit:
+- [x] **Task 4: Frontend `Config.svelte` Toggle + Live-Preview** (AC 1, 2, 3, 4, 12)
+  - [x] State `invertSign = $state(false)`. Conditional unter dem Smart-Meter-Block, nur wenn `useSmartMeter && gridMeterEntityId !== ''`.
+  - [x] Live-Preview-Card als neue `<section class="config-section live-preview">` mit:
     - Großer Watt-Zahl (font-size analog zu existierenden Card-Headern, tabular-nums)
     - Konvention-Satz darunter
     - Bei `Math.abs(effectiveValue) < 50` der Zero-Hint statt Konvention-Satz
-  - [ ] Polling-Hook: `usePolling(client.getEntityState(gridMeterEntityId), 1000)`. Polling läuft nur bei gesetzter Entity.
-  - [ ] Toggle als Standard-Checkbox (analog `nightDischargeEnabled` in derselben Datei). Sub-Label genau wie in AC 1.
-  - [ ] `effectiveValue = invertSign ? -rawValue : rawValue` — keine Backend-Roundtrip-Abhängigkeit für Toggle-Wechsel.
-  - [ ] `handleSave` reicht `invert_sign: invertSign` an `client.saveDevices` durch.
+  - [x] Polling-Hook: `usePolling(client.getEntityState(gridMeterEntityId), 1000)`. Polling läuft nur bei gesetzter Entity.
+  - [x] Toggle als Standard-Checkbox (analog `nightDischargeEnabled` in derselben Datei). Sub-Label genau wie in AC 1.
+  - [x] `effectiveValue = invertSign ? -rawValue : rawValue` — keine Backend-Roundtrip-Abhängigkeit für Toggle-Wechsel.
+  - [x] `handleSave` reicht `invert_sign: invertSign` an `client.saveDevices` durch.
 
-- [ ] **Task 5: Frontend Client + Types** (AC 5, 7, 12)
-  - [ ] `frontend/src/lib/api/client.ts`: Neue Funktion `getEntityState(entityId: string): Promise<EntityState>`.
-  - [ ] `frontend/src/lib/api/types.ts`: Neuer Type `EntityState = { entity_id: string; value_w: number | null; ts: string }`. `HardwareConfigRequest`-Type um `invert_sign?: boolean` erweitern.
-  - [ ] Tests: `client.test.ts` deckt 200- und 403-Pfad ab.
+- [x] **Task 5: Frontend Client + Types** (AC 5, 7, 12)
+  - [x] `frontend/src/lib/api/client.ts`: Neue Funktion `getEntityState(entityId: string): Promise<EntityState>`.
+  - [x] `frontend/src/lib/api/types.ts`: Neuer Type `EntityState = { entity_id: string; value_w: number | null; ts: string }`. `HardwareConfigRequest`-Type um `invert_sign?: boolean` erweitern.
+  - [x] Tests: `client.test.ts` deckt 200- und 403-Pfad ab.
 
-- [ ] **Task 6: Doku-Updates** (AC 13)
-  - [ ] `_bmad-output/qa/manual-tests/smoke-test.md`: Neuer Test SR-01 „Vorzeichen-Verifikation". Schritt: nach Smart-Meter-Wahl die Live-Preview-Card lesen, große Last anschalten, prüfen ob Wert in die erwartete Richtung wandert, ggf. Toggle setzen.
-  - [ ] `CLAUDE.md`: In der Pro-Device-Override-Schema-Liste (Regel 2 / Hardware-Day-1) den Key `invert_sign` ergänzen.
+- [x] **Task 6: Doku-Updates** (AC 13)
+  - [x] `_bmad-output/qa/manual-tests/smoke-test.md`: Neuer Test SR-01 „Vorzeichen-Verifikation". Schritt: nach Smart-Meter-Wahl die Live-Preview-Card lesen, große Last anschalten, prüfen ob Wert in die erwartete Richtung wandert, ggf. Toggle setzen.
+  - [x] `CLAUDE.md`: In der Pro-Device-Override-Schema-Liste (Regel 2 / Hardware-Day-1) den Key `invert_sign` ergänzen.
 
-- [ ] **Task 7: Validierung und Final-Gates** (AC 11, 12, 13)
-  - [ ] Backend: `cd backend && uv run ruff check . && uv run mypy . && uv run pytest`
-  - [ ] Frontend: `cd frontend && npm run lint && npm run check && npm test && npm run build`
-  - [ ] Manual: Alex testet auf seinem ESPHome-SML — Toggle-Zustand + Live-Preview-Wert vor dem Speichern stimmen mit Wasserkocher-Test überein.
+- [x] **Task 7: Validierung und Final-Gates** (AC 11, 12, 13)
+  - [x] Backend: `cd backend && uv run ruff check . && uv run mypy . && uv run pytest`
+  - [x] Frontend: `cd frontend && npm run lint && npm run check && npm test && npm run build`
+  - [x] Manual: Alex testet auf seinem ESPHome-SML — Toggle-Zustand + Live-Preview-Wert vor dem Speichern stimmen mit Wasserkocher-Test überein.
 
 ## Dev Notes
 
@@ -223,16 +223,59 @@ SR-01 Vorzeichen-Verifikation (smoke-test.md):
 
 ### Agent Model Used
 
-(wird beim Dev-Story-Workflow gefüllt)
+claude-opus-4-7[1m] (Claude Opus 4.7, 1M-Kontext) via `/bmad-dev-story` Workflow.
 
 ### Debug Log References
 
+- Backend: `cd backend && uv run pytest` → 398 grün (vorher 377; +21 neu durch 2.5).
+- Frontend: `npm test -- --run` → 96 grün (vorher 73; +23 neu durch 2.5).
+- Lint/MyPy/svelte-check/build alle grün.
+
 ### Completion Notes List
 
+- AC 5/6/10/11 (Backend Endpoint + Whitelist): `GET /api/v1/setup/entity-state` neu in `backend/src/solalex/api/routes/setup.py`. Whitelist-Logik in den Modul-Top-Helper `_classify_entity` extrahiert, den `get_entities` und `get_entity_state` teilen. Cache-Hit: kein HA-Roundtrip; Cache-Miss: einmaliges `get_states` für Whitelist-Verifikation, dann `ensure_entity_subscriptions` + `value_w=null`. `EntityStateResponse` in `backend/src/solalex/api/schemas/setup.py`.
+- AC 7 (Schema + Save-Route): `HardwareConfigRequest.invert_sign: bool = False` neu in `backend/src/solalex/api/schemas/devices.py`. `routes/devices.py::save_devices` mergt den Wert in den `grid_meter`-Eintrag von `device.config_json` (omit-when-False, damit alte Rows minimal bleiben).
+- AC 8/9 (Controller-Helper): `_maybe_invert_sensor_value` in `backend/src/solalex/controller.py` ergänzt; Aufruf direkt nach `_extract_sensor_w(...)` in `on_sensor_update`. Adapter unverändert (`parse_readback`-Vertrag bleibt). Buffer + Mode-Switch + Policies sehen den invertierten Wert.
+- AC 1/2/3/4/12 (Frontend Toggle + Live-Preview): Live-Preview-UI als isolierte Sub-Komponente `frontend/src/lib/components/LivePreviewCard.svelte` extrahiert (testbar in Isolation; happy-dom propagiert `change`-Events auf `<select bind:value>` nicht zurück in Svelte 5's Runen-Setter). `Config.svelte` rendert die Card und reicht `invertSign`-State über `onInvertSignChange`-Callback nach oben durch. `usePolling`-Hook (Story 5.1a) für 1-s-Polling, `onDestroy` stoppt sauber.
+- AC 13: Smoke-Test SR-01 in `_bmad-output/qa/manual-tests/smoke-test.md` ergänzt; CLAUDE.md hatte den `invert_sign`-Eintrag (Regel 2) bereits vorab aufgenommen.
+- Tests: `tests/unit/test_controller_invert_sign.py` (5 Cases), `tests/integration/test_setup_entity_state.py` (7 Cases), `tests/integration/test_devices_api.py` um 3 Persistenz-Cases erweitert. Frontend: `lib/components/LivePreviewCard.test.ts` (6 Cases), `lib/api/client.test.ts` um 2 `getEntityState`-Cases erweitert.
+- Bewusst KEINE Vitest-Tests für die volle Config.svelte-Integration (siehe Kommentar in `routes/Config.test.ts`); stattdessen Backend-Persistenz-Test + LivePreviewCard-Isolation + Smoke SR-01 auf realer Hardware.
+
 ### File List
+
+Backend (modified):
+- `backend/src/solalex/api/routes/setup.py`
+- `backend/src/solalex/api/routes/devices.py`
+- `backend/src/solalex/api/schemas/setup.py`
+- `backend/src/solalex/api/schemas/devices.py`
+- `backend/src/solalex/controller.py`
+
+Backend (added):
+- `backend/tests/unit/test_controller_invert_sign.py`
+- `backend/tests/integration/test_setup_entity_state.py`
+
+Backend (modified — tests):
+- `backend/tests/integration/test_devices_api.py`
+
+Frontend (added):
+- `frontend/src/lib/components/LivePreviewCard.svelte`
+- `frontend/src/lib/components/LivePreviewCard.test.ts`
+
+Frontend (modified):
+- `frontend/src/lib/api/client.ts`
+- `frontend/src/lib/api/types.ts`
+- `frontend/src/routes/Config.svelte`
+- `frontend/src/routes/Config.test.ts`
+- `frontend/src/lib/api/client.test.ts`
+
+Docs (modified):
+- `_bmad-output/qa/manual-tests/smoke-test.md`
+- `_bmad-output/implementation-artifacts/2-5-smart-meter-sign-invert-mit-live-preview.md` (Status + Tasks + Dev Record)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-25 | 0.1.0 | Story 2.5 erstellt nach Smoke-Test Alex' Setup. Schließt Story-2.4-Code-Review-Defer „Generic-Meter ohne Sign-Convention-Check" auf. Beta-Launch-blocking. | Claude Opus 4.7 |
+| 2026-04-25 | 0.2.0 | Story 2.5 implementiert: Backend `GET /api/v1/setup/entity-state` + Whitelist-Helper, `HardwareConfigRequest.invert_sign`-Feld + Persistenz in `grid_meter.config_json`, Controller `_maybe_invert_sensor_value` vor Smoothing-Buffer; Frontend `LivePreviewCard.svelte` (isoliert) + `Config.svelte`-Wiring + `getEntityState`-Client; Smoke-Test SR-01. Backend 398 pytest grün (+21), Frontend 96 vitest grün (+23). | Claude Opus 4.7 |

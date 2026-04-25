@@ -2,6 +2,7 @@
 
 GET   /api/v1/devices                       — list all configured devices.
 POST  /api/v1/devices                       — save (replace) hardware configuration.
+PUT   /api/v1/devices                       — diff-aware re-save post-commissioning (Story 2.6).
 PATCH /api/v1/devices/battery-config        — update Akku-Bounds + Nacht-Fenster post-Commissioning (Story 3.6).
 POST  /api/v1/devices/reset                 — wipe device config + meta.forced_mode + reload controller.
 """
@@ -26,6 +27,8 @@ from solalex.api.schemas.devices import (
 from solalex.common.logging import get_logger
 from solalex.config import get_settings
 from solalex.persistence.db import connection_context
+from solalex.persistence.repositories import control_cycles
+from solalex.persistence.repositories.control_cycles import ControlCycleRow, Mode
 from solalex.persistence.repositories.devices import (
     delete_all,
     list_devices,
@@ -63,20 +66,18 @@ async def get_devices(request: Request) -> list[DeviceResponse]:  # noqa: ARG001
     return [_to_response(d) for d in devices]
 
 
-@router.post("/", status_code=201, response_model=SaveDevicesResponse)
-async def save_devices(
-    request: Request,  # noqa: ARG001
-    body: HardwareConfigRequest,
-) -> SaveDevicesResponse:
-    """Replace the entire device configuration (delete-all + insert)."""
-    db_path = get_settings().db_path
+def _build_rows_from_request(body: HardwareConfigRequest) -> list[DeviceRecord]:
+    """Translate a validated HardwareConfigRequest into DeviceRecord rows.
+
+    Shared by POST (initial save) and PUT (post-commissioning re-save) so
+    the two paths cannot drift on the per-role config_json shape.
+    """
     rows: list[DeviceRecord] = []
 
-    # Build the rows to insert from the validated request.
     if body.hardware_type == "generic":
-        # Persist optional limit-range overrides in the device's
-        # config_json blob so GenericInverterAdapter.get_limit_range
-        # can pick them up at runtime (Story 2.4 Review D3 / P13).
+        # Persist optional limit-range overrides in the device's config_json
+        # blob so GenericInverterAdapter.get_limit_range can pick them up at
+        # runtime (Story 2.4 Review D3 / P13).
         generic_config: dict[str, int] = {}
         if body.min_limit_w is not None:
             generic_config["min_limit_w"] = body.min_limit_w
@@ -125,9 +126,9 @@ async def save_devices(
     if body.grid_meter_entity_id:
         # Story 2.5 — persist the sign-invert toggle into the grid_meter
         # device.config_json so the controller's _maybe_invert_sensor_value
-        # helper picks it up. Omit the key when False so existing rows
-        # (which never had the key) keep their config_json minimal and
-        # round-trip stably through repeated saves.
+        # helper picks it up. Omit the key when False so existing rows keep
+        # their config_json minimal and round-trip stably through repeated
+        # saves.
         meter_config: dict[str, Any] = {}
         if body.invert_sign:
             meter_config["invert_sign"] = True
@@ -142,6 +143,18 @@ async def save_devices(
             )
         )
 
+    return rows
+
+
+@router.post("/", status_code=201, response_model=SaveDevicesResponse)
+async def save_devices(
+    request: Request,  # noqa: ARG001
+    body: HardwareConfigRequest,
+) -> SaveDevicesResponse:
+    """Replace the entire device configuration (delete-all + insert)."""
+    db_path = get_settings().db_path
+    rows = _build_rows_from_request(body)
+
     async with connection_context(db_path) as conn:
         await replace_all(conn, rows)
 
@@ -152,6 +165,302 @@ async def save_devices(
         device_count=len(rows),
         next_action="functional_test",
     )
+
+
+def _merge_config(existing_raw: str, incoming_raw: str) -> str:
+    """Merge ``incoming`` keys into ``existing`` config_json, preserving extras.
+
+    Used by PUT to keep foreign keys (e.g. ``allow_surplus_export`` from
+    Story 3.8, ``min_soc`` from Story 3.6 PATCH) when the user re-saves
+    only the wizard-managed subset. Falls back to the incoming blob when
+    either side is malformed JSON or non-dict.
+    """
+    try:
+        existing = json.loads(existing_raw or "{}")
+    except json.JSONDecodeError:
+        return incoming_raw
+    try:
+        incoming = json.loads(incoming_raw or "{}")
+    except json.JSONDecodeError:
+        return incoming_raw
+    if not isinstance(existing, dict) or not isinstance(incoming, dict):
+        return incoming_raw
+    merged: dict[str, Any] = dict(existing)
+    merged.update(incoming)
+    return json.dumps(merged)
+
+
+def _row_diff_kind(
+    existing: list[DeviceRecord], target: list[DeviceRecord]
+) -> str:
+    """Categorise the diff between existing and target row sets.
+
+    Returns one of:
+      * ``identical`` — same (entity_id, role) set + identical config_json.
+      * ``override_only`` — same (entity_id, role) set, config_json differs.
+      * ``smart_meter_swap`` — only the grid_meter entity_id changed.
+      * ``wr_swap`` — wr_limit/wr_charge entity_id changed (forces re-test).
+      * ``hardware_swap`` — adapter_key on the control device changed.
+    """
+    existing_pairs = {(d.entity_id, d.role): d for d in existing}
+    target_pairs = {(d.entity_id, d.role): d for d in target}
+
+    if set(existing_pairs) == set(target_pairs):
+        for key, t in target_pairs.items():
+            e = existing_pairs[key]
+            if (
+                _merge_config(e.config_json, t.config_json) != e.config_json
+                or e.adapter_key != t.adapter_key
+                or e.type != t.type
+            ):
+                return "override_only"
+        return "identical"
+
+    existing_control = next(
+        (d for d in existing if d.role in ("wr_limit", "wr_charge")), None
+    )
+    target_control = next(
+        (d for d in target if d.role in ("wr_limit", "wr_charge")), None
+    )
+    if existing_control and target_control:
+        if existing_control.adapter_key != target_control.adapter_key:
+            return "hardware_swap"
+        if existing_control.entity_id != target_control.entity_id:
+            return "wr_swap"
+        if existing_control.role != target_control.role:
+            return "hardware_swap"
+
+    existing_meter = next(
+        (d for d in existing if d.role == "grid_meter"), None
+    )
+    target_meter = next((d for d in target if d.role == "grid_meter"), None)
+    existing_meter_eid = existing_meter.entity_id if existing_meter else None
+    target_meter_eid = target_meter.entity_id if target_meter else None
+    if existing_meter_eid != target_meter_eid:
+        return "smart_meter_swap"
+
+    # Catch-all for combinations not covered above (e.g. adding/removing
+    # battery_soc only) — treat as a wr-side swap so the user re-runs the
+    # functional test.
+    return "wr_swap"
+
+
+@router.put("/", response_model=list[DeviceResponse])
+async def update_devices(
+    request: Request,
+    body: HardwareConfigRequest,
+) -> list[DeviceResponse]:
+    """Diff-aware re-save for post-commissioning hardware edits (Story 2.6).
+
+    Behaviour matrix (AC 3):
+      * No change                        → no DB write, no audit cycle, no reload.
+      * Override-only (config_json keys) → in-place UPDATE, ``commissioned_at`` preserved.
+      * Smart-meter entity swap          → replace, set new ``commissioned_at = now``
+                                           (smart-meter is read-only, no functional-test).
+      * WR / hardware-type swap          → replace, ``commissioned_at = NULL`` on the
+                                           new control device (forces functional-test).
+
+    Always runs the entire DML inside a single transaction. On success
+    writes a noop audit cycle (mode = controller's current mode, source
+    ``solalex``, ``reason='hardware_edit: …'``) so the change is
+    visible in the diagnostics ring buffer, then triggers a synchronous
+    ``controller.reload_devices_from_db()`` so the next sensor event sees
+    the new device set.
+    """
+    db_path = get_settings().db_path
+    target_rows = _build_rows_from_request(body)
+
+    async with connection_context(db_path) as conn:
+        existing = await list_devices(conn)
+
+    diff_kind = _row_diff_kind(existing, target_rows)
+
+    if diff_kind == "identical":
+        # No-op fast path — return the unchanged device list and skip the
+        # audit cycle + reload. Avoids phantom inserts when the user opens
+        # the edit page and clicks "Speichern" without changing anything.
+        async with connection_context(db_path) as conn:
+            current = await list_devices(conn)
+        return [_to_response(d) for d in current]
+
+    existing_by_pair = {(d.entity_id, d.role): d for d in existing}
+    target_by_pair = {(d.entity_id, d.role): d for d in target_rows}
+
+    keep_pairs = set(target_by_pair.keys())
+    delete_pairs = [p for p in existing_by_pair if p not in keep_pairs]
+    insert_rows: list[DeviceRecord] = []
+    update_rows: list[tuple[int, str]] = []  # (device_id, merged_config_json)
+
+    for pair, target in target_by_pair.items():
+        existing_row = existing_by_pair.get(pair)
+        if existing_row is None or existing_row.id is None:
+            # Same (entity_id, role) absent → INSERT
+            insert_rows.append(target)
+        else:
+            merged = _merge_config(existing_row.config_json, target.config_json)
+            if merged != existing_row.config_json:
+                update_rows.append((existing_row.id, merged))
+
+    async with connection_context(db_path) as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            # Delete rows whose (entity_id, role) is no longer present.
+            for entity_id, role in delete_pairs:
+                await conn.execute(
+                    "DELETE FROM devices WHERE entity_id = ? AND role = ?",
+                    (entity_id, role),
+                )
+            # In-place updates preserve commissioned_at.
+            for device_id, merged_cfg in update_rows:
+                await update_device_config_json(
+                    conn, device_id, merged_cfg, commit=False
+                )
+            # Inserts: commissioned_at left NULL by default. Smart-meter
+            # rows are bumped to ``now`` further down because they need
+            # no functional-test re-run.
+            for record in insert_rows:
+                await conn.execute(
+                    """
+                    INSERT INTO devices (type, role, entity_id, adapter_key, config_json)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record.type,
+                        record.role,
+                        record.entity_id,
+                        record.adapter_key,
+                        record.config_json,
+                    ),
+                )
+            # Smart-meter is read-only — auto-commission new grid_meter
+            # rows so the controller starts processing them immediately.
+            if any(r.role == "grid_meter" for r in insert_rows):
+                ts_str = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                await conn.execute(
+                    "UPDATE devices SET commissioned_at = ? "
+                    "WHERE role = 'grid_meter' AND commissioned_at IS NULL",
+                    (ts_str,),
+                )
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+
+    # Reload the live controller so the next sensor event sees the new
+    # device registry (Story 3.6 hook). Synchronous so the response only
+    # returns once the controller is consistent with the DB.
+    controller = getattr(request.app.state, "controller", None)
+    if controller is not None:
+        await controller.reload_devices_from_db()
+
+    # Audit cycle — placed AFTER the reload so the controller has its new
+    # mode/baseline already, but the cycle row reflects the same active
+    # mode as concurrent regulation (no surprise mode flip in the audit
+    # trail). Best-effort: failure is logged but does not fail the route
+    # (configuration was saved successfully).
+    await _write_hardware_edit_audit_cycle(
+        request,
+        diff_kind=diff_kind,
+        existing=existing,
+        target_rows=target_rows,
+    )
+
+    _logger.info(
+        "devices_updated",
+        extra={
+            "diff_kind": diff_kind,
+            "device_count": len(target_rows),
+            "hardware_type": body.hardware_type,
+        },
+    )
+
+    async with connection_context(db_path) as conn:
+        current = await list_devices(conn)
+    return [_to_response(d) for d in current]
+
+
+async def _write_hardware_edit_audit_cycle(
+    request: Request,
+    *,
+    diff_kind: str,
+    existing: list[DeviceRecord],
+    target_rows: list[DeviceRecord],
+) -> None:
+    """Persist a ``hardware_edit`` noop cycle for diagnostic traceability.
+
+    Anchor device preference (Story 2.6 AC 8): the surviving grid_meter
+    if present (the natural diagnostic anchor that the controller also
+    uses), otherwise the first commissioned device of the new set,
+    otherwise the first row at all. Reads the most recent device list
+    from the DB so newly-inserted IDs are available.
+    """
+    db_path = get_settings().db_path
+    async with connection_context(db_path) as conn:
+        all_devices = await list_devices(conn)
+    anchor = next(
+        (d for d in all_devices if d.role == "grid_meter" and d.id is not None),
+        None,
+    )
+    if anchor is None:
+        anchor = next(
+            (
+                d
+                for d in all_devices
+                if d.commissioned_at is not None and d.id is not None
+            ),
+            None,
+        )
+    if anchor is None:
+        anchor = next((d for d in all_devices if d.id is not None), None)
+    if anchor is None or anchor.id is None:
+        # Total wipe + body had only invalid rows — nothing to anchor at.
+        return
+
+    controller = getattr(request.app.state, "controller", None)
+    mode_value: Mode = "drossel"
+    if controller is not None:
+        raw_mode = controller.current_mode.value
+        if raw_mode == "speicher":
+            mode_value = "speicher"
+        elif raw_mode == "multi":
+            mode_value = "multi"
+        elif raw_mode == "drossel":
+            mode_value = "drossel"
+
+    existing_summary = sorted(
+        f"{d.role}={d.entity_id}" for d in existing if d.role
+    )
+    target_summary = sorted(
+        f"{d.role}={d.entity_id}" for d in target_rows if d.role
+    )
+    reason = f"hardware_edit: {diff_kind} ({existing_summary} → {target_summary})"
+    if len(reason) > 200:
+        reason = reason[:199] + "…"
+
+    row = ControlCycleRow(
+        id=None,
+        ts=datetime.now(tz=UTC),
+        device_id=anchor.id,
+        mode=mode_value,
+        source="solalex",
+        sensor_value_w=None,
+        target_value_w=None,
+        readback_status="noop",
+        readback_actual_w=None,
+        readback_mismatch=False,
+        latency_ms=None,
+        cycle_duration_ms=0,
+        reason=reason,
+    )
+    try:
+        async with connection_context(db_path) as conn:
+            await control_cycles.insert(conn, row)
+            await conn.commit()
+    except Exception:
+        _logger.exception(
+            "hardware_edit_audit_cycle_persist_failed",
+            extra={"diff_kind": diff_kind, "anchor_device_id": anchor.id},
+        )
 
 
 @router.patch("/battery-config", response_model=BatteryConfigResponse)

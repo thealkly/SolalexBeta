@@ -35,6 +35,17 @@ export function evaluateGate(input: GateInput): GateDecision {
     if (!preAccepted) return { kind: 'redirect', hash: '#/disclaimer' };
     return { kind: 'stay' };
   }
+  // Story 2.6 — /hardware-edit is the post-commissioning escape hatch
+  // for hardware swaps. Same disclaimer-gate as /settings; explicitly
+  // requires at least one existing device so a fresh-install user lands
+  // on the welcome screen instead of a half-initialised edit form.
+  if (currentRoute === '/hardware-edit') {
+    if (!preAccepted) return { kind: 'redirect', hash: '#/disclaimer' };
+    if (devices !== null && devices.length === 0) {
+      return { kind: 'redirect', hash: '#/' };
+    }
+    return { kind: 'stay' };
+  }
   if (devices === null) return { kind: 'stay' };
 
   const allCommissioned = devices.length > 0 && devices.every((d) => d.commissioned_at !== null);

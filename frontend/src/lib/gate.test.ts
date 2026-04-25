@@ -245,6 +245,55 @@ describe('evaluateGate — Story 3.6 settings route', () => {
   });
 });
 
+// Story 2.6 — /hardware-edit branch.
+describe('evaluateGate — Story 2.6 hardware-edit route', () => {
+  const commissioned = [makeDevice({ commissioned_at: '2026-04-25T00:00:00Z' })];
+
+  it('lets a commissioned user reach /hardware-edit without the wizard redirect', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/hardware-edit',
+        devices: commissioned,
+        preAccepted: true,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'stay' });
+  });
+
+  it('redirects to /disclaimer when pre-disclaimer not accepted', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/hardware-edit',
+        devices: commissioned,
+        preAccepted: false,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'redirect', hash: '#/disclaimer' });
+  });
+
+  it('redirects to / when devices are empty (initial-setup user shouldn\'t reach edit)', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/hardware-edit',
+        devices: [],
+        preAccepted: true,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'redirect', hash: '#/' });
+  });
+
+  it('stays on /hardware-edit while devices are still loading (preserves intent)', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/hardware-edit',
+        devices: null,
+        preAccepted: true,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'stay' });
+  });
+});
+
 describe('evaluateGate — partial commissioning', () => {
   it('treats any uncommissioned device as "not fully commissioned"', () => {
     const mixed = [

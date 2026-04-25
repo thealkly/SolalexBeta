@@ -387,4 +387,29 @@ describe('Running — Live-Betriebs-View', () => {
 
     expect(container.querySelector('.update-indicator')).toBeNull();
   });
+
+  // Story 2.6 — Funktionstest-erforderlich-Banner.
+  it('renders the refunctional-test banner when a control device is uncommissioned', async () => {
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit', commissioned_at: null }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(snapshot());
+
+    render(Running);
+    await flushPolling();
+
+    const banner = await screen.findByTestId('refunctional-test-banner');
+    expect(banner.textContent ?? '').toContain('Funktionstest');
+    expect(banner.querySelector('a[href="#/functional-test"]')).toBeTruthy();
+  });
+
+  it('does not render the refunctional-test banner for fully commissioned setups', async () => {
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot());
+
+    render(Running);
+    await flushPolling();
+
+    expect(screen.queryByTestId('refunctional-test-banner')).toBeNull();
+  });
 });

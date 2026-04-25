@@ -31,6 +31,17 @@
 
   const gridMeter = $derived(devices.find((d) => d.role === 'grid_meter'));
   const wrLimit = $derived(devices.find((d) => d.role === 'wr_limit'));
+  // Story 2.6 — surface a hint banner when a control device exists but
+  // hasn't been (re-)commissioned yet. Triggered after a hardware swap
+  // via /hardware-edit so the user sees they need to re-run the
+  // functional test before regulation resumes.
+  const needsRefunctionalTest = $derived(
+    devices.some(
+      (d) =>
+        (d.role === 'wr_limit' || d.role === 'wr_charge') &&
+        d.commissioned_at === null,
+    ),
+  );
 
   const chartSeries: ChartSeries[] = $derived.by(() => {
     const series: ChartSeries[] = [];
@@ -191,6 +202,19 @@
     </div>
     <h1>Live-Betrieb</h1>
   </header>
+
+  {#if needsRefunctionalTest && !loadError && !testInProgress}
+    <section
+      class="refunctional-test-banner"
+      data-testid="refunctional-test-banner"
+    >
+      <p>
+        Funktionstest erforderlich für den neuen Wechselrichter — Solalex pausiert die
+        Regelung, bis der Test bestätigt ist.
+      </p>
+      <a class="banner-link" href="#/functional-test">Funktionstest starten</a>
+    </section>
+  {/if}
 
   {#if loadError}
     <section class="error-block">
@@ -521,5 +545,29 @@
     background: color-mix(in srgb, var(--color-accent-warning) 8%, var(--color-bg) 92%);
     padding: var(--space-3);
     color: var(--color-accent-warning);
+  }
+  .refunctional-test-banner {
+    width: 100%;
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--color-accent-warning) 50%, transparent);
+    background: color-mix(in srgb, var(--color-accent-warning) 12%, var(--color-bg) 88%);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .refunctional-test-banner p {
+    margin: 0;
+    font-size: 0.92rem;
+  }
+
+  .banner-link {
+    color: var(--color-accent-warning);
+    font-weight: 600;
+    text-decoration: underline;
   }
 </style>

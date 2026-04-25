@@ -47,6 +47,7 @@
     '/activate',
     '/diagnostics',
     '/settings',
+    '/hardware-edit',
   ]);
 
   function syncRoute(): void {
@@ -158,6 +159,8 @@
     <Diagnostics />
   {:else if currentRoute === '/settings'}
     <Settings />
+  {:else if currentRoute === '/hardware-edit'}
+    <Config editMode initialDevices={devicesCache ?? []} />
   {:else}
     <section class="empty-state-card">
       <header class="empty-state-header">

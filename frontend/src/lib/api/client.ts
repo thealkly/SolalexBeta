@@ -67,6 +67,19 @@ export async function saveDevices(config: HardwareConfigRequest): Promise<SaveDe
   });
 }
 
+// Story 2.6 — diff-aware re-save for post-commissioning hardware edits.
+// Backend returns the full DeviceResponse list (mirroring GET) so the
+// caller can refresh local caches without a follow-up fetch.
+export async function updateDevices(
+  config: HardwareConfigRequest,
+): Promise<DeviceResponse[]> {
+  return request<DeviceResponse[]>('/api/v1/devices/', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+}
+
 export async function runFunctionalTest(): Promise<FunctionalTestResponse> {
   return request<FunctionalTestResponse>('/api/v1/setup/test', { method: 'POST' });
 }
