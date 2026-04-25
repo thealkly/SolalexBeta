@@ -71,11 +71,25 @@ async def get_devices(request: Request) -> list[DeviceResponse]:  # noqa: ARG001
     return [_to_response(d) for d in devices]
 
 
-def _build_rows_from_request(body: HardwareConfigRequest) -> list[DeviceRecord]:
+def _build_rows_from_request(
+    body: HardwareConfigRequest, *, with_wizard_clears: bool = False
+) -> list[DeviceRecord]:
     """Translate a validated HardwareConfigRequest into DeviceRecord rows.
 
     Shared by POST (initial save) and PUT (post-commissioning re-save) so
     the two paths cannot drift on the per-role config_json shape.
+
+    ``with_wizard_clears`` controls how blanked optional override fields
+    are encoded for the PUT diff path (Story 2.6 Decision):
+      * ``False`` (POST default): omit None-valued wizard keys so the
+        on-disk JSON stays minimal.
+      * ``True`` (PUT): always emit the wizard-managed override keys so
+        ``_merge_config`` can interpret an explicit ``None`` as "clear
+        this override" and drop it from the merged blob — without this
+        the left-biased merge would preserve a previously-set
+        ``min_limit_w`` forever (the user blanks the field, the field
+        deserialises to ``None``, the build skips the key, the merge
+        leaves the existing override untouched).
     """
     rows: list[DeviceRecord] = []
 
@@ -83,10 +97,10 @@ def _build_rows_from_request(body: HardwareConfigRequest) -> list[DeviceRecord]:
         # Persist optional limit-range overrides in the device's config_json
         # blob so GenericInverterAdapter.get_limit_range can pick them up at
         # runtime (Story 2.4 Review D3 / P13).
-        generic_config: dict[str, int] = {}
-        if body.min_limit_w is not None:
+        generic_config: dict[str, int | None] = {}
+        if with_wizard_clears or body.min_limit_w is not None:
             generic_config["min_limit_w"] = body.min_limit_w
-        if body.max_limit_w is not None:
+        if with_wizard_clears or body.max_limit_w is not None:
             generic_config["max_limit_w"] = body.max_limit_w
         rows.append(
             DeviceRecord(

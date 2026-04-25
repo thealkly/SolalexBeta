@@ -41,7 +41,10 @@
       "Bash(awk ' *)",
       "Bash(git mv *)",
       "Bash(git -C /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment diff --stat HEAD)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "mcp__ha-mcp__ha_search_tools",
+      "mcp__ha-mcp__ha_call_read_tool",
+      "mcp__ha-mcp__ha_search_entities"
     ],
     "additionalDirectories": [
       "/tmp",

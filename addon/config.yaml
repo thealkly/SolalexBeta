@@ -1,5 +1,5 @@
 name: Solalex by ALKLY
-version: "0.1.10"
+version: "0.1.11"
 # Minimum HA Core version — inkompatible Versionen erhalten Install-Warning im Add-on-Store.
 homeassistant: "2026.4.0"
 slug: solalex
