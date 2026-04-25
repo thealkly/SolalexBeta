@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
-ModeValue = Literal["drossel", "speicher", "multi", "idle"]
+ModeValue = Literal["drossel", "speicher", "multi", "export", "idle"]
 
 
 @dataclass
@@ -98,7 +98,7 @@ class StateCache:
         Unknown values collapse to ``"idle"`` so a stray caller cannot leak
         a non-canonical value into the ``/api/v1/control/state`` payload.
         """
-        if mode_value in {"drossel", "speicher", "multi", "idle"}:
+        if mode_value in {"drossel", "speicher", "multi", "export", "idle"}:
             # Narrowed by the membership check above; mypy cannot see it.
             self.current_mode = mode_value  # type: ignore[assignment]
         else:

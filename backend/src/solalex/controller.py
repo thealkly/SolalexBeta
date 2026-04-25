@@ -246,6 +246,14 @@ class Controller:
         # False as soon as the policy steps outside the gated branch (or
         # the toggle gets disabled), so a re-entry logs again.
         self._speicher_night_gate_active: bool = False
+        # Story 5.1d — buffer for the latest policy-level noop reason so
+        # ``on_sensor_update`` can persist a Klartext rationale into the
+        # ``control_cycles.reason`` column. Single-writer (sync dispatch
+        # within a single sensor event), reset by ``_dispatch_by_mode`` at
+        # the start of every event and consumed by ``on_sensor_update``
+        # right after dispatch returns. Tests can read this attribute
+        # directly to assert reason strings without parsing the DB.
+        self._last_policy_noop_reason: str | None = None
 
     @property
     def current_mode(self) -> Mode:
@@ -481,6 +489,18 @@ class Controller:
             return "manual"
         return "ha_automation"
 
+    def _set_noop_reason(self, reason: str) -> None:
+        """Buffer a Klartext noop reason for the upcoming cycle persist.
+
+        Story 5.1d Option 1 — keeps policy method signatures unchanged
+        (preserves all existing test call-sites) while still threading a
+        reason from the early-exit branch out to ``_record_noop_cycle``.
+        ``_dispatch_by_mode`` clears the buffer at the start of every
+        sensor event so a stale reason from the previous tick cannot
+        leak into the next cycle's row.
+        """
+        self._last_policy_noop_reason = reason
+
     def _dispatch_by_mode(
         self,
         mode: Mode,
@@ -495,7 +515,12 @@ class Controller:
         first; drossel is a fallback only when the pool is capped at
         Max-SoC with active feed-in. Amendment 2026-04-22 forbids splitting
         this into per-mode modules.
+
+        Resets ``_last_policy_noop_reason`` so reasons from a previous
+        sensor event cannot bleed into this one. Policies set the buffer
+        only on early-exit branches (Story 5.1d).
         """
+        self._last_policy_noop_reason = None
         match mode:
             case Mode.DROSSEL:
                 decision = self._policy_drossel(device, sensor_value_w)
@@ -535,6 +560,7 @@ class Controller:
         within the hardware range enforced by the executor.
         """
         if device.role != "grid_meter":
+            self._set_noop_reason("noop: nicht_grid_meter_event")
             return None
         # ``_extract_sensor_w`` already filters NaN/Inf on the on_sensor_update
         # path, but ``_policy_drossel`` is also called directly from tests and
@@ -542,22 +568,26 @@ class Controller:
         # float from any caller cannot slip past the deadband comparison and
         # blow up on ``int(round(nan))`` (Story 3.2 Review P4).
         if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            self._set_noop_reason("noop: sensor_nicht_numerisch")
             return None
 
         wr_device = self._wr_limit_device
         if wr_device is None:
+            self._set_noop_reason("noop: kein_wr_limit_device")
             return None
 
         adapter = self._adapter_registry.get(wr_device.adapter_key)
         if adapter is None:
             # Unknown adapter — executor would veto anyway, but there is no
             # point producing a decision it cannot dispatch.
+            self._set_noop_reason("noop: adapter_unbekannt")
             return None
 
         params: DrosselParams = adapter.get_drossel_params(wr_device)
 
         grid_meter_id = device.id
         if grid_meter_id is None:
+            self._set_noop_reason("noop: kein_device_id")
             return None
 
         buf = self._drossel_buffers.get(grid_meter_id)
@@ -570,10 +600,17 @@ class Controller:
         smoothed = sum(buf) / len(buf)
 
         if abs(smoothed) <= params.deadband_w:
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: deadband (smoothed={smoothed:.0f}w, "
+                    f"deadband={params.deadband_w}w)"
+                )
+            )
             return None
 
         current = self._read_current_wr_limit_w(wr_device)
         if current is None:
+            self._set_noop_reason("noop: wr_limit_state_cache_miss")
             return None
 
         # ``round`` instead of ``int`` — ``int(-0.9) == int(+0.9) == 0`` biases
@@ -584,6 +621,12 @@ class Controller:
         proposed = _clamp_step(current, proposed, params.limit_step_clamp_w)
 
         if abs(proposed - current) < params.min_step_w:
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: min_step_nicht_erreicht "
+                    f"(delta={proposed - current}w, min={params.min_step_w}w)"
+                )
+            )
             return None
 
         return PolicyDecision(
@@ -972,16 +1015,20 @@ class Controller:
             the load.
         """
         if device.role != "grid_meter":
+            self._set_noop_reason("noop: nicht_grid_meter_event")
             return []
         if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            self._set_noop_reason("noop: sensor_nicht_numerisch")
             return []
 
         pool = self._battery_pool
         if pool is None or not pool.members:
+            self._set_noop_reason("noop: kein_akku_pool")
             return []
 
         grid_meter_id = device.id
         if grid_meter_id is None:
+            self._set_noop_reason("noop: kein_device_id")
             return []
 
         # v1: all pool members share the same vendor; the first member's
@@ -991,6 +1038,7 @@ class Controller:
         first_charge = pool.members[0].charge_device
         adapter = self._adapter_registry.get(first_charge.adapter_key)
         if adapter is None:
+            self._set_noop_reason("noop: adapter_unbekannt")
             return []
         params: SpeicherParams = adapter.get_speicher_params(first_charge)
 
@@ -1006,6 +1054,7 @@ class Controller:
         # Refuse to charge / discharge blindly without a SoC reading.
         soc_breakdown = pool.get_soc(self._state_cache)
         if soc_breakdown is None:
+            self._set_noop_reason("noop: kein_soc_messwert")
             return []
         aggregated = soc_breakdown.aggregated_pct
 
@@ -1018,6 +1067,12 @@ class Controller:
 
         if abs(smoothed) <= params.deadband_w:
             self._speicher_night_gate_active = False
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: deadband (smoothed={smoothed:.0f}w, "
+                    f"deadband={params.deadband_w}w)"
+                )
+            )
             return []
 
         # Feed-in: would charge the pool — gate on Max-SoC.
@@ -1032,6 +1087,11 @@ class Controller:
                     },
                 )
                 self._speicher_max_soc_capped = True
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: max_soc_erreicht (aggregated={aggregated:.0f}%)"
+                )
+            )
             return []
 
         # Import: would discharge the pool — gate on Min-SoC.
@@ -1046,6 +1106,11 @@ class Controller:
                     },
                 )
                 self._speicher_min_soc_capped = True
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: min_soc_erreicht (aggregated={aggregated:.0f}%)"
+                )
+            )
             return []
 
         # Story 3.6 — Nacht-Entlade-Zeitfenster gate. Only the discharge

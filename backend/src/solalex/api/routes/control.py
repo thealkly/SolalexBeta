@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import aiosqlite
 from fastapi import APIRouter, Request
@@ -33,7 +33,7 @@ from solalex.controller import Controller, Mode
 from solalex.persistence.repositories import control_cycles
 from solalex.persistence.repositories.meta import delete_meta, set_meta
 
-ModeValue = Literal["drossel", "speicher", "multi", "idle"]
+ModeValue = Literal["drossel", "speicher", "multi", "export", "idle"]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -43,7 +43,17 @@ _logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/control", tags=["control"])
 
-_RECENT_CYCLES_LIMIT = 10
+_RECENT_CYCLES_LIMIT = 50
+
+# Story 5.1d — German UI labels keyed by device role for the Status-Tiles.
+# Owned by the backend so the frontend does not maintain a parallel mapping
+# table (one source of truth for the glossar).
+_ROLE_DISPLAY_LABEL: dict[str, str] = {
+    "grid_meter": "Netz-Leistung",
+    "wr_limit": "Wechselrichter-Limit",
+    "wr_charge": "Akku-Ladeleistung",
+    "battery_soc": "Akku-SoC",
+}
 
 # If the most recent cycle is older than this window, the regulator is
 # considered idle in the polling payload regardless of the StateCache
@@ -63,6 +73,9 @@ async def get_control_state(request: Request) -> StateSnapshot:
     """
     state_cache = request.app.state.state_cache
     entity_role_map: dict[str, str] = getattr(request.app.state, "entity_role_map", {})
+    devices_by_entity: dict[str, Any] = getattr(
+        request.app.state, "devices_by_entity", {}
+    )
     adapter_registry: dict[str, AdapterBase] = getattr(
         request.app.state, "adapter_registry", {}
     )
@@ -82,6 +95,13 @@ async def get_control_state(request: Request) -> StateSnapshot:
 
         unit = str(entry.attributes.get("unit_of_measurement", "")) or None
         role = entity_role_map.get(entry.entity_id, "unknown")
+        effective_value_w = _effective_value_w(
+            role=role,
+            state_val=state_val,
+            entity_id=entry.entity_id,
+            devices_by_entity=devices_by_entity,
+        )
+        display_label = _ROLE_DISPLAY_LABEL.get(role)
 
         entities.append(
             EntitySnapshot(
@@ -90,6 +110,8 @@ async def get_control_state(request: Request) -> StateSnapshot:
                 unit=unit,
                 timestamp=entry.timestamp,
                 role=role,
+                effective_value_w=effective_value_w,
+                display_label=display_label,
             )
         )
 
@@ -114,6 +136,7 @@ async def get_control_state(request: Request) -> StateSnapshot:
                 target_value_w=row.target_value_w,
                 readback_status=row.readback_status,
                 latency_ms=row.latency_ms,
+                reason=row.reason,
             )
             for row in raw_cycles
         ]
@@ -131,6 +154,8 @@ async def get_control_state(request: Request) -> StateSnapshot:
         current_mode=current_mode,
         recent_cycles=recent_cycles,
         rate_limit_status=rate_limit_status,
+        ha_ws_connected=snap.ha_ws_connected,
+        ha_ws_disconnected_since=snap.ha_ws_disconnected_since,
     )
 
 
@@ -199,6 +224,44 @@ def _require_controller(request: Request) -> Controller:
 
 def _mode_or_none(mode: Mode | None) -> str | None:
     return mode.value if mode is not None else None
+
+
+def _effective_value_w(
+    *,
+    role: str,
+    state_val: float | str | None,
+    entity_id: str,
+    devices_by_entity: dict[str, Any],
+) -> float | None:
+    """Return the post-``invert_sign`` numeric value for the Status-Tile.
+
+    For ``role == 'grid_meter'`` this mirrors the controller's
+    :meth:`Controller._maybe_invert_sensor_value` (Story 2.5) so the UI sees
+    the same sign that drives Drossel / Speicher decisions. For all other
+    roles the raw numeric ``state`` is returned (or ``None`` when the cached
+    state is non-numeric — e.g. ``unavailable``). Story 5.1d.
+    """
+    if not isinstance(state_val, int | float):
+        return None
+    value = float(state_val)
+    if role != "grid_meter":
+        return value
+    device = devices_by_entity.get(entity_id)
+    if device is None:
+        return value
+    try:
+        cfg = device.config()
+    except Exception:
+        # Defensive — config() should never raise on the polling hot path,
+        # but a corrupt config_json shouldn't bring down the endpoint.
+        _logger.exception(
+            "effective_value_invert_sign_config_failed",
+            extra={"entity_id": entity_id},
+        )
+        return value
+    if isinstance(cfg, dict) and cfg.get("invert_sign", False) is True:
+        return -value
+    return value
 
 
 def _resolve_current_mode(

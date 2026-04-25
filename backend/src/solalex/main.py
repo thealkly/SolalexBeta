@@ -196,7 +196,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.devices_by_entity = devices_by_entity
     app.state.started_at = time.monotonic()
 
-    app.state.ha_client = ReconnectingHaClient(token=settings.supervisor_token or "")
+    # Story 5.1d — surface HA-WS connection transitions to StateCache so the
+    # polling endpoint can render the Connection-Tile (Live-Betriebs-View).
+    # Bind ``_app_state_cache`` via the closure rather than reading
+    # ``app.state.state_cache`` lazily so the callback stays correct even if
+    # tests rebind app.state.
+    _state_cache_for_ws = _app_state_cache
+
+    def _on_ha_ws_change(connected: bool) -> None:
+        _state_cache_for_ws.update_ha_ws_connection(connected=connected)
+
+    app.state.ha_client = ReconnectingHaClient(
+        token=settings.supervisor_token or "",
+        on_connection_change=_on_ha_ws_change,
+    )
 
     def _db_conn_factory() -> Any:
         return connection_context(settings.db_path)
