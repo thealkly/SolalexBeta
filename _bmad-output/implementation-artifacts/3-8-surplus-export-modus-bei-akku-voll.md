@@ -1,6 +1,6 @@
 # Story 3.8: Surplus-Export-Modus bei Akku-Voll (opt-in pro WR)
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

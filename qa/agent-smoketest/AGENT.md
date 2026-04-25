@@ -27,14 +27,20 @@ Du bist ein QA-Agent. Prüfe auf Alex' echter Tester-HA-Instanz, dass eine frisc
 
 Wenn ein Test-Bedarf in die "Kann nicht"-Liste fällt, im Report unter `notes` als "out_of_scope" vermerken — nicht raten.
 
-## 3. Hardware-Inventar (Tester-HA)
+## 3. Hardware-Inventar (Tester-HA, verifiziert 2026-04-25)
 
-| Rolle | Entity-ID | Hinweis |
-|---|---|---|
-| Wechselrichter (Sollwert) | `input_number.t2sgf72a29_t2sgf72a29_set_target` | Trucki 2-Stick — Solalex schreibt hier |
-| Smart-Meter (Bezug/Einspeisung) | `sensor.00_smart_meter_sml_current_load` | ESPHome SML — Solalex liest hier |
-| Sonnenstand | `sun.sun` | Attribut `elevation` für Tageszeit-Logik |
-| Akku | — | **Nicht vorhanden** — Akku-relevante Beobachtungen skippen |
+| Rolle | Entity-ID | Domain | Hinweis |
+|---|---|---|---|
+| WR-Sollwert (Solalex schreibt hier) | `number.t2sgf72a29_t2sgf72a29_set_output` | `number` | Range 0–3000 W. **Echtes Schreibziel.** `assumed_state: true` → kein echter Hardware-Readback. |
+| WR-Output (read-back) | `sensor.t2sgf72a29_t2sgf72a29_output` | `sensor` | Tatsächliche Einspeise-Leistung |
+| WR-Setpoint (read-back) | `sensor.t2sgf72a29_t2sgf72a29_setpoint` | `sensor` | Reflektiert geschriebenen Wert |
+| Smart-Meter (Bezug/Einspeisung) | `sensor.00_smart_meter_sml_current_load` | `sensor` | ESPHome SML. **Vorzeichen: positiv = Bezug, negativ = Einspeisung.** |
+| Sonnenstand | `sun.sun` | `sun` | Attribut `elevation` für Tageszeit-Logik |
+| Akku-SoC | `sensor.esp_victron_state_of_charge` | `sensor` | Victron via ESPHome — vorhanden, aber Solalex regelt aktuell keinen Akku |
+
+**Add-on-Slug:** `90335f23_solalex` (NICHT `solalex` oder `local_solalex` — Repo-Hash-Prefix).
+
+**Multi-Kandidaten-Hinweis:** Trucki exposed mehrere `number.*`-Entities mit UoM=W (`set_output`, `set_target`, `set_dac`, `set_max_power`, …). NUR `set_output` ist Solalex' aktives Schreibziel. `set_target` heißt zwar verlockend „target", wird aber **nicht** geschrieben.
 
 ## 4. Safety Rails (HARD CONSTRAINTS)
 
@@ -58,42 +64,41 @@ Reihenfolge ist wichtig — Stop-Conditions sind explizit.
 
 ### Check 2 — Hardware-Entities sichtbar
 
-- `ha_search_entities` mit Query `t2sgf72a29` → **muss** mindestens 1 Entity finden, davon eine vom Domain `input_number`
-- `ha_search_entities` mit Query `00_smart_meter_sml` → **muss** mindestens 1 Entity finden, davon eine vom Domain `sensor`
-- `ha_search_entities` mit Query `solalex` → optional. Wenn Solalex eigene Status-Entities exposed (z.B. `sensor.solalex_status`), für spätere Checks merken.
+- `ha_search_entities` mit Query `t2sgf72a29` → **muss** `number.t2sgf72a29_t2sgf72a29_set_output` (Domain `number`) finden
+- `ha_search_entities` mit Query `00_smart_meter_sml` → **muss** `sensor.00_smart_meter_sml_current_load` (Domain `sensor`) finden
+- `ha_search_entities` mit Query `solalex` → wenn Solalex Status-Sensoren exposed (z.B. `sensor.solalex_*`), für Check 5 merken
 - **Pass:** Wechselrichter + Smart-Meter da
 - **Fail:** entweder fehlt → Tester-HA-Setup kaputt oder Adapter-Detection broken
 - **Stop-Condition:** bei Fail Check 4 + 5 als `skipped`
 
 ### Check 3 — Live-Werte plausibel
 
-- `ha_call_read_tool` für `input_number.t2sgf72a29_t2sgf72a29_set_target`:
-  - State muss numerisch sein
-  - Wert muss im Bereich 0–10000 liegen (Watt)
-  - `last_changed` nicht älter als 1 Stunde
-- `ha_call_read_tool` für `sensor.00_smart_meter_sml_current_load`:
-  - State muss numerisch sein
-  - Wert im Bereich -20000 bis +20000 (Bezug oder Einspeisung in W)
-  - `last_changed` nicht älter als 60 s (sonst Sensor stale)
-- `ha_call_read_tool` für `sun.sun`:
-  - Attribut `elevation` muss numerisch sein
-  - Merke dir: `is_daytime = elevation > 5°`
+Effizient via `ha_get_state` mit Liste aller Entities in einem Call:
+
+- `number.t2sgf72a29_t2sgf72a29_set_output`:
+  - State numerisch, Bereich 0–3000 W
+  - `last_changed` Hinweis: bei Nacht / kein Solar kann lange unverändert sein (Idle ist OK)
+- `sensor.00_smart_meter_sml_current_load`:
+  - State numerisch, Bereich -20000 bis +20000 W
+  - `last_changed` < 60 s (sonst Sensor stale)
+- `sensor.t2sgf72a29_t2sgf72a29_output`:
+  - State numerisch, Bereich 0–3000 W
+  - **Vorsicht:** Trucki hat `assumed_state: true` → Output kann Zombie-Wert sein (z.B. 400 W bei Nacht). Im Report vermerken, kein Fail.
+- `sun.sun`: Attribut `elevation` muss numerisch sein. Merke `is_daytime = elevation > 5°`.
 - **Pass:** alle Werte vorhanden und im Toleranzbereich
-- **Soft-Fail:** Wert vorhanden aber unplausibel oder stale → reporten, weitermachen
+- **Soft-Fail:** Wert unplausibel oder stale → reporten, weitermachen
 
-### Check 4 — Solalex regelt aktiv (Verhaltens-Beobachtung)
+### Check 4 — Solalex regelt aktiv (Verhaltens-Beobachtung via Logbook)
 
-Das ist der eigentliche Funktions-Beweis: Solalex muss den Wechselrichter-Sollwert *verändern*, nicht nur passiv sein.
+Das ist der eigentliche Funktions-Beweis: Solalex muss den Wechselrichter-Sollwert *verändern*. Da der Skill kein Bash-Sleep erlaubt, beobachten wir nicht 30 s Realtime, sondern lesen die **Logbook-Historie der letzten 1–2 Stunden**.
 
-- **T0:** Lese Wechselrichter-Sollwert + Smart-Meter-Wert + Timestamp. Merke.
-- **Warte 30 Sekunden** (über echte Wartezeit — kein Polling, einfach 30s Pause)
-- **T1:** Lese erneut, gleiche Felder.
+- `ha_get_logs` mit `source: "logbook"`, `entity_id: "number.t2sgf72a29_t2sgf72a29_set_output"`, `hours_back: 2`, `limit: 30`
 - **Auswertung:**
-  - **Strong-Pass:** Sollwert hat sich zwischen T0 und T1 geändert UND Änderungs-Richtung passt zur Smart-Meter-Lage (Einspeisung → Sollwert sollte sinken; starker Bezug → Sollwert sollte steigen, sofern unter Hardware-Max)
-  - **Weak-Pass:** Sollwert hat sich geändert, aber Korrelation zur Smart-Meter-Lage unklar (z.B. Hysterese-Plateau). OK, melden.
-  - **Idle-Pass:** Sollwert hat sich NICHT geändert UND Smart-Meter zeigt stabilen Bezug nahe Soll (kein Regel-Bedarf). OK, aber im Report als `notes: ["controller_idle_during_observation"]` vermerken.
-  - **Fail:** Sollwert hat sich nicht geändert UND Smart-Meter zeigt Einspeisung (sollte regeln, tut es aber nicht) → Solalex regelt nicht
-- **Tageszeit-Note:** Bei `is_daytime == false` und Smart-Meter nahe 0 ist Idle erwartbar. Strong-Pass ist nachts schwer zu zeigen — Weak-Pass oder Idle-Pass sind dann beide OK.
+  - **Strong-Pass:** Mehrere (≥3) Sollwert-Änderungen im Beobachtungs-Fenster, Werte schwanken in plausibler Range (50–3000 W) → klar regelnd
+  - **Weak-Pass:** 1–2 Sollwert-Änderungen ODER Änderungen sind sprunghaft (0→200→400 ohne Zwischenwerte → eher manueller Set/Mode-Wechsel als Auto-Regelung)
+  - **Idle-Pass:** 0 Änderungen UND `is_daytime == false` UND Smart-Meter zeigt nur Bezug (kein Drossel-Anlass ohne Solar/Akku). Im Report als `notes: ["controller_idle_during_observation"]` vermerken.
+  - **Fail:** 0 Änderungen UND `is_daytime == true` UND Smart-Meter zeigt Einspeisung (negativer Wert) → sollte drosseln, tut es aber nicht
+- **Achtung:** Solalex schreibt NICHT auf `set_target` — falls dort Aktivität sein sollte (sehr unwahrscheinlich), ist das ein Konfigurations-Drift, im Report unter `notes` vermerken
 
 ### Check 5 — Solalex-Custom-Entities (falls vorhanden)
 
@@ -106,15 +111,27 @@ Wenn Check 2 Custom-Entities mit `solalex` im Namen gefunden hat:
 
 ### Check 6 — Crash-Indikatoren via System-Log (best-effort)
 
-- Nutze `ha_search_tools` mit Query `log` oder `system_log` um ein System-Log-Lookup-Tool zu finden
-- Wenn ein Tool existiert: lies die letzten 5 min an Errors mit Filter auf `solalex`
-- **Pass:** keine ERROR-Lines mit `solalex`-Bezug
+- `ha_get_logs` mit `source: "system"`, `level: "ERROR"`, `search: "solalex"`, `hours_back: 2`, `limit: 30`
+- **Pass:** keine Solalex-bezogenen Errors
 - **Soft-Fail:** Errors gefunden — listen, im Report anhängen, aber Run nicht abbrechen
-- **Skipped:** wenn kein Tool dafür existiert — kein Problem
+- **Bekannter Infrastruktur-Hintergrund:** Bis ein HA/ha-mcp-Bug behoben ist, kann `/addons/.../logs` text/plain-Antworten nicht parsen → wiederkehrende Errors mit `Attempt to decode JSON with unexpected mimetype: text/plain` sind **infrastrukturell, nicht funktional** und dürfen ignoriert werden. Andere Solalex-Errors sind echte Findings.
 
 ## 6. Output-Format
 
-Schreibe als allerletzten Output diesen YAML-Block (alles davor sind Zwischen-Logs/Reasoning, das ist OK):
+**Zwei Outputs am Ende:**
+
+1. **YAML-Report im Chat** (genau ein Block, am Ende deiner Antwort) — für Alex zum Lesen
+2. **YAML-Report als Datei** in `qa/agent-smoketest/runs/<UTC-ISO>-<release-tag>.yaml` via Write-Tool — als Audit-Trail in Git
+
+**Datei-Name-Konvention:**
+- Format: `<YYYY-MM-DD>T<HH-MM>Z-<release-tag>.yaml`
+- Doppelpunkt im Timestamp durch Bindestrich ersetzen (Dateinamen-safe)
+- Beispiel: `2026-04-25T20-15Z-v0.1.1-beta.7.yaml`
+- Bei mehreren Runs derselben Minute: Suffix `-2`, `-3`, … anhängen
+
+**Datei-Inhalt:** identischer YAML-Block wie im Chat, ohne Markdown-Code-Fences, ohne Reasoning davor. Das File ist pure YAML, parsbar.
+
+**YAML-Schema:**
 
 ```yaml
 smoketest_run:

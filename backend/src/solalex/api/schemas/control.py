@@ -89,8 +89,12 @@ class StateSnapshot(BaseModel):
     ha_ws_disconnected_since: datetime | None = None
 
 
-# Story 3.5 — manual mode override.
-ForcedMode = Literal["drossel", "speicher", "multi"]
+# Story 3.5 — manual mode override. Story 3.8 added ``"export"`` so a
+# Beta-tester can pin the regulator to surplus-export for diagnostics
+# (active_mode/baseline still come from select_initial_mode + setup
+# topology — EXPORT is never an auto-detected baseline, only a forced
+# pin or a hysteresis state).
+ForcedMode = Literal["drossel", "speicher", "multi", "export"]
 
 
 class ForcedModeRequest(BaseModel):
@@ -106,5 +110,5 @@ class ControlModeResponse(BaseModel):
     """GET / PUT /api/v1/control/mode response."""
 
     forced_mode: ForcedMode | None
-    active_mode: Literal["drossel", "speicher", "multi"]
+    active_mode: Literal["drossel", "speicher", "multi", "export"]
     baseline_mode: Literal["drossel", "speicher", "multi"]

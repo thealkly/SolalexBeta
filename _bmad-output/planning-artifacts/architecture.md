@@ -16,6 +16,18 @@ amendments:
   - date: '2026-04-22'
     title: 'Komplexitäts-Reduktion — 16 Cuts'
     summary: 'Solo-Dev-orientiertes Vereinfachungspaket. Event-Bus → direkter Aufruf; SQLAlchemy+Alembic → aiosqlite + schema_version + Rollback via Backup-Replace; WS → REST-Polling; Ed25519-Signatur gestrichen; Controller-Split konsolidiert; Template-JSON-Layer gestrichen; Day-1-Adapter auf 3 (Marstek/Shelly/Hoymiles); Wizard 7→4; strukturelle Vereinfachungen in Frontend, Repo-Layout und CI. Multi-Arch-Build bleibt. Begründungen in den entsprechenden Sektionen.'
+  - date: '2026-04-23'
+    title: 'Dark-Mode gestrichen'
+    summary: 'Light-only Token-Layer in v1. Kein [data-theme="dark"]-Override, kein HA-Theme-Observer/Subscriber, kein theme-Store. Begründung im Body §Frontend-Architecture und §Architectural Boundaries.'
+  - date: '2026-04-25'
+    title: 'Generic-First Adapter-Layer'
+    summary: 'Hoymiles- und Shelly-Adapter werden zu generic.py / generic_meter.py. Detection via HA-Capabilities (Domain + unit_of_measurement) statt vendor-Suffix-Patterns. Marstek bleibt vendor-spezifisch. Day-1-Hardware: Generic-WR + Marstek + Generic-Meter.'
+  - date: '2026-04-25'
+    title: 'Mode.EXPORT als 4. Mode (Surplus-Export)'
+    summary: 'Mode-Enum erweitert um EXPORT für Eigenverbrauchs-Maximierer mit angemeldeter Anlage. Toggle pro WR via device.config_json.allow_surplus_export. Default false (Status-quo preserve). Neue Story 3.8.'
+  - date: '2026-04-26'
+    title: 'Status-Sensor-Layer via HA Input-Helpers'
+    summary: 'Solalex spiegelt internen Zustand in HA-Helpers (input_text/input_number) via WS-API. Ermöglicht ha-mcp-only Smoketests, Diagnose-via-HA, optionalen User-Dashboards. Throttle 30s + on-change. Helpers werden vom Wizard angelegt, nicht beim Add-on-Start. Kein MQTT-Hard-Dep, keine Custom-Component.'
 ---
 
 # Architecture Decision Document
@@ -1197,3 +1209,87 @@ Alle Keys optional. Editierbar in v1 nur per direktem DB-Update oder zukünftige
 - Epic 5 Story 5.1a (`done`): Mode-Label-Mapping `'export'` → „Einspeisung" wird in 3.8 mitgenommen.
 
 **Detail-Spezifikation:** siehe Sprint Change Proposal `sprint-change-proposal-2026-04-25-surplus-export.md`.
+
+---
+
+### 2026-04-26 — Status-Sensor-Layer via HA Input-Helpers
+
+**Trigger:** ha-mcp-only QA-Smoketest gegen reale Tester-HA (siehe `qa/agent-smoketest/AGENT.md`) zeigt: Solalex's interner Zustand ist von außen unsichtbar. Smoketest kann nur das beobachten, was Solalex an Hardware-Entities schreibt (Wechselrichter-Sollwert), aber nicht ob Solalex im richtigen Mode ist, ob KPI-Cycles geschrieben werden, ob Fail-Safe aktiv ist, oder ob die letzte Readback-Verifikation erfolgreich war. Add-on-Logs via Supervisor sind durch HA-Core-Bug (`Attempt to decode JSON with unexpected mimetype: text/plain` aus `homeassistant.components.hassio.handler`) nicht zuverlässig parsbar.
+
+**Cut:** Solalex spiegelt einen kuratierten Subset seines internen Zustands als HA-`input_text`/`input_number`-Helpers via WS-API. Smoketest, manuelle Diagnose und optionale User-Dashboards können diese Helpers via `ha_get_state` lesen — ohne Solalex-API-Zugriff von außen.
+
+**Initialer Sensor-Satz (v1):**
+
+| Helper | Domain | Zweck |
+|---|---|---|
+| `input_text.solalex_active_mode` | input_text | Aktueller Controller-Mode (`drossel`/`speicher`/`multi`/`export`/`idle`) |
+| `input_text.solalex_last_command_at` | input_text | ISO8601-Timestamp der letzten Hardware-Schreib-Operation |
+| `input_text.solalex_last_readback_status` | input_text | `ok`/`mismatch`/`timeout` der letzten Closed-Loop-Verifikation |
+| `input_number.solalex_recent_cycles_count` | input_number | Anzahl Control-Cycles in der letzten Stunde (rolling) |
+| `input_text.solalex_fail_safe_state` | input_text | `inactive`/`active_hold`/`active_release` |
+| `input_number.solalex_license_days_remaining` | input_number | LemonSqueezy-Grace-Restdauer in Tagen |
+
+**Schreib-Pattern:**
+
+- **Modul:** Neues `backend/src/solalex/status_publisher.py`. Funktion `publish_status(snapshot: StatusSnapshot)` ruft via vorhandenem `ha_client` die HA-Services `input_text.set_value` / `input_number.set_value` auf.
+- **Trigger:** Nach jedem Controller-Cycle in `controller.on_sensor_update`. **Nicht** im Hot-Path-Pfad — der Aufruf läuft via `asyncio.create_task` fire-and-forget, damit ein verzögerter HA-Service-Call die 1-s-Regelschleife nicht blockiert.
+- **Throttle:** Max 1 Update pro Helper pro 30 Sekunden, ZUSÄTZLICH on-change-event (Mode-Wechsel, Fail-Safe-Übergang, Readback-Mismatch). State im Modul gehalten (`_last_published_at: dict[str, float]`).
+- **Failure-Mode:** WS-API-Errors (HA-down, Helper existiert nicht) werden via `logger.warning` geloggt und geswallowt. Status-Publishing ist **non-essential** — Solalex regelt weiter, wenn HA temporär weg ist. Insbesondere darf ein fehlender Helper niemals den Controller crashen.
+
+**Helper-Lifecycle:**
+
+- **Anlage:** Wizard-Step 4 (`Step4Activation.svelte`) ruft beim Commission-Klick `POST /api/v1/setup/create_status_helpers` auf. Backend-Route ruft via WS-API die Services `input_text.create_input_text` und `input_number.create_input_number` für jeden der 6 Helper auf. Idempotent: bereits existierende Helper werden übersprungen.
+- **Entfernung:** Bei Add-on-Deinstallation bleiben Helper bestehen (HA-Standard, kein Auto-Cleanup). Optional: dokumentierter manueller Cleanup-Pfad in DOCS.md.
+- **Berechtigungen:** SUPERVISOR_TOKEN reicht für `input_*.create_*` und `input_*.set_value` — keine Add-on-Permission-Erweiterung nötig.
+
+**Was NICHT geändert wird:**
+
+- **NFR27 „Pull nicht Push"** bleibt gewahrt: Helpers sind State-Mirror (passiv lesbar), keine Notifications. Es gibt keine `notify.*`-Calls, keine `persistent_notification.create`, keine E-Mail-/Slack-Push.
+- **Architektur-Cut „direkter Funktionsaufruf statt Pub/Sub"** bleibt: `status_publisher.publish_status()` wird direkt aus dem Controller aufgerufen (mit `asyncio.create_task` für Non-Blocking), kein Event-Bus dazwischen.
+- **CLAUDE.md Regel 5 (Logging via `get_logger(__name__)`)** unverändert — `status_publisher.py` nutzt denselben Wrapper.
+- **HA-WS-Client (`ha_client/client.py`)** bekommt eine neue Methode `call_service(domain, service, data)` falls noch nicht vorhanden, sonst Wiederverwendung. Keine neue Connection.
+
+**Was bleibt out-of-scope (v1.5+):**
+
+- MQTT-Discovery-Variante als Option für User mit Mosquitto-Add-on (sauberer, echte Sensor-Domain) — Erweiterung, nicht Ersatz.
+- Auto-Helper-Heilung: wenn User Helper manuell löscht, würde `input_*.set_value` failen. v1: Logger-Warning. v1.5: Wizard-Re-Run erkennt fehlende Helper und bietet Re-Create an.
+- Custom-Component-Variante (echte `sensor.solalex_*`-Domain statt `input_text.solalex_*`).
+- Frontend-Diagnose-Page, die die Helper-Werte spiegelt — UI-Optimierung, kein Architektur-Punkt.
+
+**Stolpersteine für AI-Agents (für CLAUDE.md-Update):**
+
+- Wenn du MQTT-Publisher in Solalex einbaust für Status-Sensoren — **STOP**. Helpers via HA-WS-API sind v1, MQTT ist v1.5+.
+- Wenn du `input_text.create_input_text` beim Add-on-Start (`startup.py`) aufrufen willst — **STOP**. Helper-Anlage ist Wizard-Step (User-Konsens vor HA-State-Mutation).
+- Wenn du `status_publisher.publish_status()` synchron im Controller-Hot-Path aufrufst — **STOP**. Fire-and-forget via `asyncio.create_task`, sonst Latenz-Risiko für die 1-s-Regelschleife.
+- Wenn du WS-API-Errors aus Status-Publishing eskalierst (Exception nach oben werfen) — **STOP**. Status-Publishing ist non-essential, Errors werden geswallowt + geloggt.
+- Wenn du Notifications statt Helpers exposen willst (`notify.solalex_alert`) — **STOP**. NFR27 „Pull nicht Push" — User pollen Helper-State, Solalex pusht keine User-Benachrichtigungen.
+- Wenn du custom `sensor.solalex_*`-Entities via Custom-Component planst — **STOP**. Custom-Component-Komplexität ist v1.5+, v1 nutzt input_*-Helpers.
+
+**Konsequenz für CLAUDE.md:**
+
+Ergänzung im Abschnitt „Was verwendet wird":
+- **Status-Sensoren:** Helpers (`input_text.solalex_*`, `input_number.solalex_*`) via HA-WS-API, Wizard-angelegt, Throttle 30 s + on-change, fire-and-forget aus Controller.
+
+Ergänzung im Abschnitt „Was explizit NICHT verwendet wird":
+- **Kein MQTT-Discovery** für Status-Sensoren in v1.
+- **Keine Custom-Component** für Status-Sensoren in v1.
+- **Keine HA-Notifications/persistent_notifications** als Status-Kanal.
+
+**Konsequenz für Smoketest (`qa/agent-smoketest/AGENT.md`):**
+
+- Check 5 wird upgedatet: prüft die 6 erwarteten Helper-Entities via `ha_get_state`. State `unavailable`/`unknown` → Fail. Plausibilitätschecks pro Helper (z.B. `solalex_active_mode` ∈ {drossel, speicher, multi, export, idle}).
+- Check 5 wird zum Critical-Check (vorher Non-Critical). Overall `partial` → `fail` wenn Helper fehlen.
+- Check 6 (Logs) bleibt Non-Critical, da Helper-basierte Diagnose den Logs-Pfad obsolet macht.
+
+**Epics-Rückwirkungen:**
+
+- **Epic 7 (oder neue Epic 8) Story X.Y (neu):** Status-Sensor-Publisher
+  - Backend: `status_publisher.py` + `ha_client.call_service()`-Erweiterung + Hook in Controller
+  - Wizard: `POST /api/v1/setup/create_status_helpers`-Route + Aufruf in `Step4Activation.svelte`
+  - Tests: pytest Unit-Test für Throttle-Logik + Integration-Test gegen Mock-HA-Client
+  - DB-Migration: keine
+  - **Beta-Launch-blocking:** nein (Solalex regelt auch ohne Status-Sensoren), aber **QA-Smoketest-blocking** (ohne Sensoren ist der Smoketest blind)
+- Epic 6 Story 6.x (Wizard, `done`): Step 4 wird in dieser neuen Story additiv erweitert, **nicht** re-opened.
+- Epic 3 Stories 3.x (Controller, `done`): `controller.on_sensor_update` bekommt einen Zwei-Zeiler `asyncio.create_task(status_publisher.publish_status(...))` — keine Logik-Änderung am Controller selbst.
+
+**Detail-Spezifikation:** siehe `qa/agent-smoketest/AGENT.md` für Smoketest-Konsequenzen, Story-Skizze in `_bmad-output/planning-artifacts/story-status-sensor-layer-2026-04-26.md`.

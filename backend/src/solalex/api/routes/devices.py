@@ -40,10 +40,13 @@ from solalex.persistence.repositories.meta import delete_meta
 _logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
 
-# Mirrors the ``control_cycles.mode`` CHECK constraint. When Story 3.8
-# ships ``Mode.EXPORT`` plus a CHECK migration, ``"export"`` joins the
-# set in the same patch — keeping audit and CHECK in lockstep.
-_ALLOWED_AUDIT_MODES: frozenset[str] = frozenset({"drossel", "speicher", "multi"})
+# Mirrors the ``control_cycles.mode`` CHECK constraint. Story 3.8 added
+# ``"export"`` together with migration 004 — keeping audit and CHECK in
+# lockstep so a hardware_edit while EXPORT is active does not fall back
+# silently to ``drossel``.
+_ALLOWED_AUDIT_MODES: frozenset[str] = frozenset(
+    {"drossel", "speicher", "multi", "export"}
+)
 
 
 def _to_response(record: DeviceRecord) -> DeviceResponse:

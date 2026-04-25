@@ -93,7 +93,7 @@ development_status:
   # Amendment 2026-04-25 (Surplus-Export). Mode-Enum von 3-fach auf 4-fach
   # erweitert; SQL-Migration 004 für CHECK-Constraint-Update; Frontend-
   # Toggle in Config-Page pro WR-Tile.
-  3-8-surplus-export-modus-bei-akku-voll: ready-for-dev
+  3-8-surplus-export-modus-bei-akku-voll: in-progress
   epic-3-retrospective: optional
 
   # Epic 4: Diagnose, Latenz-Messung & Support-Workflow

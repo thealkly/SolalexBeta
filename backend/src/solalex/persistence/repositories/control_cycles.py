@@ -13,11 +13,13 @@ from typing import Literal
 
 import aiosqlite
 
-Mode = Literal["drossel", "speicher", "multi"]
+Mode = Literal["drossel", "speicher", "multi", "export"]
 Source = Literal["solalex", "manual", "ha_automation"]
 ReadbackStatus = Literal["passed", "failed", "timeout", "vetoed", "noop"]
 
-_ALLOWED_MODES: frozenset[str] = frozenset({"drossel", "speicher", "multi"})
+# Mirrors the CHECK constraint on control_cycles.mode after migration 004
+# (Story 3.8 — surplus-export mode opt-in pro WR).
+_ALLOWED_MODES: frozenset[str] = frozenset({"drossel", "speicher", "multi", "export"})
 
 
 @dataclass

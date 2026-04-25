@@ -1,0 +1,33 @@
+smoketest_run:
+  release_tag: "v0.1.1-beta.7"
+  started_at: "2026-04-25T20:15:53Z"
+  finished_at: "2026-04-25T20:16:30Z"
+  is_daytime: false
+  overall: pass
+  checks:
+    - name: addon_running
+      status: pass
+      detail: "slug=90335f23_solalex, state=started, version=0.1.9, watchdog=false, update_available=false"
+    - name: hardware_entities_present
+      status: pass
+      detail: "wr=number.t2sgf72a29_t2sgf72a29_set_output (exact-match-1-Treffer), grid=sensor.00_smart_meter_sml_current_load, solalex-query: nur update.solalex_by_alkly_update (keine Status-Sensoren — erwartet, Story 2026-04-26 noch nicht implementiert)"
+    - name: live_values_plausible
+      status: pass
+      detail: "wr_set_output=400 W (last_changed=20:05 UTC, vor ~10 min), wr_output=403 W (frisch, aber assumed_state Zombie-Verdacht), wr_setpoint=400 W, grid=170.9 W Bezug (frisch <3s), sun_elev=-15.36° (Nacht, below_horizon)"
+    - name: controller_active
+      status: pass
+      detail: "Logbook: 4 Änderungen 18:47-18:58 UTC (Werte 50->0->200->400), keine danach im Logbook. ABER: set_output.last_changed wanderte zwischen den 2 Smoketest-Runs (Run1=18:58, Run2=20:05) — Solalex schreibt periodisch denselben Wert (400 W), was assumed_state-Entity ohne Wertwechsel nicht ins Logbook bringt. Aktivität nachweisbar."
+    - name: solalex_custom_entities
+      status: skipped
+      detail: "nur update.solalex_by_alkly_update gefunden — keine sensor.solalex_*-Status-Entities. Story 'Status-Sensor-Layer' (2026-04-26) implementiert dies."
+    - name: log_errors_recent
+      status: pass
+      detail: "0 Errors mit search='solalex' in 2h. Verbesserung gegenüber Run 1 (2 Error-Gruppen, beides Add-on-Logs-Endpoint-Bugs — sind aus dem 2h-Fenster gefallen)."
+  notes:
+    - "version_mismatch: Slash-Arg v0.1.1-beta.7 vs. installed 0.1.9 — Tag-vs-Add-on-Version unterschiedlich versioniert"
+    - "controller_writes_unchanged_value: Solalex schreibt periodisch set_output=400 (Heartbeat-Write?), HA registriert das wegen assumed_state nicht als Logbook-Eintrag — last_changed bewegt sich aber. Schwer zu tracken."
+    - "controller_idle_during_observation: nachts ohne Solar/Akku ist Idle erwartbar; Bezug 170 W kein Drossel-Anlass (DROSSEL kann nicht 'mehr einspeisen' wenn kein Solar da ist)"
+    - "wr_assumed_state_true: Trucki kein echter Readback — output=403 W bei elevation=-15° unplausibel, vermutlich Zombie-Wert"
+    - "improvement_vs_previous_run: System-Errors auf 0 (waren 2 in Run 1 — infrastrukturelle Add-on-Logs-Bugs sind aus dem 2h-Fenster gefallen, kein neues Auftreten)"
+    - "agent_md_corrections_applied: AGENT.md korrigiert auf set_output (Domain number) — Check 4 lieferte jetzt sofort relevante Daten, kein Spec-Drift mehr"
+    - "out_of_scope: KPI-DB, Wizard-State, License-Pipeline, Backup/Restore — kein Solalex-API-Zugriff via ha-mcp-only (löst sich mit Story 2026-04-26)"

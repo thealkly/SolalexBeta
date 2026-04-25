@@ -1,0 +1,32 @@
+smoketest_run:
+  release_tag: "v0.1.1-beta.7"
+  started_at: "2026-04-25T19:58:53Z"
+  finished_at: "2026-04-25T20:00:30Z"
+  is_daytime: false
+  overall: partial
+  checks:
+    - name: addon_running
+      status: pass
+      detail: "slug=90335f23_solalex, state=started, version=0.1.9, watchdog=false, update_available=false"
+    - name: hardware_entities_present
+      status: pass
+      detail: "wr=number.t2sgf72a29_t2sgf72a29_set_target (NICHT input_number — spec-mismatch in AGENT.md), grid=sensor.00_smart_meter_sml_current_load gefunden"
+    - name: live_values_plausible
+      status: pass
+      detail: "wr_set_target=0 W (last_changed=08:02 UTC, ~12h alt), wr_set_output=400 W (last_changed=18:58 UTC, ~1h alt), grid=159.5 W Bezug (frisch), sun_elev=-13.04° (below_horizon)"
+    - name: controller_active
+      status: pass
+      detail: "set_target: 0 Änderungen in 2h. set_output: 8 Änderungen 17:59-18:58 UTC (Werte 50-591 W, sieht regelnd aus). Letzte Stunde keine Änderung. Beobachtung über 2h-Logbook-Fenster statt Realtime-30s, da Skill kein Bash-Sleep erlaubt."
+    - name: solalex_custom_entities
+      status: skipped
+      detail: "nur update.solalex_by_alkly_update gefunden, keine sensor.solalex_*-Status-Entities exposed"
+    - name: log_errors_recent
+      status: soft_fail
+      detail: "2 Error-Gruppen in 2h: (a) /addons/90335f23_solalex/logs liefert text/plain statt JSON (count=10, infrastruktureller Add-on-Bug), (b) Failed-Calls auf /addons/solalex/* mit falschem slug (count=3, vermutlich anderer Caller). Direkte Add-on-Log-Abfrage via supervisor-source ebenfalls fehlgeschlagen."
+  notes:
+    - "version_mismatch: Slash-Arg v0.1.1-beta.7 vs. installed 0.1.9 — vermutlich Tag-vs-Add-on-Version unterschiedlich versioniert"
+    - "agent_md_spec_drift: AGENT.md §3 nennt input_number.t2sgf72a29_..._set_target, real ist number.t2sgf72a29_..._set_target — UND Solalex schreibt nicht hierhin sondern auf set_output. AGENT.md sollte korrigiert werden."
+    - "controller_idle_during_observation: aktuelle Stunde keine Sollwert-Änderung trotz 159 W Bezug. Bei Nacht ohne Akku erwartbar (kein Regel-Anlass), tagsüber wäre das ein Alarm."
+    - "wr_assumed_state_true: Trucki liefert keinen echten Readback (output=403 W bei elevation=-13° unplausibel) — Closed-Loop-Readback (Architektur-Regel #3) ist hier nur eingeschränkt verifizierbar"
+    - "addon_logs_endpoint_bug: Solalex-Add-on liefert text/plain für /addons/.../logs, sollte JSON sein — separater Bug im Backend"
+    - "out_of_scope: KPI-DB, Wizard-State, License-Pipeline, Backup/Restore — kein Solalex-API-Zugriff via ha-mcp-only"

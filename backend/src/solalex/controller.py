@@ -80,11 +80,21 @@ Source = Literal["solalex", "manual", "ha_automation"]
 
 
 class Mode(StrEnum):
-    """Controller modes — lowercase values match the control_cycles CHECK."""
+    """Controller modes — lowercase values match the control_cycles CHECK.
+
+    ``EXPORT`` (Story 3.8) is the surplus-export hysteresis state entered
+    from SPEICHER (or via the MULTI cap-branch) when the pool is at
+    ``MODE_SWITCH_HIGH_SOC_PCT`` AND the per-WR opt-in toggle
+    ``device.config_json.allow_surplus_export`` is set. EXPORT exits back
+    to ``_mode_baseline`` when the pool drops to ``MODE_SWITCH_LOW_SOC_PCT``
+    — never to DROSSEL (would force a redundant DROSSEL→SPEICHER→EXPORT
+    cycle on the next ramp-up).
+    """
 
     DROSSEL = "drossel"
     SPEICHER = "speicher"
     MULTI = "multi"
+    EXPORT = "export"
 
 
 class SetpointProvider:
@@ -578,6 +588,8 @@ class Controller:
                 return self._policy_speicher(device, sensor_value_w)
             case Mode.MULTI:
                 return self._policy_multi(device, sensor_value_w)
+            case Mode.EXPORT:
+                return self._policy_export(device, sensor_value_w)
             case _:  # pragma: no cover — exhaustiveness guard
                 assert_never(mode)
 
@@ -687,6 +699,133 @@ class Controller:
         )
 
     # ------------------------------------------------------------------
+    # Story 3.8 — Surplus-Export-Modus. Opt-in pro WR via
+    # ``device.config_json.allow_surplus_export``. ``_policy_export``
+    # opens the WR limit to ``max_limit_w`` instead of throttling PV down
+    # at Pool-Voll. The toggle is read live (Pure helper) so the next
+    # PATCH takes effect on the next sensor event without a controller
+    # restart. SPEICHER ↔ EXPORT is governed by the same 97/93 %
+    # hysteresis as SPEICHER ↔ DROSSEL (3.5 constants reused — the
+    # threshold means "Akku effektiv voll", which is mode-independent).
+    # ------------------------------------------------------------------
+    def _wr_allow_surplus_export(self) -> bool:
+        """Return True iff the wr_limit device has the surplus-export toggle on.
+
+        Pure helper — only field-access on ``self._wr_limit_device``; no
+        DB read, no state-cache read. Defensive on malformed config_json:
+        a corrupt blob silently resolves to ``False`` (toggle OFF) so the
+        controller falls back to the safe Status-quo behaviour rather
+        than crashing in the hot ``_evaluate_mode_switch`` / ``_policy_multi``
+        path. Mirrors the broader ``except Exception`` pattern that
+        ``_maybe_invert_sensor_value`` and ``_read_soc_bounds`` use for
+        the same kind of best-effort config parse.
+        """
+        wr_device = self._wr_limit_device
+        if wr_device is None:
+            return False
+        try:
+            cfg = wr_device.config()
+        except Exception:
+            return False
+        if not isinstance(cfg, dict):
+            return False
+        return bool(cfg.get("allow_surplus_export", False))
+
+    def _policy_export(
+        self,
+        device: DeviceRecord,
+        sensor_value_w: float | None,
+    ) -> list[PolicyDecision]:
+        """Compute the EXPORT ``PolicyDecision`` or ``[]`` to skip.
+
+        Sets the WR limit to ``device.config_json.max_limit_w`` so the
+        inverter feeds the surplus into the grid instead of being
+        throttled. The toggle gate sits in ``_evaluate_mode_switch`` and
+        ``_policy_multi`` — once EXPORT is the active mode, the toggle
+        is presumed ON (rechecking here would be redundant and would
+        accidentally break ``forced_mode='export'`` which is meant to
+        bypass the toggle entirely).
+
+        Early returns (in order):
+          1. Event on a non-grid_meter device → ``[]`` (role filter
+             analogous to Drossel/Speicher; AC 3).
+          2. No commissioned ``wr_limit`` device → ``[]`` (AC 5; should
+             never happen because the selector never picks EXPORT
+             initially without a WR, but stays defensive).
+          3. ``device.config_json.max_limit_w`` missing → warning log
+             and ``[]`` (AC 4; PATCH endpoint normally rejects
+             ``allow_surplus_export=true`` without ``max_limit_w``).
+          4. Current WR limit unknown (state-cache miss) → ``[]``
+             (cannot decide whether a write is redundant).
+          5. Current limit already at ``max_limit_w`` → ``[]`` (no
+             redundant write — protects EEPROM and rate-limit slot).
+        """
+        if device.role != "grid_meter":
+            self._set_noop_reason("noop: nicht_grid_meter_event")
+            return []
+
+        wr_device = self._wr_limit_device
+        if wr_device is None:
+            # Defensive — selector never picks EXPORT without a WR. No
+            # log to avoid spam if a misconfigured setup ever hits this.
+            return []
+
+        try:
+            cfg = wr_device.config()
+        except Exception:
+            cfg = {}
+        if not isinstance(cfg, dict):
+            cfg = {}
+        raw_max = cfg.get("max_limit_w")
+        if raw_max is None or isinstance(raw_max, bool):
+            _logger.warning(
+                "policy_export_max_limit_missing",
+                extra={
+                    "device_id": wr_device.id,
+                    "entity_id": wr_device.entity_id,
+                },
+            )
+            self._set_noop_reason("noop: kein_max_limit_w")
+            return []
+        try:
+            max_limit_w = int(raw_max)
+        except (TypeError, ValueError):
+            _logger.warning(
+                "policy_export_max_limit_invalid",
+                extra={
+                    "device_id": wr_device.id,
+                    "entity_id": wr_device.entity_id,
+                    "raw": raw_max,
+                },
+            )
+            self._set_noop_reason("noop: max_limit_w_ungueltig")
+            return []
+
+        current = self._read_current_wr_limit_w(wr_device)
+        if current is None:
+            self._set_noop_reason("noop: wr_limit_state_cache_miss")
+            return []
+
+        if current >= max_limit_w:
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: bereits_am_max_limit "
+                    f"(current={current}w, max={max_limit_w}w)"
+                )
+            )
+            return []
+
+        return [
+            PolicyDecision(
+                device=wr_device,
+                target_value_w=max_limit_w,
+                mode=Mode.EXPORT.value,
+                command_kind="set_limit",
+                sensor_value_w=sensor_value_w,
+            )
+        ]
+
+    # ------------------------------------------------------------------
     # Story 3.5 — adaptive mode switching (hysteresis helper, audit
     # persist, manual override, MULTI policy). Pure-function discipline:
     # _evaluate_mode_switch is IO-free and only returns the desired
@@ -731,11 +870,40 @@ class Controller:
             return None
         aggregated = soc_breakdown.aggregated_pct
 
+        # Story 3.8 — SPEICHER + Pool-Voll + Toggle ON → EXPORT. Must
+        # come BEFORE the SPEICHER → DROSSEL branch below; without the
+        # toggle the existing 3.5 path keeps producing zero-export
+        # behaviour.
+        if (
+            self._current_mode == Mode.SPEICHER
+            and aggregated >= MODE_SWITCH_HIGH_SOC_PCT
+            and self._wr_allow_surplus_export()
+        ):
+            return (
+                Mode.EXPORT,
+                f"pool_full_export (soc={aggregated:.1f}%)",
+            )
         if (
             self._current_mode == Mode.SPEICHER
             and aggregated >= MODE_SWITCH_HIGH_SOC_PCT
         ):
             return (Mode.DROSSEL, f"pool_full (soc={aggregated:.1f}%)")
+        # Story 3.8 — EXPORT-Exit returns to ``_mode_baseline`` (usually
+        # SPEICHER on a 1-Akku setup, MULTI on multi-Akku). Never to
+        # DROSSEL — that would force a redundant DROSSEL → SPEICHER →
+        # EXPORT cycle on the next ramp-up. Toggle value is intentionally
+        # not re-checked here: a user who toggled OFF mid-EXPORT wants the
+        # mode to drop back naturally on the next low-SoC tick, not
+        # immediately (matches the AC 27 "Toggle is configuration, not
+        # trigger" stance).
+        if (
+            self._current_mode == Mode.EXPORT
+            and aggregated <= MODE_SWITCH_LOW_SOC_PCT
+        ):
+            return (
+                self._mode_baseline,
+                f"pool_below_low_threshold_export_exit (soc={aggregated:.1f}%)",
+            )
         if (
             self._current_mode == Mode.DROSSEL
             and self._mode_baseline in (Mode.SPEICHER, Mode.MULTI)
@@ -966,7 +1134,16 @@ class Controller:
         # Max-SoC AND there is feed-in. Min-SoC + import (AC 3 + 19) must
         # NOT raise the WR-Limit (PV is delivering 0 W, the command would
         # be a noop on hardware).
+        #
+        # Story 3.8 — when the surplus-export toggle is ON the cap-branch
+        # routes to ``_policy_export`` instead of ``_policy_drossel`` so
+        # the WR opens to its hardware max instead of throttling PV down.
+        # Bezug-Symmetrie (AC 10): without active feed-in there is no
+        # surplus to export — return ``[]``; pool discharge handles the
+        # load via the normal Speicher path on the next ramp-down.
         if self._speicher_max_soc_capped and self._is_feed_in_after_smoothing(device):
+            if self._wr_allow_surplus_export():
+                return self._policy_export(device, sensor_value_w)
             drossel_decision = self._policy_drossel(device, sensor_value_w)
             return [drossel_decision] if drossel_decision is not None else []
         return []
