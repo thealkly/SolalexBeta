@@ -2,13 +2,13 @@
 
 Projekt-spezifische Instruktionen für AI-Agents (Claude Code und andere). Gilt für jede Implementierungs-Session in diesem Repo.
 
-**Single-Source-of-Truth für Architektur-Entscheidungen:** `_bmad-output/planning-artifacts/architecture.md` (Amendment 2026-04-22). Dieses Dokument hier ist eine kondensierte Abfrage-schnelle Referenz; bei Widerspruch gewinnt `architecture.md`.
+**Single-Source-of-Truth für Architektur-Entscheidungen:** `_bmad-output/planning-artifacts/architecture.md` (Amendments 2026-04-22, 2026-04-23, 2026-04-25). Dieses Dokument hier ist eine kondensierte Abfrage-schnelle Referenz; bei Widerspruch gewinnt `architecture.md`.
 
 ---
 
 ## Projekt in einem Absatz
 
-Solalex ist ein kommerzielles Home-Assistant-Add-on (Python 3.13 + FastAPI + Svelte 5 + SQLite), das Wechselrichter und Akkus sekundengenau via HA-WebSocket-API steuert. Solo-Dev-Projekt, Beta-Launch in 9 Wochen geplant, v1 mit 3 Hardware-Adaptern (Hoymiles/OpenDTU, Marstek Venus, Shelly 3EM). 100 % lokal, monatlicher LemonSqueezy-Lizenz-Check, keine Telemetry.
+Solalex ist ein kommerzielles Home-Assistant-Add-on (Python 3.13 + FastAPI + Svelte 5 + SQLite), das Wechselrichter und Akkus sekundengenau via HA-WebSocket-API steuert. Solo-Dev-Projekt, Beta-Launch in 9 Wochen geplant, v1 mit 3 Hardware-Adaptern (Generic-Wechselrichter, Marstek Venus, Generic-Smart-Meter; Detection via HA-Capabilities). 100 % lokal, monatlicher LemonSqueezy-Lizenz-Check, keine Telemetry.
 
 ---
 
@@ -29,9 +29,9 @@ Ausnahmen (dürfen, weil Sprach-Konvention):
 
 ### 2. Ein Python-Modul pro Adapter
 
-Jeder Hardware-Hersteller bekommt exakt ein Modul unter `backend/src/solalex/adapters/<vendor>.py`. Day-1-Adapter in v1: `hoymiles.py`, `marstek_venus.py`, `shelly_3em.py`.
+Jeder Adapter bekommt exakt ein Modul unter `backend/src/solalex/adapters/<key>.py`. Day-1-Adapter in v1: `generic.py` (Wechselrichter), `marstek_venus.py` (Akku), `generic_meter.py` (Smart-Meter).
 
-Im Modul **hardcoded** Entity-Pattern-Listen (Python-Dicts/Listen). **Kein JSON-Template-Loader, kein JSON-Schema-Validator, kein `/data/templates/`-Verzeichnis** — gestrichen im Amendment 2026-04-22.
+`generic.py` und `generic_meter.py` nutzen **HA-Capabilities** (Domain + `unit_of_measurement`) statt vendor-Suffix-Patterns — Detection deckt Hoymiles/OpenDTU, Trucki, ESPHome, MQTT-bridged Geräte einheitlich ab. `marstek_venus.py` bleibt vendor-spezifisch wegen Akku-Charge-Service. **Kein JSON-Template-Loader, kein JSON-Schema-Validator, kein `/data/templates/`-Verzeichnis** — gestrichen im Amendment 2026-04-22, verstärkt im Amendment 2026-04-25. Vendor-spezifisches Tuning (z. B. Hoymiles ±5 W Drossel-Deadband) ist v1.5-Scope als Subklasse, die `GenericInverterAdapter` erbt.
 
 Alle Adapter erfüllen das `adapters/base.py` Abstract-Interface:
 - `detect(ha_states) -> list[DetectedDevice]`
@@ -41,7 +41,9 @@ Alle Adapter erfüllen das `adapters/base.py` Abstract-Interface:
 - `get_rate_limit_policy() -> RateLimitPolicy`
 - `get_readback_timing() -> ReadbackTiming` (Timeout, sync/async-Modus)
 
-Static-Registry: `ADAPTERS = {"hoymiles": hoymiles, "marstek_venus": marstek_venus, "shelly_3em": shelly_3em}`.
+Static-Registry: `ADAPTERS = {"generic": generic, "marstek_venus": marstek_venus, "generic_meter": generic_meter}`.
+
+Pro-Device-Override-Schema in `device.config_json` (alle Keys optional, Generic-Adapter): `deadband_w`, `min_step_w`, `smoothing_window`, `limit_step_clamp_w`, `min_limit_w`, `max_limit_w`. UI-Exposure ist v1.5-Scope.
 
 ### 3. Closed-Loop-Readback für jeden Write-Command (Safety, non-verhandelbar)
 
@@ -120,15 +122,18 @@ Kein `print()`. Kein `logging.getLogger()` direkt. Kein `logging.info()` ohne Wr
 
 ---
 
-## Hardware Day-1 (3 Hersteller)
+## Hardware Day-1
 
-- **Hoymiles/OpenDTU** (Wechselrichter) → `adapters/hoymiles.py`
+- **Generischer Wechselrichter** (Hoymiles/OpenDTU, Trucki, ESPHome, MQTT, …) → `adapters/generic.py`
 - **Marstek Venus 3E/D** (Akku, Kern-Segment 44 % Waitlist) → `adapters/marstek_venus.py`
-- **Shelly 3EM** (Smart Meter) → `adapters/shelly_3em.py`
+- **Generischer Smart Meter** (Shelly 3EM, ESPHome SML, Tibber, MQTT, …) → `adapters/generic_meter.py`
 
-**Nicht Day-1 — auf Beta-Week-6 / v1.5 verschoben:**
+Detection erfolgt über HA-Standardattribute (Domain + `unit_of_measurement`), nicht über vendor-spezifische Entity-ID-Patterns.
+
+**Nicht Day-1 — auf v1.5 verschoben:**
 - Anker Solix (Akku) → `adapters/anker_solix.py`
-- Generic HA Entity (manueller Pfad) → `adapters/generic.py`
+- Hoymiles-Tuning-Profile (Subklasse von Generic) → `adapters/hoymiles.py`
+- Shelly-3EM-Tuning-Profile (Subklasse von GenericMeter) → `adapters/shelly_3em.py`
 
 ---
 
@@ -206,7 +211,8 @@ solalex/
 - Wenn Du `structlog` importierst — **STOP**. stdlib `logging` via `get_logger(__name__)`.
 - Wenn Du WebSocket-Frontend-Code schreibst — **STOP**. Polling via `lib/polling/usePolling.ts`.
 - Wenn Du `cryptography` für Lizenz-Signatur importierst — **STOP**. Nur LemonSqueezy-Online-Check.
-- Wenn Du JSON-Templates für Hardware-Adapter planst — **STOP**. Python-Modul in `adapters/`.
+- Wenn Du JSON-Templates für Hardware-Adapter planst — **STOP**. Generic-Adapter liest keine Templates; vendor-Tuning-Profile sind Python-Subklassen (v1.5+).
+- Wenn Du einen weiteren Hersteller-spezifischen WR/Smart-Meter-Adapter für Day-1 anlegen willst — **STOP**. Generic-Detection (Domain + `unit_of_measurement`) deckt fast alle HA-konformen Geräte ab. Vendor-Adapter nur für Akkus oder bei nachgewiesenen Tuning-Anforderungen (dann als Subklasse von `GenericInverterAdapter`).
 - Wenn Du OpenAPI-Codegen-Setup schreibst — **STOP**. Handgeschriebene TS-Types.
 - Wenn Du `APScheduler` konfigurierst — **STOP**. `asyncio.create_task` mit `sleep_until`.
 - Wenn Du Wrapper-Hülle `{data: ..., success: true}` um JSON legst — **STOP**. Direkt das Objekt.
@@ -235,7 +241,7 @@ Kein OpenAPI-Diff-Check (keine Generator-Pipeline). Kein Alembic-Head-Check (kei
 
 ## Referenzdokumente
 
-- **Architecture (Autorität):** `_bmad-output/planning-artifacts/architecture.md` — Amendment 2026-04-22, Amendment 2026-04-23 (Dark-Mode-Cut)
+- **Architecture (Autorität):** `_bmad-output/planning-artifacts/architecture.md` — Amendment 2026-04-22, Amendment 2026-04-23 (Dark-Mode-Cut), Amendment 2026-04-25 (Generic-First Adapter-Layer)
 - **PRD:** `_bmad-output/planning-artifacts/prd.md`
 - **Epics:** `_bmad-output/planning-artifacts/epics.md`
 - **UX-Spec:** `_bmad-output/planning-artifacts/ux-design-specification.md`

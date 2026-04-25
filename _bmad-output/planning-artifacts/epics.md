@@ -748,6 +748,76 @@ So that ich bewusst bestätige, dass ich die Verantwortung für die Steuerung me
 **When** der Nutzer „Aktivieren" klickt
 **Then** wird der Commissioning-Status in SQLite gesetzt; Epic 7 ergänzt hier den LemonSqueezy-Kauf-Flow ohne diese Story zu refactorn
 
+### Story 2.4: Generic-Adapter-Refit (Hoymiles → Generic, Shelly → Generic-Meter)
+
+**Status:** `ready-for-dev` (Architecture-Decision in Sprint Change Proposal 2026-04-25 getroffen, Amendment 2026-04-25)
+
+**Trigger:** Smoke-Test gegen reale Tester-Hardware (ESPHome/Trucki/SML) zeigt, dass vendor-spezifische Regex-Patterns für Day-1 zu eng sind. ~80 % jedes Vendor-Adapters ist HA-Standard-Boilerplate.
+
+As a Beta-Tester mit nicht-Hoymiles-Wechselrichter (ESPHome, Trucki, MQTT) und nicht-Shelly-Smart-Meter (ESPHome SML, Tibber, MQTT),
+I want, dass das Add-on meine Hardware via HA-Standardattribute auto-detected,
+So that ich nicht für jeden Hersteller einen eigenen Adapter im Image brauche und auch nicht-Day-1-Hardware mit dem Setup-Wizard funktioniert.
+
+**Acceptance Criteria:**
+
+**Given** der bestehende `adapters/hoymiles.py`
+**When** Story 2.4 umgesetzt wird
+**Then** ist die Datei umbenannt zu `adapters/generic.py`, Klasse `HoymilesAdapter` → `GenericInverterAdapter`, `ADAPTER`-Singleton ist `GenericInverterAdapter()`
+
+**Given** der bestehende `adapters/shelly_3em.py`
+**When** Story 2.4 umgesetzt wird
+**Then** ist die Datei umbenannt zu `adapters/generic_meter.py`, Klasse `Shelly3EmAdapter` → `GenericMeterAdapter`
+
+**Given** ein HA-State-Stream mit gemischten Domain-Entities
+**When** `GenericInverterAdapter.detect()` aufgerufen wird
+**Then** matchen Entities mit Domain ∈ {`number`, `input_number`} und `unit_of_measurement` ∈ {`W`, `kW`}; kein vendor-Suffix-Pattern mehr; `device_class == "power"` ist Bonus, nicht Pflicht
+
+**Given** ein HA-State-Stream mit Power-Sensoren
+**When** `GenericMeterAdapter.detect()` aufgerufen wird
+**Then** matchen Entities mit Domain `sensor` und `unit_of_measurement` ∈ {`W`, `kW`}; Suffix-Hints (`_power`, `_current_load`, `_grid_power`) sind weiche Confidence-Boosts, kein Filter
+
+**Given** ein commissioned Device mit Entity-ID `input_number.<…>`
+**When** `GenericInverterAdapter.build_set_limit_command(device, watts)` aufgerufen wird
+**Then** ist die Service-Domain `input_number` und der Service `set_value`; analog `number.set_value` für `number.<…>`
+
+**Given** ein Device mit `config_json = {"deadband_w": 8, "min_step_w": 4, "smoothing_window": 7, "limit_step_clamp_w": 150}`
+**When** `GenericInverterAdapter.get_drossel_params(device)` aufgerufen wird
+**Then** werden die Override-Werte aus `config_json` gelesen und in `DrosselParams` übergeben; `DrosselParams.__post_init__` validiert; sonst Defaults `10/5/5/200`
+
+**Given** ein Device mit `config_json = {"min_limit_w": 10, "max_limit_w": 1500}`
+**When** `GenericInverterAdapter.get_limit_range(device)` aufgerufen wird
+**Then** ist die Range `(10, 1500)`; ohne Override `(2, 3000)` als Default
+
+**Given** eine bestehende SQLite-DB mit `adapter_key='hoymiles'` oder `adapter_key='shelly_3em'`
+**When** Migration `003_adapter_key_rename.sql` läuft
+**Then** sind die Werte zu `'generic'` resp. `'generic_meter'` aktualisiert; analog `type`-Spalte; Forward-only, kein Downgrade-Pfad
+
+**Given** der API-Schema-Type `DeviceCommissionRequest.hardware_type`
+**When** ein Client den Wert `"generic"` oder `"marstek_venus"` schickt
+**Then** wird die Anfrage akzeptiert; alte Keys `"hoymiles"` oder `"shelly_3em"` werden mit 422 abgewiesen
+
+**Given** das Frontend `Config.svelte`
+**When** der Setup-Wizard geöffnet wird
+**Then** zeigt die Hardware-Typ-Sektion zwei Tiles: „Wechselrichter (allgemein)" mit Sub-Label „z. B. Hoymiles/OpenDTU, Trucki, ESPHome" und „Marstek Venus 3E/D"; die Smart-Meter-Checkbox heißt „Smart Meter zuordnen" mit Sub-Label „z. B. Shelly 3EM, ESPHome SML, Tibber"
+
+**Given** das Frontend `FunctionalTest.svelte` und `Running.svelte`
+**When** ein Device mit `adapter_key='generic'` angezeigt wird
+**Then** ist das Label „Wechselrichter"; analog `marstek_venus` → „Marstek Venus"
+
+**Given** Alex' lokales Test-HA mit Trucki-ESPHome (`input_number.t2sgf72a29_t2sgf72a29_set_target`) und ESPHome SML (`sensor.00_smart_meter_sml_current_load`)
+**When** der manuelle Smoke-Test durchgeführt wird
+**Then** durchlaufen ST-00 bis ST-05 grün ohne Template-Helper aus Smoke-Test §5/§6
+
+**Given** alle Backend- und Frontend-Tests
+**When** Story 2.4 mergefertig ist
+**Then** sind alle `adapter_key="hoymiles"` und `adapter_key="shelly_3em"` Test-Referenzen auf die neuen Keys umgestellt; CI-Gates 1+2+4 grün
+
+**Given** das Smoke-Test-Dokument `_bmad-output/qa/manual-tests/smoke-test.md`
+**When** Story 2.4 abgeschlossen ist
+**Then** ist §1.2 Compat-Vor-Befund entfernt, Variante A/B kollabiert zu einem Pfad; Anhang §5/§6 (Template-Helper) bleibt als optionale Doku für Edge-Cases ohne `unit_of_measurement`
+
+**Notiz:** `AdapterBase`-Interface bleibt unverändert. Controller, Executor, KPI, Battery-Pool werden **nicht** angefasst — sie sprechen mit dem Adapter über das Interface, nicht über Vendor-Identität. UI-Exposure für die `device.config_json`-Override-Keys (Wizard „Erweiterte Einstellungen" oder Diagnose-Tab-Override) ist v1.5-Scope (eigene Story).
+
 ---
 
 ## Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
@@ -1050,6 +1120,46 @@ So that ich Beta-Probleme über das HA-Add-on-Log-Tab live nachvollziehen kann o
 **Given** ein Test
 **When** er `configure_logging` mit unterschiedlichen Levels aufruft
 **Then** der Effekt ist beobachtbar (Records erscheinen / verschwinden je nach Level) — abgedeckt von Unit-Tests in `tests/unit/test_common_logging.py`
+
+### Story 4.0a: Diagnose-Schnellexport (DB-Dump + Logs als ZIP)
+
+As a Alex (Support) / Beta-Tester,
+I want eine versteckte UI-Route mit einem einzigen Button, der einen rohen Diagnose-Schnellexport (atomischer SQLite-Dump + Logs als ZIP) herunterlädt,
+So that ich bei einem Beta-Vorfall in einem Klick alle Forensik-Daten ziehe, ohne in den Container per SSH einzusteigen oder auf den vollständigen Diagnose-Tab (4.1) bzw. den kuratierten Bug-Report-Export (4.5) zu warten.
+
+**Begründung (eingeschoben 2026-04-25):** Story 4.0 hat das Logging-Volumen erhöht (Hot-Path-DEBUG), aber kein UI-Mittel geschaffen, um an die Daten zu kommen. Der Roh-ZIP-Pfad ist der kleinstmögliche unblock-Schritt, **bevor** 4.1-4.5 die kuratierte Diagnose-Surface bauen. Bewusst _komplementär_ zu 4.5: 4.0a liefert Forensik-Rohdaten, 4.5 liefert einen Bug-Report-tauglichen JSON.
+
+**Acceptance Criteria:**
+
+**Given** das bestehende Hash-Routing in `App.svelte`
+**When** der Nutzer `#/diagnostics` direkt aufruft
+**Then** eine versteckte Route wird gerendert (kein Nav-/Footer-Link, kein Auto-Forward), die genau einen Header, eine Subline und einen Button „Diagnose exportieren" zeigt
+
+**Given** der Button auf `/diagnostics`
+**When** der Nutzer ihn klickt
+**Then** der Browser lädt `solalex-diag_<ISO>.zip` herunter (Filename Windows-kompatibel mit `-` statt `:`)
+
+**Given** der Backend-Endpoint `GET /api/v1/diagnostics/export`
+**When** er aufgerufen wird
+**Then** er antwortet mit `Content-Type: application/zip` als `StreamingResponse` und der ZIP enthält genau drei Top-Level-Einträge: `meta.json`, `solalex.db`, `logs/`
+
+**Given** die SQLite-Datei im Export
+**When** sie erzeugt wird
+**Then** sie ist ein atomischer Snapshot via `VACUUM INTO` in eine Tmp-Datei unter `/data/.diag/`, nach Stream-Ende `unlink`'ed (auch im Fehlerfall) — keine Schreibsperre auf der Original-DB
+
+**Given** `meta.json`
+**When** es geöffnet wird
+**Then** es enthält genau: `ts`, `addon_version`, `container_arch`, `log_level`, `db_schema_version`, `db_size_bytes`, `log_files` — keine Tokens, keine Lizenz-Daten, keine WS-Frames
+
+**Given** ein Fehler beim `VACUUM INTO`
+**When** der Endpoint ihn trifft
+**Then** Response ist RFC 7807 (`application/problem+json`, Status 500), Tmp-Datei ist gelöscht, ein WARNING-Log-Record `diagnostics_export_failed` ist geschrieben
+
+**Given** ein erfolgreicher Export
+**When** der Endpoint fertig streamt
+**Then** ein INFO-Record `diagnostics_export_built` mit `extra={zip_size_bytes, db_bytes, log_files_count, duration_ms}` wird geschrieben — keine Pfade, keine User-Identifier
+
+**Begründung der Abgrenzung gegen 4.5:** 4.5 baut den _kuratierten_ JSON-Bug-Report (Schema, Sanitizing, Klipboard-Toast, Schema-Versionierungs-frei) auf Basis von 4.1-4.4 (Cycle-Liste, Fehler-Liste, Status-Panel, Latenz-Summary). 4.0a baut den _rohen_ ZIP-Forensik-Schnappschuss ohne Abhängigkeiten zu 4.1-4.4 — beide bleiben nebeneinander bestehen.
 
 ### Story 4.1: Diagnose-Route mit abgesetztem Opening + Letzte 100 Regelzyklen
 

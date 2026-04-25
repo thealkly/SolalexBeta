@@ -1064,3 +1064,62 @@ mkdir -p addon/rootfs/etc/services.d/solalex
 - Epic 6 Story 6.2: Ein Backup-Slot statt Rotation-of-5
 - Epic 6 Story 6.3: Backup-Replace statt Alembic-Downgrade
 - Epic 7 Story 7.3: Ersatzlos gestrichen (keine Signatur-Verifikation)
+
+---
+
+### 2026-04-25 — Generic-First Adapter-Layer
+
+**Kontext:** Smoke-Test gegen reale Tester-Hardware (ESPHome/Trucki/SML) zeigt, dass vendor-spezifische Regex-Patterns aus Cut #10/#11 (Amendment 2026-04-22) für Day-1 zu eng sind. Trucki-Stick (`input_number.t2sgf72a29_t2sgf72a29_set_target`) und ESPHome-SML (`sensor.00_smart_meter_sml_current_load`) matchen weder Hoymiles- noch Shelly-Patterns. Code-Analyse zeigt: ~80 % jedes Vendor-Adapters ist HA-Standard-Boilerplate (Service-Domain, Service-Name, Readback-Parsing, Detection-Logik). Echte Vendor-Spezifik sind nur die Tuning-Werte (Drossel-Deadband, Range, Rate-Limit, Readback-Timeout).
+
+**Cut:** Hoymiles-Adapter wird zu `adapters/generic.py` (Klasse `GenericInverterAdapter`), Shelly-3EM-Adapter wird zu `adapters/generic_meter.py` (Klasse `GenericMeterAdapter`). Marstek-Venus bleibt vendor-spezifisch (Akku-spezifische SoC-Patterns + Charge-Power-Service rechtfertigen ein eigenes Modul).
+
+**Detection-Logik (HA-Capabilities statt vendor-Suffix):**
+
+- WR-Limit-Detection: Domain ∈ {`number`, `input_number`}, `unit_of_measurement` ∈ {`W`, `kW`}. `device_class == "power"` ist Bonus, nicht Pflicht (ESPHome setzt das nicht zuverlässig).
+- WR-Output-Detection: Domain `sensor`, `unit_of_measurement` ∈ {`W`, `kW`}.
+- Smart-Meter-Detection: Domain `sensor`, `unit_of_measurement` ∈ {`W`, `kW`}, optional Suffix-Hint (`_power`, `_current_load`, `_grid_power`) für Confidence-Boost.
+
+**Was NICHT geändert wird:**
+
+- `AdapterBase`-Interface bleibt unverändert (gleiche Methoden, gleiche Signaturen).
+- Service-Call-Generierung: Service-Domain folgt jetzt der Entity-Domain (`number.set_value` vs. `input_number.set_value`) — beide HA-Standard.
+- Closed-Loop-Readback-Pflicht (CLAUDE.md Regel 3) — unverändert.
+- Range-Check, Rate-Limit, Fail-Safe — unverändert.
+- JSON-Template-Verbot aus Amendment 2026-04-22 (Cut #10) — unverändert. Generic-Adapter liest **keine** Templates aus Files; vendor-Spezifika werden, falls überhaupt, per `device.config_json`-Override-Keys hinterlegt.
+- CLAUDE.md Regel 2 („Ein Python-Modul pro Adapter") — bleibt gültig. „Generic" ist im neuen Modell der Vendor „HA-konforme Geräte" — ein Adapter, der per Definition keine Hersteller-Spezifik kennt. Echte Hersteller-Tuning-Profile (z. B. Hoymiles ±5 W Deadband) können in v1.5+ als Subklassen wiederkommen, die `GenericInverterAdapter` erben und nur die Tuning-Params overriden.
+
+**Konsequenz für Day-1-Hardware-Liste (revidiert Cut #11 aus Amendment 2026-04-22):**
+
+- alt: Hoymiles/OpenDTU + Marstek Venus 3E/D + Shelly 3EM
+- neu: Generischer Wechselrichter + Marstek Venus 3E/D + Generischer Smart Meter
+- v1.5: optionale Vendor-Tuning-Profile als Subklassen + Anker Solix als eigener Vendor-Adapter (Akku-Spezifik)
+
+**Konservative Defaults für Generic:**
+
+- `get_drossel_params`: `deadband_w=10, min_step_w=5, smoothing_window=5, limit_step_clamp_w=200`. Toleranter als Hoymiles-Tuning, weil unbekannte WR größere Latenz/Hysterese haben können. Pro-Device-Override über `device.config_json` möglich (Keys: `deadband_w`, `min_step_w`, `smoothing_window`, `limit_step_clamp_w`). Validation in `DrosselParams.__post_init__` greift bei jedem Override (fail loud).
+- `get_limit_range`: `(2, 3000)` W als Default — passend für Mikro-WR, Balkonkraftwerke und String-WR bis 3 kW. Per `device.config_json.min_limit_w` und `device.config_json.max_limit_w` override-bar.
+- `get_rate_limit_policy`: `60 s` (Hoymiles-konservativ, sicher für unbekannte WR mit DTU-Protokoll-Limits).
+- `get_readback_timing`: `15 s sync` (Hoymiles-konservativ).
+
+**`device.config_json`-Override-Schema (v1):**
+
+```json
+{
+  "deadband_w": 10,
+  "min_step_w": 5,
+  "smoothing_window": 5,
+  "limit_step_clamp_w": 200,
+  "min_limit_w": 2,
+  "max_limit_w": 3000
+}
+```
+
+Alle Keys optional. Editierbar in v1 nur per direktem DB-Update oder zukünftiger PATCH-Route. UI-Exposure (Wizard-Sektion „Erweiterte Einstellungen" oder Diagnose-Tab-Override) ist v1.5-Scope (eigene Story).
+
+**Epics-Rückwirkungen (für Epic-Update):**
+
+- Epic 2 Story 2.4 (neu): Generic-Adapter-Refit — `hoymiles.py` → `generic.py`, `shelly_3em.py` → `generic_meter.py`, DB-Migration `003_adapter_key_rename.sql`. Beta-Launch-blocking.
+- Epic 2 Stories 2.1–2.3 (`done`): Acceptance-Kriterien bleiben gültig (sprechen generisch von „Wechselrichter"); Frontend-Strings/Types werden als Teil von 2.4 nachgezogen.
+- Epic 5 Story 5.1a (`done`): Frontend-Type-Update zieht automatisch nach.
+
+**Detail-Spezifikation:** siehe Sprint Change Proposal `sprint-change-proposal-2026-04-25.md`.
