@@ -176,13 +176,13 @@ async def test_reload_does_not_clear_speicher_buffers(tmp_path: Path) -> None:
     controller._speicher_buffers[grid_id] = deque(
         [10.0, 20.0, 30.0], maxlen=10
     )
-    controller._speicher_last_setpoint_w[42] = 200
+    controller._speicher_last_setpoint_w[(42,)] = 200
     controller._speicher_max_soc_capped = True
 
     await controller.reload_devices_from_db()
 
     assert list(controller._speicher_buffers[grid_id]) == [10.0, 20.0, 30.0]
-    assert controller._speicher_last_setpoint_w[42] == 200
+    assert controller._speicher_last_setpoint_w[(42,)] == 200
     assert controller._speicher_max_soc_capped is True
 
 

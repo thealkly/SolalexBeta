@@ -490,6 +490,30 @@
       {/if}
     </section>
   {/if}
+
+  <footer class="running-footer">
+    <!-- Inline SVG — no icon system in v1, see CLAUDE.md scope. -->
+    <a href="#/settings" class="settings-link" data-testid="settings-link">
+      <svg
+        class="settings-icon"
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        aria-hidden="true"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="3"></circle>
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        ></path>
+      </svg>
+      <span>Einstellungen</span>
+    </a>
+  </footer>
 </main>
 
 <style>
@@ -902,5 +926,33 @@
     color: var(--color-accent-warning);
     font-weight: 600;
     text-decoration: underline;
+  }
+
+  /* Settings-Link footer (Story 5.1e) — discreet discovery for the post-
+     commissioning Settings surface. Single link, no border/background. */
+  .running-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-3);
+  }
+
+  .settings-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 120ms ease-out;
+  }
+
+  .settings-link:hover,
+  .settings-link:focus-visible {
+    color: var(--color-text-primary);
+  }
+
+  .settings-icon {
+    flex-shrink: 0;
   }
 </style>

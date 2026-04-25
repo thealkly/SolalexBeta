@@ -27,13 +27,21 @@
   let errorMessage = $state<string | null>(null);
   let polling: ReturnType<typeof usePolling<EntityState>> | null = null;
   let lastEntityId = '';
+  // Hold the unsubscribers from the polling stores so swap-on-entity-change
+  // and unmount actually release the closures (Story-2.5 review P11).
+  let dataUnsub: (() => void) | null = null;
+  let errorUnsub: (() => void) | null = null;
 
-  let effectiveValueW = $derived(
-    rawValueW === null ? null : invertSign ? -rawValueW : rawValueW,
+  let displayedValueW = $derived(
+    rawValueW === null ? null : Math.round(invertSign ? -rawValueW : rawValueW),
   );
+  // Threshold is checked against the *rendered* integer so the band
+  // classification ("Bezug", "Einspeisung", "nahezu 0 W") matches the
+  // number the user sees — avoids "50 W" displayed alongside a "Bezug"
+  // hint (Story-2.5 review P12).
   let belowThreshold = $derived(
-    effectiveValueW !== null &&
-      Math.abs(effectiveValueW) < ZERO_HINT_THRESHOLD_W,
+    displayedValueW !== null &&
+      Math.abs(displayedValueW) < ZERO_HINT_THRESHOLD_W,
   );
 
   function startPolling(id: string): void {
@@ -41,11 +49,11 @@
     rawValueW = null;
     errorMessage = null;
     const p = usePolling<EntityState>(() => client.getEntityState(id), 1000);
-    p.data.subscribe((snapshot) => {
+    dataUnsub = p.data.subscribe((snapshot) => {
       if (snapshot === null) return;
       rawValueW = snapshot.value_w;
     });
-    p.error.subscribe((err) => {
+    errorUnsub = p.error.subscribe((err) => {
       if (err === null) {
         errorMessage = null;
         return;
@@ -60,6 +68,14 @@
   }
 
   function stopPolling(): void {
+    if (dataUnsub !== null) {
+      dataUnsub();
+      dataUnsub = null;
+    }
+    if (errorUnsub !== null) {
+      errorUnsub();
+      errorUnsub = null;
+    }
     if (polling !== null) {
       polling.stop();
       polling = null;
@@ -105,18 +121,18 @@
 <div class="live-preview" data-testid="live-preview-card">
   {#if errorMessage}
     <p class="error-line">{errorMessage}</p>
-  {:else if effectiveValueW === null}
+  {:else if displayedValueW === null}
     <div class="skeleton-pulse" style="height: 56px;"></div>
   {:else}
     <div class="live-preview-value" data-testid="live-preview-value">
-      {effectiveValueW > 0 ? '+' : ''}{Math.round(effectiveValueW)} W
+      {displayedValueW > 0 ? '+' : ''}{displayedValueW} W
     </div>
     {#if belowThreshold}
       <p class="hint" data-testid="live-preview-zero-hint">
         Sensor zeigt nahezu 0 W — schalt eine große Last (Wasserkocher, Heizlüfter) ein und
         beobachte die Richtung.
       </p>
-    {:else if effectiveValueW > 0}
+    {:else if displayedValueW > 0}
       <p class="hint" data-testid="live-preview-direction">Bezug aus dem Netz</p>
     {:else}
       <p class="hint" data-testid="live-preview-direction">Einspeisung ins Netz</p>

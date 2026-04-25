@@ -143,9 +143,14 @@ class TestInvertSign:
         cfg = json.loads(row[0])
         assert cfg.get("invert_sign") is True
 
-    def test_save_without_invert_sign_omits_key(
+    def test_save_without_invert_sign_writes_explicit_false(
         self, client_with_db: TestClient
     ) -> None:
+        """Story-2.5 review P4: ``invert_sign`` is persisted explicitly so
+        a later PUT can clear a previously set ``True`` via ``_merge_config``
+        — omitting the key would leave the controller stuck on the inverted
+        sign convention.
+        """
         import json
         import sqlite3
 
@@ -171,11 +176,9 @@ class TestInvertSign:
             conn.close()
         assert row is not None
         cfg = json.loads(row[0])
-        # Default omitted — keeps existing rows minimal and avoids touching
-        # `device.config()` defaults at all.
-        assert "invert_sign" not in cfg
+        assert cfg.get("invert_sign") is False
 
-    def test_save_with_invert_sign_false_omits_key(
+    def test_save_with_invert_sign_false_writes_explicit_false(
         self, client_with_db: TestClient
     ) -> None:
         import json
@@ -204,7 +207,7 @@ class TestInvertSign:
             conn.close()
         assert row is not None
         cfg = json.loads(row[0])
-        assert "invert_sign" not in cfg
+        assert cfg.get("invert_sign") is False
 
 
 class TestGetDevices:

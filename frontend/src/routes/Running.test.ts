@@ -752,4 +752,69 @@ describe('Running — Live-Betriebs-View', () => {
     expect(grid?.textContent ?? '').toContain('-1500 W');
     expect(grid?.textContent ?? '').toContain('Einspeisung ins Netz');
   });
+
+  // ------------------------------------------------------------------
+  // Story 5.1e — Settings-Link im Running-Footer
+  // ------------------------------------------------------------------
+
+  it('renders the settings link in the running footer', async () => {
+    // AC 1+2 — Standard-Setup mit commissioned Devices: Footer enthält den
+    // Settings-Link mit Inline-SVG und deutschem Text "Einstellungen".
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    render(Running);
+    await flushPolling();
+
+    const link = screen.getByTestId('settings-link');
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('#/settings');
+    expect(link.textContent ?? '').toContain('Einstellungen');
+    const svg = link.querySelector('svg');
+    expect(svg).toBeTruthy();
+    expect(svg?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('keeps the settings link visible during the functional test lock', async () => {
+    // AC 1 — Footer rendert auch im testInProgress-Lock-Pfad: Footer steht
+    // außerhalb der Lock-Conditional, damit der User auch mid-test in die
+    // Settings findet.
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({ current_mode: 'drossel', test_in_progress: true }),
+    );
+
+    render(Running);
+    await flushPolling();
+
+    const link = screen.getByTestId('settings-link');
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('#/settings');
+  });
+
+  it('keeps the settings link visible in the error block path', async () => {
+    // AC 1 — wenn getDevices rejected (loadError gesetzt) bleibt der Footer
+    // sichtbar. Genau dann braucht der User den Discovery-Pfad zu Settings.
+    getDevicesMock.mockRejectedValue(new Error('boom'));
+    getStateSnapshotMock.mockResolvedValue(snapshot());
+
+    render(Running);
+    await flushPolling();
+
+    const link = screen.getByTestId('settings-link');
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('#/settings');
+  });
+
+  it('does not set a title attribute on the settings link', async () => {
+    // AC 5 — UX-DR30 Drift-Wache analog 5.1c AC 14: keine Tooltips.
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    render(Running);
+    await flushPolling();
+
+    const link = screen.getByTestId('settings-link');
+    expect(link.hasAttribute('title')).toBe(false);
+  });
 });

@@ -21,11 +21,16 @@ from fastapi.testclient import TestClient
 def client_with_db(tmp_data_dir: Path) -> Generator[TestClient]:  # noqa: ARG001
     import importlib
 
+    import solalex.api.routes.setup as setup_routes
     import solalex.common.logging as logging_mod
     import solalex.config as config_mod
 
     logging_mod.reset_logging_for_tests()
     config_mod.get_settings.cache_clear()
+    # Reset the process-wide whitelist cache between tests so the
+    # subscribe-on-first-request path is exercised every test, not just
+    # the one that ran first (Story-2.5 review P3 cache).
+    setup_routes._ENTITY_STATE_WHITELIST.clear()
     import solalex.main as main_mod
 
     importlib.reload(main_mod)

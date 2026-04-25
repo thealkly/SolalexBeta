@@ -16,7 +16,7 @@ import pytest
 from solalex.adapters import ADAPTERS
 from solalex.adapters.base import DeviceRecord
 from solalex.battery_pool import BatteryPool
-from solalex.controller import Controller, Mode, _read_soc_bounds
+from solalex.controller import Controller, Mode, _pool_key, _read_soc_bounds
 from solalex.executor import dispatcher as executor_dispatcher
 from solalex.executor import rate_limiter
 from solalex.executor.dispatcher import DispatchResult, PolicyDecision
@@ -517,7 +517,7 @@ async def test_speicher_min_step_suppresses_dispatch_after_first_send(
     initial = _prime_buffer(controller, seeds["grid_meter"], sample_w=-200.0)
     assert len(initial) == 1
     assert initial[0].target_value_w == 200
-    controller._speicher_last_setpoint_w[id(pool)] = 200
+    controller._speicher_last_setpoint_w[_pool_key(pool)] = 200
 
     # Reset the smoothing buffer and feed a value whose proposed setpoint
     # is within 20 W of the last dispatched 200 W.
@@ -566,14 +566,14 @@ async def test_speicher_ramps_from_last_dispatched_setpoint(
     )
     if controller._dispatch_tasks:
         await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
-    assert controller._speicher_last_setpoint_w[id(pool)] == 500
+    assert controller._speicher_last_setpoint_w[_pool_key(pool)] == 500
 
     await controller.on_sensor_update(
         _grid_event(_GRID_METER_ENTITY, state_w=-2000.0), seeds["grid_meter"]
     )
     if controller._dispatch_tasks:
         await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
-    assert controller._speicher_last_setpoint_w[id(pool)] == 1000
+    assert controller._speicher_last_setpoint_w[_pool_key(pool)] == 1000
 
 
 @pytest.mark.asyncio
@@ -614,7 +614,7 @@ async def test_speicher_does_not_memoize_vetoed_dispatch(
     )
     if controller._dispatch_tasks:
         await asyncio.gather(*controller._dispatch_tasks, return_exceptions=True)
-    assert id(pool) not in controller._speicher_last_setpoint_w
+    assert _pool_key(pool) not in controller._speicher_last_setpoint_w
     assert controller._speicher_pending_setpoints == {}
 
 

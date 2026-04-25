@@ -195,6 +195,20 @@ def _merge_config(existing_raw: str, incoming_raw: str) -> str:
     return json.dumps(merged)
 
 
+def _config_dict(raw: str) -> dict[str, Any]:
+    """Best-effort dict view of a ``config_json`` blob for equality checks.
+
+    Returns ``{}`` for malformed JSON or non-dict payloads — those are
+    treated as "no overrides", consistent with how the controller reads
+    config_json via ``device.config()`` defaults.
+    """
+    try:
+        parsed = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def _row_diff_kind(
     existing: list[DeviceRecord], target: list[DeviceRecord]
 ) -> str:
@@ -213,8 +227,13 @@ def _row_diff_kind(
     if set(existing_pairs) == set(target_pairs):
         for key, t in target_pairs.items():
             e = existing_pairs[key]
+            # Strict dict equality on the *merged* blob — ``_merge_config``
+            # is left-biased, so identical merged-vs-existing means target
+            # adds no new keys and changes none. JSON serialisation noise
+            # (key order, whitespace) is normalised by going through dict.
+            merged_dict = _config_dict(_merge_config(e.config_json, t.config_json))
             if (
-                _merge_config(e.config_json, t.config_json) != e.config_json
+                merged_dict != _config_dict(e.config_json)
                 or e.adapter_key != t.adapter_key
                 or e.type != t.type
             ):
@@ -303,7 +322,11 @@ async def update_devices(
             insert_rows.append(target)
         else:
             merged = _merge_config(existing_row.config_json, target.config_json)
-            if merged != existing_row.config_json:
+            # Compare the parsed dicts so JSON-serialisation noise (key
+            # order, whitespace from sqlite-stored TEXT) does not trigger
+            # phantom UPDATEs that bump ``updated_at`` without changing
+            # any user-visible state (Story-2.5 review P7).
+            if _config_dict(merged) != _config_dict(existing_row.config_json):
                 update_rows.append((existing_row.id, merged))
 
     async with connection_context(db_path) as conn:
@@ -323,8 +346,9 @@ async def update_devices(
             # Inserts: commissioned_at left NULL by default. Smart-meter
             # rows are bumped to ``now`` further down because they need
             # no functional-test re-run.
+            inserted_grid_meter_ids: list[int] = []
             for record in insert_rows:
-                await conn.execute(
+                cursor = await conn.execute(
                     """
                     INSERT INTO devices (type, role, entity_id, adapter_key, config_json)
                     VALUES (?, ?, ?, ?, ?)
@@ -337,14 +361,20 @@ async def update_devices(
                         record.config_json,
                     ),
                 )
-            # Smart-meter is read-only — auto-commission new grid_meter
-            # rows so the controller starts processing them immediately.
-            if any(r.role == "grid_meter" for r in insert_rows):
+                if record.role == "grid_meter" and cursor.lastrowid is not None:
+                    inserted_grid_meter_ids.append(int(cursor.lastrowid))
+            # Smart-meter is read-only — auto-commission only the rows we
+            # just inserted (Story-2.5 review P8). The previous role-wide
+            # UPDATE would have promoted unrelated NULL-commissioned
+            # grid_meter rows from legacy data or future multi-meter
+            # setups along with the new one.
+            if inserted_grid_meter_ids:
                 ts_str = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                placeholders = ",".join("?" * len(inserted_grid_meter_ids))
                 await conn.execute(
-                    "UPDATE devices SET commissioned_at = ? "
-                    "WHERE role = 'grid_meter' AND commissioned_at IS NULL",
-                    (ts_str,),
+                    f"UPDATE devices SET commissioned_at = ? "
+                    f"WHERE id IN ({placeholders})",
+                    (ts_str, *inserted_grid_meter_ids),
                 )
             await conn.commit()
         except Exception:
