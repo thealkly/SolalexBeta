@@ -95,7 +95,7 @@ describe('saveDevices', () => {
     );
 
     const result = await saveDevices({
-      hardware_type: 'hoymiles',
+      hardware_type: 'generic',
       wr_limit_entity_id: 'number.opendtu_limit',
     });
 
@@ -117,7 +117,7 @@ describe('saveDevices', () => {
     );
 
     try {
-      await saveDevices({ hardware_type: 'hoymiles', wr_limit_entity_id: '' });
+      await saveDevices({ hardware_type: 'generic', wr_limit_entity_id: '' });
     } catch (err) {
       expect(isApiError(err)).toBe(true);
       if (isApiError(err)) {

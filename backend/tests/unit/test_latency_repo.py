@@ -23,8 +23,8 @@ async def test_insert_and_list(tmp_path: Path) -> None:
         dev_id = await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.x", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.x", adapter_key="generic",
             ),
         )
         t0 = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
@@ -57,8 +57,8 @@ async def test_list_since_filters_older(tmp_path: Path) -> None:
         dev_id = await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.x", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.x", adapter_key="generic",
             ),
         )
         old = datetime(2026, 4, 1, tzinfo=UTC)

@@ -94,15 +94,13 @@
         // Target-Limit series stays aligned with grid/readback (both use
         // Date.now()), not the original cycle timestamp. Without this the
         // series is invisible whenever the newest cycle is older than
-        // WINDOW_MS (common with Hoymiles' 60 s rate-limit) and suffers
+        // WINDOW_MS (common with WR-adapter 60 s rate-limits) and suffers
         // from NTP skew between browser and HA host.
         const latestTarget = snap.recent_cycles.find(
           (c) => c.device_id === wrLimit.id && c.target_value_w !== null,
         )?.target_value_w;
         if (typeof latestTarget === 'number' && Number.isFinite(latestTarget)) {
-          targetBuffer = [...targetBuffer, { t: ts, v: latestTarget }].filter(
-            (p) => p.t >= cutoff,
-          );
+          targetBuffer = [...targetBuffer, { t: ts, v: latestTarget }].filter((p) => p.t >= cutoff);
         }
       }
     });

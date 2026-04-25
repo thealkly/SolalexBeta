@@ -58,9 +58,7 @@
         // would poison yRange with NaN and blank the SVG path.
         if (typeof entity.state !== 'number' || !Number.isFinite(entity.state)) continue;
         const prev = next[entity.entity_id] ?? [];
-        next[entity.entity_id] = [...prev, { t: ts, v: entity.state }].filter(
-          (p) => p.t >= cutoff,
-        );
+        next[entity.entity_id] = [...prev, { t: ts, v: entity.state }].filter((p) => p.t >= cutoff);
       }
       chartPoints = next;
     });
@@ -104,7 +102,7 @@
   }
 
   function hardwareLabel(devices: DeviceResponse[]): string {
-    if (devices.some((d) => d.adapter_key === 'hoymiles')) return 'Hoymiles / OpenDTU';
+    if (devices.some((d) => d.adapter_key === 'generic')) return 'Wechselrichter';
     if (devices.some((d) => d.adapter_key === 'marstek_venus')) return 'Marstek Venus';
     return 'Unbekannte Hardware';
   }
@@ -147,13 +145,18 @@
       <section class="ft-card result-card result-passed">
         <div class="result-tick tick-passed" aria-label="Bestanden">✓</div>
         <p class="result-text">
-          Readback erfolgreich — {testResult?.actual_value_w ?? '—'} W
-          (Soll: {testResult?.test_value_w ?? '—'} W, Toleranz ±{testResult?.tolerance_w?.toFixed(0) ?? '—'} W)
+          Readback erfolgreich — {testResult?.actual_value_w ?? '—'} W (Soll: {testResult?.test_value_w ??
+            '—'} W, Toleranz ±{testResult?.tolerance_w?.toFixed(0) ?? '—'} W)
         </p>
         {#if testResult?.latency_ms !== null && testResult?.latency_ms !== undefined}
           <p class="result-sub">Latenz: {testResult.latency_ms} ms</p>
         {/if}
-        <button class="continue-button" onclick={() => { window.location.hash = '#/activate'; }}>ja ich akzeptiere das</button>
+        <button
+          class="continue-button"
+          onclick={() => {
+            window.location.hash = '#/activate';
+          }}>ja ich akzeptiere das</button
+        >
       </section>
     {:else if testPhase === 'failed' || testPhase === 'timeout'}
       <section class="ft-card result-card result-failed">
@@ -177,7 +180,9 @@
     {/if}
   {:else}
     <div class="ft-card">
-      <p class="hint">Keine Geräte konfiguriert. Bitte zuerst die Hardware-Konfiguration abschließen.</p>
+      <p class="hint">
+        Keine Geräte konfiguriert. Bitte zuerst die Hardware-Konfiguration abschließen.
+      </p>
       <a href="#/config" class="back-link" style="margin-top: 12px;">← Zur Konfiguration</a>
     </div>
   {/if}
@@ -190,8 +195,8 @@
     flex-direction: column;
     gap: var(--space-3);
     padding: clamp(20px, 4vw, 40px);
-    background: radial-gradient(circle at 50% 0%, rgb(0 214 180 / 8%), transparent 36%),
-      var(--color-bg);
+    background:
+      radial-gradient(circle at 50% 0%, rgb(0 214 180 / 8%), transparent 36%), var(--color-bg);
     color: var(--color-text);
   }
 
@@ -363,7 +368,9 @@
     border: none;
     cursor: pointer;
     box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent-primary) 40%, transparent);
-    transition: transform 120ms ease, box-shadow 120ms ease;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
   }
 
   .start-button:hover,

@@ -11,7 +11,7 @@
   let powerEntities = $state<EntityOption[]>([]);
   let socEntities = $state<EntityOption[]>([]);
 
-  let hardwareType = $state<'hoymiles' | 'marstek_venus' | null>(null);
+  let hardwareType = $state<'generic' | 'marstek_venus' | null>(null);
   let wrLimitEntityId = $state('');
   let batterySocEntityId = $state('');
   let minSoc = $state(15);
@@ -48,9 +48,7 @@
       powerEntities = entities.power_entities;
       socEntities = entities.soc_entities;
     } catch (err) {
-      loadError = isApiError(err)
-        ? err.detail
-        : 'Verbindungsfehler. Bitte Seite neu laden.';
+      loadError = isApiError(err) ? err.detail : 'Verbindungsfehler. Bitte Seite neu laden.';
     } finally {
       const elapsed = Date.now() - startTs;
       if (elapsed < 400) {
@@ -60,7 +58,7 @@
     }
   });
 
-  function selectType(type: 'hoymiles' | 'marstek_venus'): void {
+  function selectType(type: 'generic' | 'marstek_venus'): void {
     hardwareType = type;
     wrLimitEntityId = '';
     batterySocEntityId = '';
@@ -74,10 +72,8 @@
       await client.saveDevices({
         hardware_type: hardwareType,
         wr_limit_entity_id: wrLimitEntityId,
-        battery_soc_entity_id:
-          hardwareType === 'marstek_venus' ? batterySocEntityId : undefined,
-        grid_meter_entity_id:
-          useSmartMeter && gridMeterEntityId ? gridMeterEntityId : undefined,
+        battery_soc_entity_id: hardwareType === 'marstek_venus' ? batterySocEntityId : undefined,
+        grid_meter_entity_id: useSmartMeter && gridMeterEntityId ? gridMeterEntityId : undefined,
         min_soc: hardwareType === 'marstek_venus' ? minSoc : undefined,
         max_soc: hardwareType === 'marstek_venus' ? maxSoc : undefined,
         night_discharge_enabled:
@@ -116,8 +112,9 @@
     {#if allEntitiesEmpty}
       <div class="error-block">
         <p>
-          Home Assistant hat keine passenden Entities geliefert. Prüfe, ob Hoymiles/Marstek/Shelly
-          als Integrationen eingerichtet sind, und lade die Seite neu.
+          Home Assistant hat keine passenden Entities geliefert. Prüfe, ob deine
+          Wechselrichter-/Akku-/Smart-Meter-Integration aktiv ist und passende Power-Sensoren
+          bereitstellt.
         </p>
       </div>
     {/if}
@@ -126,12 +123,12 @@
       <div class="type-tiles">
         <button
           class="type-tile"
-          class:active={hardwareType === 'hoymiles'}
-          aria-pressed={hardwareType === 'hoymiles'}
-          onclick={() => selectType('hoymiles')}
+          class:active={hardwareType === 'generic'}
+          aria-pressed={hardwareType === 'generic'}
+          onclick={() => selectType('generic')}
         >
-          <span class="tile-title">Hoymiles / OpenDTU</span>
-          <span class="tile-sub">Drossel-Modus</span>
+          <span class="tile-title">Wechselrichter (allgemein)</span>
+          <span class="tile-sub">z. B. Hoymiles/OpenDTU, Trucki, ESPHome</span>
         </button>
         <button
           class="type-tile"
@@ -143,13 +140,13 @@
           <span class="tile-sub">Speicher-Modus</span>
         </button>
       </div>
-      <p class="info-line">Anker Solix und generische HA-Entities folgen mit v1.5</p>
+      <p class="info-line">Anker Solix folgt mit v1.5</p>
     </section>
 
     {#if hardwareType}
       <section class="config-section">
         <h2>
-          {hardwareType === 'hoymiles' ? 'Wechselrichter-Limit-Entity' : 'Ladeleistungs-Entity'}
+          {hardwareType === 'generic' ? 'Wechselrichter-Limit-Entity' : 'Ladeleistungs-Entity'}
         </h2>
         {#if wrLimitEntities.length === 0}
           <p class="hint">
@@ -186,26 +183,14 @@
             <label class="field-label">
               Min-SoC
               <div class="input-unit-row">
-                <input
-                  type="number"
-                  bind:value={minSoc}
-                  min="5"
-                  max="40"
-                  class="number-input"
-                />
+                <input type="number" bind:value={minSoc} min="5" max="40" class="number-input" />
                 <span class="field-unit">%</span>
               </div>
             </label>
             <label class="field-label">
               Max-SoC
               <div class="input-unit-row">
-                <input
-                  type="number"
-                  bind:value={maxSoc}
-                  min="51"
-                  max="100"
-                  class="number-input"
-                />
+                <input type="number" bind:value={maxSoc} min="51" max="100" class="number-input" />
                 <span class="field-unit">%</span>
               </div>
             </label>
@@ -235,7 +220,10 @@
       <section class="config-section">
         <label class="checkbox-row">
           <input type="checkbox" bind:checked={useSmartMeter} />
-          <span>Smart Meter (Shelly 3EM) zuordnen</span>
+          <span class="checkbox-text">
+            <span>Smart Meter zuordnen</span>
+            <span class="checkbox-sub">z. B. Shelly 3EM, ESPHome SML, Tibber</span>
+          </span>
         </label>
         {#if useSmartMeter}
           {#if powerEntities.length === 0}
@@ -285,8 +273,8 @@
     flex-direction: column;
     gap: var(--space-3);
     padding: clamp(20px, 4vw, 40px);
-    background: radial-gradient(circle at 50% 0%, rgb(0 214 180 / 8%), transparent 36%),
-      var(--color-bg);
+    background:
+      radial-gradient(circle at 50% 0%, rgb(0 214 180 / 8%), transparent 36%), var(--color-bg);
     color: var(--color-text);
   }
 
@@ -373,7 +361,9 @@
     color: var(--color-text);
     cursor: pointer;
     text-align: left;
-    transition: border-color 120ms ease, background 120ms ease;
+    transition:
+      border-color 120ms ease,
+      background 120ms ease;
   }
 
   .type-tile:hover {
@@ -483,6 +473,17 @@
     font-size: 0.9rem;
   }
 
+  .checkbox-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .checkbox-sub {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+  }
+
   .checkbox-row input[type='checkbox'] {
     width: 16px;
     height: 16px;
@@ -516,7 +517,9 @@
     border: none;
     cursor: pointer;
     box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent-primary) 40%, transparent);
-    transition: transform 120ms ease, box-shadow 120ms ease;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
     align-self: flex-start;
   }
 

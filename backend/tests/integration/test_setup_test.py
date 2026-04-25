@@ -43,7 +43,7 @@ def test_no_ha_connection_returns_503(app_client: TestClient) -> None:
     app_client.post(
         "/api/v1/devices/",
         json={
-            "hardware_type": "hoymiles",
+            "hardware_type": "generic",
             "wr_limit_entity_id": "number.opendtu_limit",
         },
     )

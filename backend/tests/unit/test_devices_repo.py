@@ -24,10 +24,10 @@ async def test_upsert_and_list(tmp_path: Path) -> None:
     async with connection_context(db) as conn:
         record = DeviceRecord(
             id=None,
-            type="hoymiles",
+            type="generic",
             role="wr_limit",
             entity_id="number.opendtu_limit",
-            adapter_key="hoymiles",
+            adapter_key="generic",
         )
         row_id = await upsert_device(conn, record)
         assert row_id > 0
@@ -45,10 +45,10 @@ async def test_upsert_idempotent(tmp_path: Path) -> None:
     async with connection_context(db) as conn:
         record = DeviceRecord(
             id=None,
-            type="hoymiles",
+            type="generic",
             role="wr_limit",
             entity_id="number.opendtu_limit",
-            adapter_key="hoymiles",
+            adapter_key="generic",
         )
         await upsert_device(conn, record)
         # Re-save same entity_id + role should upsert, not create duplicate.
@@ -67,10 +67,10 @@ async def test_delete_all(tmp_path: Path) -> None:
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role=f"role_{i}",
                     entity_id=f"number.entity_{i}",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
         await delete_all(conn)
@@ -87,10 +87,10 @@ async def test_mark_all_commissioned(tmp_path: Path) -> None:
             conn,
             DeviceRecord(
                 id=None,
-                type="hoymiles",
+                type="generic",
                 role="wr_limit",
                 entity_id="number.opendtu_limit",
-                adapter_key="hoymiles",
+                adapter_key="generic",
             ),
         )
         updated = await mark_all_commissioned(conn)

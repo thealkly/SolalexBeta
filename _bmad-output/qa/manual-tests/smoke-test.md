@@ -3,7 +3,7 @@
 **Zweck.** Nachweisen, dass das Add-on nach einem Update grundsätzlich startet, der Setup-Walkthrough vom Disclaimer bis zum Live-Betrieb komplett durchläuft, und der Live-Betriebs-View Polling/Chart/Zyklen-Liste anzeigt. Kein vollständiger Funktions-Test — nur "rauchts oder läufts an?".
 
 **Dauer:** ~10–15 min bei grünem Pfad.
-**Letzte Aktualisierung:** 2026-04-25 (Sprint-Stand: Epic 1+2 done, 3.1–3.3 done, 5.1a done).
+**Letzte Aktualisierung:** 2026-04-25 (Story 2.4 Generic-Adapter-Refit: Trucki/ESPHome-SML laufen direkt ueber HA-Standardattribute).
 
 ---
 
@@ -25,25 +25,20 @@
 | Smart Meter (Netz) | `sensor.00_smart_meter_sml_current_load` | ESPHome SML-Reader. **Vorzeichen: negativ = Einspeisung, positiv = Bezug** |
 | Akku-SoC | `sensor.esp_victron_state_of_charge` | Victron via ESPHome — für Speicher-Modus (Story 3.4) reserviert, **im Smoke nicht verwendet** |
 
-### 1.2 ⚠ Compat-Vor-Befund (vor erstem Klick lesen)
+### 1.2 Generic-Compat-Erwartung
 
-Die obigen Entities **matchen die aktuelle Auto-Detection nicht**. Konkret im Code:
+Seit Story 2.4 nutzt Solalex fuer Wechselrichter und Smart Meter generische HA-Standardattribute statt vendor-spezifischer Entity-ID-Patterns.
 
-| Adapter | Detection-Pattern | Deine Entity bricht weil … |
-|---|---|---|
-| `hoymiles` ([adapters/hoymiles.py:28](backend/src/solalex/adapters/hoymiles.py#L28)) | `^number\..+_limit_nonpersistent_absolute$` | Domain ist `input_number` und Suffix ist `_set_target` |
-| `shelly_3em` ([adapters/shelly_3em.py:26](backend/src/solalex/adapters/shelly_3em.py#L26)) | `^sensor\..+_(total_)?power$` + uom ∈ {W, kW} | Suffix ist `_current_load`, nicht `_power`/`_total_power` |
+| Rolle | Erwartete Detection |
+|---|---|
+| Wechselrichter-Limit | Domain `number` oder `input_number` + `unit_of_measurement` `W` oder `kW` |
+| Smart Meter | Domain `sensor` + `unit_of_measurement` `W` oder `kW` |
 
-**Erwartung:** Im Config-Dropdown wirst Du Deine Trucki-Limit-Entity und Deine ESPHome-Smart-Meter-Entity **nicht** sehen. Das ist **kein Bug**, sondern der erwartete Test-Befund — Deine Hardware ist Compat-Fall für den **Generic-HA-Entity-Adapter (v1.5, Backlog)**.
-
-**Vorgehensweise:**
-- **Variante A (ehrlicher Smoke):** Test wie vorgesehen durchführen, ST-02 dokumentiert den Block — Smoke gilt als „bestanden bis ST-02, danach blockiert durch fehlende Hardware-Compat". Konkrete Story-Implikation: Generic-HA-Adapter aus v1.5 wird zur Beta-Voraussetzung für Setups wie Deins.
-- **Variante B (End-zu-End-Walkthrough mit Workaround):** Vor Testbeginn HA-Template-Helpers anlegen, die die Patterns erfüllen — siehe [Anhang §5](#5-anhang-workaround-template-helpers-für-variante-b). Dann läuft der komplette Walkthrough durch, allerdings indirekt über Helpers.
+**Erwartung:** Die echte Trucki-Limit-Entity `input_number.t2sgf72a29_t2sgf72a29_set_target` und die ESPHome-SML-Entity `sensor.00_smart_meter_sml_current_load` sind direkt im Config-Dropdown sichtbar. Template-Helpers sind nicht mehr Teil des Normalpfads.
 
 ### 1.3 Vorbedingungen vor Testbeginn
 
-- [ ] Variante A oder B festgelegt (s. §1.2)
-- [ ] Falls Variante B: HA-Template-Helpers nach §6 angelegt und im Developer-Tools `state` der Helper-Entities verifiziert
+- [ ] Die echten HA-Entities aus §1.1 haben `unit_of_measurement: W` oder `kW`
 - [ ] HA-Sidebar zeigt Solalex-Eintrag
 - [ ] Im HA-Add-on-Store ist die neueste Solalex-Version installiert (siehe ST-00)
 - [ ] Es laufen **keine** parallelen HA-Automationen, die `input_number.t2sgf72a29_t2sgf72a29_set_target` schreiben (sonst kollidiert der Closed-Loop-Readback im Funktionstest)
@@ -53,7 +48,7 @@ Die obigen Entities **matchen die aktuelle Auto-Detection nicht**. Konkret im Co
 - Add-on-Container crasht / restartet im Loop
 - HA-Ingress liefert leere Seite / 502 / weißen Bildschirm > 10 s
 - Browser-Console zeigt unbehandelte JS-Errors (rote Einträge)
-- Funktionstest sendet einen Limit-Wert > 1500 W an den Trucki-Stick (Hoymiles `get_limit_range` ist auf `(2, 1500)` W konfiguriert — alles drüber wäre ein echter Range-Check-Bug)
+- Funktionstest sendet einen Limit-Wert > 3000 W an den Trucki-Stick (Generic-Inverter Default-Range ist `(2, 3000)` W — alles drüber wäre ein echter Range-Check-Bug)
 
 ---
 
@@ -95,25 +90,19 @@ Jeder Fall ist atomar abhakbar. Reihenfolge ist Walkthrough-Reihenfolge — bei 
 
 ### ST-02 — Hardware-Konfiguration
 
-**Vorbedingung:** Route `#/config` ist offen. Vorgehen je nach Variante (siehe §1.2):
-- **Variante A:** Du erwartest, dass Trucki/ESPHome im Dropdown fehlen.
-- **Variante B:** Helper aus §6 sind angelegt — die Helper-Entities sollten erscheinen.
+**Vorbedingung:** Route `#/config` ist offen. Die echten Trucki-/ESPHome-Entities aus §1.1 sind in Home Assistant vorhanden und liefern `unit_of_measurement`.
 
-| # | Schritt | Erwartung Variante A (ohne Workaround) | Erwartung Variante B (mit Helpers) | ☐ |
-|---|---|---|---|---|
-| 1 | Seite initial | Skeleton-Pulse für ≥ 400 ms, dann Header "Hardware konfigurieren" | (gleich) | ☐ |
-| 2 | Sektion "Hardware-Typ" sichtbar | Zwei Tiles: "Hoymiles / OpenDTU (Drossel-Modus)" und "Marstek Venus 3E/D (Speicher-Modus)" + Hinweis "Anker Solix und generische HA-Entities folgen mit v1.5" | (gleich) | ☐ |
-| 3 | Tile **"Hoymiles / OpenDTU"** klicken | Tile-Border wechselt auf Akzentfarbe, Sektion "Wechselrichter-Limit-Entity" wird gerendert | (gleich) | ☐ |
-| 4 | Dropdown "— Entity wählen —" öffnen | **Liste leer** oder zeigt Hinweis „Keine passenden Entities gefunden. Prüfe deine HA-Integration und lade die Seite neu." → ✅ erwarteter Befund, ST-02 ist hier blockiert. **Stop und §3 ausfüllen.** | Helper `number.solalex_test_wr_limit_nonpersistent_absolute` ist gelistet → auswählen | ☐ |
-| 5 | Checkbox "Smart Meter (Shelly 3EM) zuordnen" anhaken | Variante A endet hier, kein Save-Button erscheint, weil Pflichtfeld WR-Limit unbefüllt — Befund notieren | Zweites Dropdown "Netz-Leistungs-Entity" mit Helper `sensor.solalex_test_grid_power` (uom=W) | ☐ |
-| 6 | Helper-Smart-Meter-Entity wählen | n/a | Eintrag wird gewählt | ☐ |
-| 7 | Button "Speichern" wird sichtbar | n/a | Klick → "Speichern…"-State, dann Navigation zu `#/functional-test` | ☐ |
+| # | Schritt | Erwartung | ☐ |
+|---|---|---|---|
+| 1 | Seite initial | Skeleton-Pulse für ≥ 400 ms, dann Header "Hardware konfigurieren" | ☐ |
+| 2 | Sektion "Hardware-Typ" sichtbar | Zwei Tiles: "Wechselrichter (allgemein)" und "Marstek Venus 3E/D"; Wechselrichter-Sub-Label nennt Hoymiles/OpenDTU, Trucki, ESPHome | ☐ |
+| 3 | Tile **"Wechselrichter (allgemein)"** klicken | Tile-Border wechselt auf Akzentfarbe, Sektion "Wechselrichter-Limit-Entity" wird gerendert | ☐ |
+| 4 | Dropdown "— Entity wählen —" öffnen | Echte Trucki-Entity `input_number.t2sgf72a29_t2sgf72a29_set_target` ist gelistet → auswählen | ☐ |
+| 5 | Checkbox "Smart Meter zuordnen" anhaken | Sub-Label nennt Shelly 3EM, ESPHome SML, Tibber; zweites Dropdown "Netz-Leistungs-Entity" erscheint | ☐ |
+| 6 | Smart-Meter-Dropdown öffnen | Echte ESPHome-SML-Entity `sensor.00_smart_meter_sml_current_load` ist gelistet → auswählen | ☐ |
+| 7 | Button "Speichern" wird sichtbar | Klick → "Speichern…"-State, dann Navigation zu `#/functional-test` | ☐ |
 
-**Variante A — was im Befund-Protokoll (§3) stehen muss:**
-- Test-ID: `ST-02`
-- Befund: „WR-Limit-Dropdown leer mit echter Trucki-Hardware (`input_number.t2sgf72a29_t2sgf72a29_set_target`); Smart-Meter-Dropdown leer mit ESPHome-SML (`sensor.00_smart_meter_sml_current_load`). Auto-Detection-Patterns matchen nicht — siehe [adapters/hoymiles.py:28](backend/src/solalex/adapters/hoymiles.py#L28) und [adapters/shelly_3em.py:26](backend/src/solalex/adapters/shelly_3em.py#L26)."
-- Schwere: `block` für reale Beta-Tester mit nicht-Day-1-Hardware → Generic-HA-Entity-Adapter (v1.5) wird zur Beta-Voraussetzung
-- Nächster Schritt: entweder Variante B aktivieren oder Test hier abschließen
+**Fail in ST-02:** Wenn Trucki oder ESPHome-SML fehlen, erst in HA Developer Tools prüfen, ob `unit_of_measurement` `W` oder `kW` gesetzt ist. Fehlt das Attribut, ist der optionale Template-Helper-Anhang weiterhin nutzbar; ist das Attribut vorhanden, ist es ein Story-2.4-Bug.
 
 ---
 
@@ -125,7 +114,7 @@ Jeder Fall ist atomar abhakbar. Reihenfolge ist Walkthrough-Reihenfolge — bei 
 
 | # | Schritt | Erwartung | ☐ |
 |---|---|---|---|
-| 1 | Seite öffnet | Header "Funktionstest", Karte "Zielhardware" zeigt "Hoymiles / OpenDTU" + Liste der konfigurierten Entities mit Role-Tag | ☐ |
+| 1 | Seite öffnet | Header "Funktionstest", Karte "Zielhardware" zeigt "Wechselrichter" + Liste der konfigurierten Entities mit Role-Tag | ☐ |
 | 2 | Button "Funktionstest starten" sichtbar | Klick auslösen | ☐ |
 | 3 | Test läuft | Karte mit "Test läuft…" + Live-Chart, X-Achse 5 s gleitend, Y zeigt Werte | ☐ |
 | 4 | Innerhalb von ≤ 15 s | Result-Karte erscheint mit grünem Tick (`✓`) und Text **"Readback erfolgreich — XXXX W (Soll: YYYY W, Toleranz ±Z W)"** + Latenz in ms | ☐ |
@@ -204,22 +193,8 @@ Pro auffälligem Befund eine Zeile, auch wenn der Test sonst grün durchläuft.
 
 ## 4. Pass-Kriterien (für „Smoke grün")
 
-### Variante A (ohne Workaround) — Pass-Definition
-
-Erwartet ist **Teil-Bestehen**: ST-00 + ST-01 grün, ST-02 dokumentiert den Compat-Block.
-
-- [ ] ST-00, ST-01: alle Schritte abgehakt, keine Console-Errors
-- [ ] ST-02 zeigt erwartetes Verhalten (leeres WR-Limit-Dropdown bei Trucki, leeres Smart-Meter-Dropdown bei ESPHome) und der Befund ist in §3 mit Schwere `block` (Beta-Compat) eingetragen
-- [ ] Add-on-Container läuft stabil weiter, keine Tracebacks im Log
-
-→ **Build ist „smoke-grün bis zur erwarteten HW-Compat-Grenze"**. Inhaltliche Folge: Generic-HA-Adapter (v1.5) zwingend für Beta-Tester mit Nicht-Day-1-Hardware.
-
-### Variante B (mit Template-Helpers) — Pass-Definition
-
-Erwartet ist **End-zu-End-Bestehen**.
-
 - [ ] ST-00 bis ST-05: alle Schritte abgehakt, kein roter Bildschirm, keine Console-Errors
-- [ ] Funktionstest hat über die Helper-Brücke ein `passed` mit echtem WR-Output-Schwenk ergeben (real geschriebener Limit-Wert + Readback-Mismatch < Toleranz)
+- [ ] Funktionstest hat direkt gegen die echte Trucki-Entity ein `passed` mit echtem WR-Output-Schwenk ergeben
 - [ ] Live-Betriebs-View hat ≥ 1 echten Regelzyklus aufgezeichnet
 - [ ] Polling läuft stabil über mindestens 60 s ohne Drop
 - [ ] Add-on-Log nach Smoke-Test ist frei von Tracebacks
@@ -228,9 +203,9 @@ Erwartet ist **End-zu-End-Bestehen**.
 
 ---
 
-## 5. Anhang: Workaround Template-Helpers für Variante B
+## 5. Anhang: Optionale Template-Helpers fuer Edge-Cases ohne `unit_of_measurement`
 
-Nur lesen, wenn Du den End-zu-End-Walkthrough trotz fehlender Auto-Detection-Compat durchspielen willst. Die Helpers proxien Deine echte Hardware so, dass die Adapter-Patterns greifen.
+Nur lesen, wenn Deine echten Entities keine `unit_of_measurement`-Attribute liefern. Die Helpers proxien Deine echte Hardware so, dass der Generic-Adapter ueber Domain + UoM matchen kann.
 
 **Wichtig:** Der WR-Limit-Helper ist eine echte `number`-Entity, die per HA-Automation an Deinen Trucki-`input_number` durchschreibt. Damit fließt der Schreibbefehl real auf den WR — Closed-Loop-Readback ist also realistisch, nicht simuliert.
 
@@ -253,9 +228,9 @@ template:
         state: "{{ states('sensor.t2sgf72a29_t2sgf72a29_output') }}"
 ```
 
-Für den Schreibpfad **kannst Du nicht direkt einen Template-Sensor benutzen** (Hoymiles-Adapter erwartet Domain `number` zum Schreiben — siehe [adapters/hoymiles.py:49-53](backend/src/solalex/adapters/hoymiles.py#L49-L53), `service_data={"entity_id": …, "value": watts}` über `number.set_value`).
+Für den Schreibpfad **kannst Du nicht direkt einen Template-Sensor benutzen**. Der Generic-Inverter-Adapter erwartet eine schreibbare `number`- oder `input_number`-Entity und ruft passend dazu `number.set_value` oder `input_number.set_value` auf.
 
-Sauberster Weg: ein **Number-Helper über die UI** anlegen mit ID, die das Pattern erfüllt. Da HA UI-Helper standardmäßig die Domain `input_number` vergeben, brauchst Du stattdessen einen **YAML-`number`-Helper über `template:`**:
+Sauberster Weg: ein **Number-Helper über die UI** oder ein **YAML-`number`-Helper über `template:`** mit `unit_of_measurement: "W"`:
 
 ```yaml
 # configuration.yaml
@@ -276,9 +251,9 @@ template:
               value: "{{ value }}"
 ```
 
-Erwartete Entity-ID nach HA-Restart/Reload: `number.solalex_test_wr_limit_nonpersistent_absolute` — matcht das Hoymiles-Pattern.
+Erwartete Entity-ID nach HA-Restart/Reload: `number.solalex_test_wr_limit_nonpersistent_absolute` — matcht den Generic-Inverter-Adapter ueber Domain `number` + UoM `W`.
 
-### 5.2 Smart-Meter-Helper (Domain `sensor`, Suffix `_power`, uom `W`)
+### 5.2 Smart-Meter-Helper (Domain `sensor`, uom `W`)
 
 ```yaml
 # configuration.yaml
@@ -289,7 +264,7 @@ template:
         unit_of_measurement: "W"
         device_class: power
         # Smart-Meter-Vorzeichen passt bereits: neg=Einspeisung, pos=Bezug.
-        # Shelly-Adapter erwartet das gleiche Vorzeichen — direkter Pass-through.
+        # Generic-Meter erwartet das gleiche Vorzeichen — direkter Pass-through.
         state: "{{ states('sensor.00_smart_meter_sml_current_load') }}"
 ```
 

@@ -97,7 +97,7 @@ class MarstekVenusAdapter(AdapterBase):
             # cycles.
             min_step_w=20,
             # 5 × ~1 s HA grid-meter events ≈ 5 s smoothing — same window as
-            # Hoymiles because the smart-meter stream is shared.
+            # the inverter because the smart-meter stream is shared.
             smoothing_window=5,
             # 500 W/Zyklus — prevents shock-charge transitions on load steps;
             # hardware can technically jump to 2500 W but datasheet-conservative

@@ -13,7 +13,7 @@ from solalex.adapters.base import (
     DeviceRecord,
     SpeicherParams,
 )
-from solalex.adapters.hoymiles import HoymilesAdapter
+from solalex.adapters.generic import GenericInverterAdapter
 from solalex.adapters.marstek_venus import MarstekVenusAdapter
 
 
@@ -116,10 +116,10 @@ def test_adapter_base_speicher_params_default() -> None:
     assert params.limit_step_clamp_w == 500
 
 
-def test_hoymiles_inherits_speicher_params_default() -> None:
-    """Hoymiles is never asked as wr_charge, but the inherited default
+def test_generic_inherits_speicher_params_default() -> None:
+    """Generic inverter is never asked as wr_charge, but the inherited default
     must not raise — defensive against future cross-vendor pools."""
-    adapter = HoymilesAdapter()
+    adapter = GenericInverterAdapter()
     params = adapter.get_speicher_params(_venus_charge_device())
     # Inherits the base default — same shape as Marstek.
     assert params == SpeicherParams()

@@ -167,16 +167,16 @@ async def run_functional_test(request: Request) -> FunctionalTestResponse:
         # Marstek SoC-sensors and Shelly meters share the devices table
         # with actual control targets; picking ``devices[0]`` would send a
         # ``number.set_value`` at a sensor entity.
-        hoymiles_devices = [
-            d for d in devices if d.adapter_key == "hoymiles" and d.role == "wr_limit"
+        generic_inverters = [
+            d for d in devices if d.adapter_key == "generic" and d.role == "wr_limit"
         ]
         marstek_chargers = [
             d for d in devices
             if d.adapter_key == "marstek_venus" and d.role == "wr_charge"
         ]
 
-        if hoymiles_devices:
-            target_device = hoymiles_devices[0]
+        if generic_inverters:
+            target_device = generic_inverters[0]
             test_value_w = 50
             adapter = ADAPTERS[target_device.adapter_key]
             command = adapter.build_set_limit_command(target_device, test_value_w)
@@ -190,7 +190,7 @@ async def run_functional_test(request: Request) -> FunctionalTestResponse:
                 status_code=412,
                 detail=(
                     "Kein steuerbares Gerät konfiguriert. "
-                    "Für den Funktionstest wird ein Hoymiles-Wechselrichter "
+                    "Für den Funktionstest wird ein Wechselrichter "
                     "(Rolle: wr_limit) oder ein Marstek-Akku "
                     "(Rolle: wr_charge) benötigt."
                 ),

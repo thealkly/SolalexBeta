@@ -10,7 +10,7 @@ export interface EntitiesResponse {
 }
 
 export interface HardwareConfigRequest {
-  hardware_type: 'hoymiles' | 'marstek_venus';
+  hardware_type: 'generic' | 'marstek_venus';
   wr_limit_entity_id: string;
   battery_soc_entity_id?: string;
   grid_meter_entity_id?: string;

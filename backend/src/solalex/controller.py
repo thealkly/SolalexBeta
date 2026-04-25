@@ -426,7 +426,7 @@ class Controller:
         """Compute Speicher ``PolicyDecision``s or ``[]`` to skip.
 
         Sign convention (Story 3.4 AC 20):
-          * Smart-meter (Shelly 3EM) — positive = grid import (Bezug),
+          * Smart-meter — positive = grid import (Bezug),
             negative = grid export (Einspeisung).
           * Marstek charge entity — positive = charge, negative = discharge.
           * Setpoint = ``-smoothed`` (sign-flip): feed-in (negative) drives

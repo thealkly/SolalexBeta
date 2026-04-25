@@ -26,11 +26,11 @@ def client_with_db(tmp_data_dir: Path) -> Generator[TestClient]:
 
 
 class TestPostDevices:
-    def test_save_hoymiles_single_device(self, client_with_db: TestClient) -> None:
+    def test_save_generic_single_device(self, client_with_db: TestClient) -> None:
         resp = client_with_db.post(
             "/api/v1/devices/",
             json={
-                "hardware_type": "hoymiles",
+                "hardware_type": "generic",
                 "wr_limit_entity_id": "number.opendtu_limit_nonpersistent_absolute",
             },
         )
@@ -59,7 +59,7 @@ class TestPostDevices:
     def test_missing_wr_limit_entity_returns_422(self, client_with_db: TestClient) -> None:
         resp = client_with_db.post(
             "/api/v1/devices/",
-            json={"hardware_type": "hoymiles"},
+            json={"hardware_type": "generic"},
         )
         assert resp.status_code == 422
         assert "problem+json" in resp.headers.get("content-type", "")
@@ -92,14 +92,14 @@ class TestPostDevices:
         client_with_db.post(
             "/api/v1/devices/",
             json={
-                "hardware_type": "hoymiles",
+                "hardware_type": "generic",
                 "wr_limit_entity_id": "number.opendtu_limit",
             },
         )
         client_with_db.post(
             "/api/v1/devices/",
             json={
-                "hardware_type": "hoymiles",
+                "hardware_type": "generic",
                 "wr_limit_entity_id": "number.new_opendtu_limit",
             },
         )
@@ -119,7 +119,7 @@ class TestGetDevices:
         client_with_db.post(
             "/api/v1/devices/",
             json={
-                "hardware_type": "hoymiles",
+                "hardware_type": "generic",
                 "wr_limit_entity_id": "number.opendtu_limit",
             },
         )
@@ -129,5 +129,5 @@ class TestGetDevices:
         assert len(devices) == 1
         d = devices[0]
         assert d["role"] == "wr_limit"
-        assert d["adapter_key"] == "hoymiles"
+        assert d["adapter_key"] == "generic"
         assert d["commissioned_at"] is None

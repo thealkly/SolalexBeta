@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 class HardwareConfigRequest(BaseModel):
     """Body for POST /api/v1/devices."""
 
-    hardware_type: Literal["hoymiles", "marstek_venus"]
+    hardware_type: Literal["generic", "marstek_venus"]
     wr_limit_entity_id: str = Field(..., min_length=1)
     battery_soc_entity_id: str | None = None
     min_soc: int = Field(15, ge=5, le=40)

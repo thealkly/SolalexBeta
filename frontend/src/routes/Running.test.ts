@@ -22,10 +22,10 @@ vi.mock('../lib/api/client.js', () => ({
 function device(overrides: Partial<DeviceResponse>): DeviceResponse {
   return {
     id: 1,
-    type: 'hoymiles',
+    type: 'generic',
     role: 'wr_limit',
     entity_id: 'number.opendtu_limit_nonpersistent_absolute',
-    adapter_key: 'hoymiles',
+    adapter_key: 'generic',
     config_json: '{}',
     last_write_at: null,
     commissioned_at: '2026-04-24T12:00:00Z',

@@ -101,10 +101,10 @@ def test_control_state_current_mode_reflects_state_cache(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             async with conn.execute(
@@ -166,10 +166,10 @@ def test_control_state_idle_override_when_heartbeat_stale(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             async with conn.execute(
@@ -237,10 +237,10 @@ def test_control_state_recent_cycles_returns_last_ten(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             async with conn.execute(
@@ -307,7 +307,7 @@ def test_control_state_rate_limit_countdown_active(
 
     client, _app = app_client
     db_path = tmp_data_dir / "solalex.db"
-    # Hoymiles policy defaults to 60 s; set last_write_at to 30 s ago.
+    # Generic inverter policy defaults to 60 s; set last_write_at to 30 s ago.
     lw = datetime.now(tz=UTC) - timedelta(seconds=30)
 
     async def _seed() -> None:
@@ -316,10 +316,10 @@ def test_control_state_rate_limit_countdown_active(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             await conn.execute(
@@ -354,10 +354,10 @@ def test_control_state_rate_limit_none_when_no_last_write(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             await conn.commit()
@@ -378,7 +378,7 @@ def test_control_state_rate_limit_none_when_cooldown_elapsed(
 
     client, _app = app_client
     db_path = tmp_data_dir / "solalex.db"
-    # last_write_at well past the 60 s Hoymiles window.
+    # last_write_at well past the 60 s Generic inverter window.
     lw = datetime.now(tz=UTC) - timedelta(seconds=600)
 
     async def _seed() -> None:
@@ -387,10 +387,10 @@ def test_control_state_rate_limit_none_when_cooldown_elapsed(
                 conn,
                 DeviceRecord(
                     id=None,
-                    type="hoymiles",
+                    type="generic",
                     role="wr_limit",
                     entity_id="number.opendtu_limit_nonpersistent_absolute",
-                    adapter_key="hoymiles",
+                    adapter_key="generic",
                 ),
             )
             await conn.execute(

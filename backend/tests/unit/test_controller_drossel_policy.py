@@ -39,20 +39,20 @@ async def _seed_drossel_devices(db: Path) -> dict[str, DeviceRecord]:
             conn,
             DeviceRecord(
                 id=None,
-                type="hoymiles",
+                type="generic",
                 role="wr_limit",
                 entity_id=_WR_ENTITY,
-                adapter_key="hoymiles",
+                adapter_key="generic",
             ),
         )
         await upsert_device(
             conn,
             DeviceRecord(
                 id=None,
-                type="shelly_3em",
+                type="generic_meter",
                 role="grid_meter",
                 entity_id=_GRID_METER_ENTITY,
-                adapter_key="shelly_3em",
+                adapter_key="generic_meter",
             ),
         )
         await conn.execute(
@@ -145,7 +145,7 @@ async def test_drossel_policy_produces_decision_on_feed_in(tmp_path: Path) -> No
 
 
 # ---------------------------------------------------------------------------
-# AC 2 — Deadband ± 5 W (Hoymiles) suppresses dispatch
+# AC 2 — Deadband ± 5 W (Generic inverter) suppresses dispatch
 # ---------------------------------------------------------------------------
 
 
@@ -180,7 +180,7 @@ async def test_min_step_suppresses_sub_threshold_delta(
 ) -> None:
     """AC 2 — smoothed > deadband but |delta| < min_step is dropped.
 
-    Hoymiles defaults have ``min_step_w=3`` and ``deadband_w=5``, so the
+    Generic inverter defaults have ``min_step_w=3`` and ``deadband_w=5``, so the
     deadband always gates first and the min_step branch is unreachable via
     the default adapter. Override with ``min_step_w=20`` so a smoothed
     value like ``-10 W`` passes the deadband (10 > 5) but fails the
@@ -192,12 +192,12 @@ async def test_min_step_suppresses_sub_threshold_delta(
     state_cache = StateCache()
     await _seed_wr_state(state_cache, current_limit_w=500)
 
-    # Override the hoymiles adapter's DrosselParams for this test only.
+    # Override the generic adapter's DrosselParams for this test only.
     params = DrosselParams(
         deadband_w=5, min_step_w=20, smoothing_window=5, limit_step_clamp_w=200
     )
     monkeypatch.setattr(
-        ADAPTERS["hoymiles"],
+        ADAPTERS["generic"],
         "get_drossel_params",
         lambda _device: params,
     )
@@ -297,7 +297,7 @@ async def test_rate_limit_veto_passthrough(tmp_path: Path) -> None:
     wr_device = devices_by_role["wr_limit"]
     now = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
 
-    # Mark a write 10 s ago so the 60 s Hoymiles interval blocks.
+    # Mark a write 10 s ago so the 60 s Generic inverter interval blocks.
     async with connection_context(db) as conn:
         await rate_limiter.mark_write(conn, wr_device.id or 0, now - timedelta(seconds=10))
         await conn.commit()
@@ -347,7 +347,7 @@ async def test_no_decision_when_only_grid_meter_commissioned(tmp_path: Path) -> 
     db = tmp_path / "test.db"
     device = await seeded_device(
         db,
-        adapter_key="shelly_3em",
+        adapter_key="generic_meter",
         entity_id=_GRID_METER_ENTITY,
         role="grid_meter",
     )
@@ -529,7 +529,7 @@ async def test_smoothing_buffer_respects_maxlen(tmp_path: Path) -> None:
         controller._policy_drossel(grid_device, sensor_value_w=float(sample))
 
     buf = controller._drossel_buffers[grid_device.id or 0]
-    # Hoymiles smoothing_window=5 → genau 5 Einträge.
+    # Generic inverter smoothing_window=5 → genau 5 Einträge.
     assert buf.maxlen == 5
     assert len(buf) == 5
     # Die letzten 5 Werte (15, 16, 17, 18, 19) — älteste sind gedroppt.
@@ -587,20 +587,20 @@ async def test_no_decision_when_only_wr_limit_commissioned(tmp_path: Path) -> No
             conn,
             DeviceRecord(
                 id=None,
-                type="hoymiles",
+                type="generic",
                 role="wr_limit",
                 entity_id=_WR_ENTITY,
-                adapter_key="hoymiles",
+                adapter_key="generic",
             ),
         )
         await upsert_device(
             conn,
             DeviceRecord(
                 id=None,
-                type="shelly_3em",
+                type="generic_meter",
                 role="grid_meter",
                 entity_id=_GRID_METER_ENTITY,
-                adapter_key="shelly_3em",
+                adapter_key="generic_meter",
             ),
         )
         # Commission ONLY the wr_limit — grid_meter stays uncommissioned.
@@ -662,20 +662,20 @@ async def test_devices_by_role_filters_uncommissioned(tmp_path: Path) -> None:
             conn,
             DeviceRecord(
                 id=None,
-                type="hoymiles",
+                type="generic",
                 role="wr_limit",
                 entity_id=_WR_ENTITY,
-                adapter_key="hoymiles",
+                adapter_key="generic",
             ),
         )
         await upsert_device(
             conn,
             DeviceRecord(
                 id=None,
-                type="shelly_3em",
+                type="generic_meter",
                 role="grid_meter",
                 entity_id=_GRID_METER_ENTITY,
-                adapter_key="shelly_3em",
+                adapter_key="generic_meter",
             ),
         )
         # Commission ONLY the wr_limit.

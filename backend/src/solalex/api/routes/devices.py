@@ -64,14 +64,14 @@ async def save_devices(
     rows: list[DeviceRecord] = []
 
     # Build the rows to insert from the validated request.
-    if body.hardware_type == "hoymiles":
+    if body.hardware_type == "generic":
         rows.append(
             DeviceRecord(
                 id=None,
-                type="hoymiles",
+                type="generic",
                 role="wr_limit",
                 entity_id=body.wr_limit_entity_id,
-                adapter_key="hoymiles",
+                adapter_key="generic",
                 config_json="{}",
             )
         )
@@ -109,10 +109,10 @@ async def save_devices(
         rows.append(
             DeviceRecord(
                 id=None,
-                type="shelly_3em",
+                type="generic_meter",
                 role="grid_meter",
                 entity_id=body.grid_meter_entity_id,
-                adapter_key="shelly_3em",
+                adapter_key="generic_meter",
                 config_json="{}",
             )
         )

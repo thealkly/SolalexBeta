@@ -209,7 +209,7 @@ async def test_dispatcher_happy_path_emits_service_call_built(
     await cache.update(device.entity_id, "50", {}, now + timedelta(seconds=1))
 
     monkeypatch.setattr(
-        ADAPTERS["hoymiles"],
+        ADAPTERS["generic"],
         "get_readback_timing",
         lambda: ReadbackTiming(timeout_s=0.01, mode="sync"),
     )
@@ -244,10 +244,10 @@ async def test_dispatcher_happy_path_emits_service_call_built(
 def _readback_device(entity_id: str = "number.test_limit") -> DeviceRecord:
     return DeviceRecord(
         id=1,
-        type="hoymiles",
+        type="generic",
         role="wr_limit",
         entity_id=entity_id,
-        adapter_key="hoymiles",
+        adapter_key="generic",
     )
 
 

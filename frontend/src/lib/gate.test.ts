@@ -5,10 +5,10 @@ import { evaluateGate } from './gate.js';
 function makeDevice(overrides: Partial<DeviceResponse> = {}): DeviceResponse {
   return {
     id: 1,
-    type: 'hoymiles',
+    type: 'generic',
     role: 'inverter',
     entity_id: 'number.inverter_limit',
-    adapter_key: 'hoymiles',
+    adapter_key: 'generic',
     config_json: '{}',
     last_write_at: null,
     commissioned_at: null,
@@ -28,6 +28,17 @@ describe('evaluateGate — devices not yet loaded', () => {
     expect(
       evaluateGate({
         currentRoute: '/config',
+        devices: null,
+        preAccepted: false,
+        allowAutoForward: true,
+      }),
+    ).toEqual({ kind: 'stay' });
+  });
+
+  it('keeps the hidden diagnostics route reachable before setup state is known', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/diagnostics',
         devices: null,
         preAccepted: false,
         allowAutoForward: true,

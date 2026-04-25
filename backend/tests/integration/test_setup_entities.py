@@ -19,9 +19,9 @@ MOCK_STATES = [
         "attributes": {"friendly_name": "OpenDTU Limit", "unit_of_measurement": "W"},
     },
     {
-        "entity_id": "sensor.shelly_3em_total_power",
+        "entity_id": "sensor.generic_meter_total_power",
         "state": "1250",
-        "attributes": {"friendly_name": "Shelly 3EM Total Power", "unit_of_measurement": "W"},
+        "attributes": {"friendly_name": "Generic meter Total Power", "unit_of_measurement": "W"},
     },
     {
         "entity_id": "sensor.marstek_venus_soc",

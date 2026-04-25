@@ -7,13 +7,13 @@ defined in :mod:`solalex.adapters.base`.
 
 from __future__ import annotations
 
-from solalex.adapters import hoymiles, marstek_venus, shelly_3em
+from solalex.adapters import generic, generic_meter, marstek_venus
 from solalex.adapters.base import AdapterBase
 
 ADAPTERS: dict[str, AdapterBase] = {
-    "hoymiles": hoymiles.ADAPTER,
+    "generic": generic.ADAPTER,
+    "generic_meter": generic_meter.ADAPTER,
     "marstek_venus": marstek_venus.ADAPTER,
-    "shelly_3em": shelly_3em.ADAPTER,
 }
 
 __all__ = ["ADAPTERS", "AdapterBase"]

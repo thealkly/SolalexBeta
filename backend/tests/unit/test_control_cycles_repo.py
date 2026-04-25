@@ -41,8 +41,8 @@ async def test_insert_and_list_recent(tmp_path: Path) -> None:
         dev_id = await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.x", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.x", adapter_key="generic",
             ),
         )
         for i in range(3):
@@ -69,8 +69,8 @@ async def test_list_by_device_filters(tmp_path: Path) -> None:
         dev_a = await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.a", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.a", adapter_key="generic",
             ),
         )
         dev_b = await upsert_device(
@@ -97,8 +97,8 @@ async def test_fk_on_delete_cascade(tmp_path: Path) -> None:
         dev_id = await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.x", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.x", adapter_key="generic",
             ),
         )
         await control_cycles.insert(conn, _row(dev_id, ts=datetime.now(tz=UTC)))

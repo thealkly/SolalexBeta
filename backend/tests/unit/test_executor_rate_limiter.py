@@ -20,8 +20,8 @@ async def _seed_device(db: Path) -> int:
         return await upsert_device(
             conn,
             DeviceRecord(
-                id=None, type="hoymiles", role="wr_limit",
-                entity_id="number.x", adapter_key="hoymiles",
+                id=None, type="generic", role="wr_limit",
+                entity_id="number.x", adapter_key="generic",
             ),
         )
 

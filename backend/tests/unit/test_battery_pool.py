@@ -464,7 +464,7 @@ def test_pool_does_not_import_vendor_specific_constants() -> None:
         / "battery_pool.py"
     )
     text = src.read_text(encoding="utf-8")
-    for vendor in ("marstek_venus", "hoymiles", "shelly"):
+    for vendor in ("marstek_venus", "generic", "shelly"):
         assert vendor not in text, f"battery_pool.py leaks vendor name: {vendor}"
 
 

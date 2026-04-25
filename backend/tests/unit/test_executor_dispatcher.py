@@ -36,7 +36,7 @@ def _ctx(
 @pytest.mark.asyncio
 async def test_range_check_vetoes_out_of_bounds(tmp_path: Path) -> None:
     db = tmp_path / "test.db"
-    device = await seeded_device(db)  # hoymiles → (2, 1500)
+    device = await seeded_device(db)  # generic → (2, 1500)
     now = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
 
     ha = FakeHaClient()
@@ -99,14 +99,14 @@ async def test_happy_path_writes_cycle_and_latency(
 
     ha = FakeHaClient()
 
-    # Swap the hoymiles readback timing to near-zero so the test is fast.
+    # Swap the generic readback timing to near-zero so the test is fast.
     # Using monkeypatch ensures automatic restore even if the test is
     # interrupted, avoiding cross-test pollution of the shared ADAPTERS
     # singleton.
     from solalex.adapters.base import ReadbackTiming
-    hoymiles = ADAPTERS["hoymiles"]
+    generic = ADAPTERS["generic"]
     monkeypatch.setattr(
-        hoymiles,
+        generic,
         "get_readback_timing",
         lambda: ReadbackTiming(timeout_s=0.01, mode="sync"),
     )
@@ -139,10 +139,10 @@ async def test_happy_path_writes_cycle_and_latency(
 
 @pytest.mark.asyncio
 async def test_read_only_adapter_vetoes(tmp_path: Path) -> None:
-    """Shelly 3EM has no write range → NotImplementedError → vetoed row."""
+    """Generic meter has no write range → NotImplementedError → vetoed row."""
     db = tmp_path / "test.db"
     device = await seeded_device(
-        db, adapter_key="shelly_3em", entity_id="sensor.shelly_power", role="grid_meter"
+        db, adapter_key="generic_meter", entity_id="sensor.shelly_power", role="grid_meter"
     )
     now = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
     ha = FakeHaClient()

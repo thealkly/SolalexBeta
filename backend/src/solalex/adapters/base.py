@@ -155,7 +155,7 @@ class DeviceRecord:
 class AdapterBase(ABC):
     """Abstract base class that all hardware adapters must implement.
 
-    Adapters that do not support a particular operation (e.g. Shelly 3EM
+    Adapters that do not support a particular operation (e.g. smart meters
     cannot set a limit) must override the method and raise
     :class:`NotImplementedError` so callers can detect unsupported paths.
     """
@@ -198,7 +198,7 @@ class AdapterBase(ABC):
         """Return the drossel-policy parameter bundle for this device.
 
         Default is conservative. WR adapters override with hardware specifics
-        (see Hoymiles, Story 3.2). Non-write adapters (e.g. Shelly 3EM) keep
+        (see generic inverter, Story 2.4). Non-write adapters (e.g. smart meters) keep
         the default — the Drossel policy only queries the WR adapter, not the
         smart-meter adapter, so raising here would be wrong.
         """
@@ -212,7 +212,7 @@ class AdapterBase(ABC):
         specifics (see Marstek Venus, Story 3.4). Non-battery adapters keep
         the default — the Speicher policy only queries the wr_charge adapter,
         and a NotImplementedError default would be a silent landmine for
-        adapters that are never asked as wr_charge (Hoymiles, Shelly).
+        adapters that are never asked as wr_charge (generic inverter, generic meter).
         """
         del device
         return SpeicherParams()
@@ -221,7 +221,7 @@ class AdapterBase(ABC):
         """Return the nominal battery capacity in Wh for pool aggregation.
 
         Conservative default (Marstek Venus 3E datasheet, 5120 Wh) rather
-        than ``NotImplementedError``: non-battery adapters (Hoymiles, Shelly)
+        than ``NotImplementedError``: non-battery adapters (generic inverter, generic meter)
         are never asked as ``wr_charge`` and a raise would be a hidden
         landmine. Overrides in vendor modules remain the single source of
         truth — CLAUDE.md Rule 2.

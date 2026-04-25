@@ -66,7 +66,7 @@ Zusätzlich gelten im Executor immer:
 API-Antworten sind das direkte Objekt:
 
 ```json
-{ "id": 42, "type": "hoymiles", "entity": "number.opendtu_limit_nonpersistent_absolute" }
+{ "id": 42, "type": "generic", "entity": "input_number.trucki_set_target" }
 ```
 
 **Nicht:**
@@ -151,11 +151,11 @@ solalex/
 │       │   ├── dispatcher.py
 │       │   ├── readback.py
 │       │   └── rate_limiter.py   # persistent via devices.last_write_at
-│       ├── adapters/             # ein Modul pro Hersteller
+│       ├── adapters/             # ein Modul pro Adapter
 │       │   ├── base.py
-│       │   ├── hoymiles.py
+│       │   ├── generic.py
+│       │   ├── generic_meter.py
 │       │   ├── marstek_venus.py
-│       │   └── shelly_3em.py
 │       ├── persistence/
 │       │   ├── db.py             # aiosqlite-Factory + WAL
 │       │   ├── migrate.py        # schema_version + sql/-Apply
@@ -197,7 +197,7 @@ solalex/
 
 ## Wizard-Struktur (4 Schritte)
 
-1. **Step1Hardware** — Hoymiles/OpenDTU oder Marstek Venus
+1. **Step1Hardware** — Wechselrichter (allgemein) oder Marstek Venus
 2. **Step2Detection** — Auto-Detection mit Live-Werten, Smart-Meter + Battery als aufklappbare Sub-Cards (Min/Max-SoC, Nacht-Entlade-Fenster hier)
 3. **Step3FunctionalTest** — Live-Chart + Closed-Loop-Readback
 4. **Step4Activation** — Disclaimer-Checkbox + LemonSqueezy-Kauf + Aktivieren

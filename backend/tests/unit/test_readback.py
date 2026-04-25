@@ -15,10 +15,10 @@ from solalex.state_cache import StateCache
 def _device(entity_id: str = "number.test_limit") -> DeviceRecord:
     return DeviceRecord(
         id=1,
-        type="hoymiles",
+        type="generic",
         role="wr_limit",
         entity_id=entity_id,
-        adapter_key="hoymiles",
+        adapter_key="generic",
     )
 
 

@@ -59,7 +59,7 @@ async def open_conn(db_path: Path) -> AsyncIterator[aiosqlite.Connection]:
 async def seeded_device(
     db_path: Path,
     *,
-    adapter_key: str = "hoymiles",
+    adapter_key: str = "generic",
     entity_id: str = "number.opendtu_limit_nonpersistent_absolute",
     role: str = "wr_limit",
     commissioned: bool = True,

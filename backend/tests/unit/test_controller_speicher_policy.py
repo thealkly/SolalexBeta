@@ -102,10 +102,10 @@ async def _seed_speicher_devices(
             conn,
             DeviceRecord(
                 id=None,
-                type="shelly_3em",
+                type="generic_meter",
                 role="grid_meter",
                 entity_id=_GRID_METER_ENTITY,
-                adapter_key="shelly_3em",
+                adapter_key="generic_meter",
             ),
         )
         for i in range(pool_size):

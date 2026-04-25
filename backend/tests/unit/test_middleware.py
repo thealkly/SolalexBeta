@@ -25,7 +25,7 @@ def test_not_found_returns_problem_json(client: TestClient) -> None:
 
 
 def test_validation_error_has_german_detail(client: TestClient) -> None:
-    resp = client.post("/api/v1/devices/", json={"hardware_type": "hoymiles"})
+    resp = client.post("/api/v1/devices/", json={"hardware_type": "generic"})
     assert resp.status_code == 422
     data = resp.json()
     # The detail should contain German text / field info
