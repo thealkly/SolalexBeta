@@ -143,6 +143,41 @@
       saving = false;
     }
   }
+
+  // Konfig-Reset — drops devices + meta.forced_mode + reloads the
+  // controller. Inline-Confirm only (UX-DR30 — no modal). Disclaimer-
+  // Acceptance bleibt bewusst stehen: Reset wirft die Hardware-Config
+  // weg, nicht die rechtliche Zustimmung.
+  let resetConfirmOpen = $state(false);
+  let resetting = $state(false);
+  let resetError = $state<string | null>(null);
+
+  function openResetConfirm(): void {
+    resetError = null;
+    resetConfirmOpen = true;
+  }
+
+  function cancelResetConfirm(): void {
+    resetConfirmOpen = false;
+  }
+
+  async function confirmReset(): Promise<void> {
+    resetting = true;
+    resetError = null;
+    try {
+      await client.resetConfig();
+      // Force a full reload so App.svelte re-fetches devices via
+      // evaluateGate and lands the user on the welcome screen — a
+      // simple hash change would not refresh devicesCache.
+      window.location.hash = '#/';
+      window.location.reload();
+    } catch (err) {
+      resetError = isApiError(err)
+        ? err.detail
+        : 'Zurücksetzen fehlgeschlagen. Bitte erneut versuchen.';
+      resetting = false;
+    }
+  }
 </script>
 
 <main class="settings-page">
@@ -165,8 +200,8 @@
       <h2>Kein Akku konfiguriert</h2>
       <p class="hint">
         Dieses Setup hat keinen Akku. Min-/Max-SoC und Nacht-Entladung sind hier nicht
-        konfigurierbar. Wenn du später einen Akku hinzufügst, durchläufst du den Setup-Wizard
-        erneut.
+        konfigurierbar. Wenn du später einen Akku hinzufügst, nutze den Reset-Button unten und
+        durchlaufe den Setup-Wizard erneut.
       </p>
     </section>
   {:else}
@@ -284,6 +319,59 @@
         <p class="confirm-line" data-testid="save-confirm">{savedNotice}</p>
       {/if}
     </div>
+  {/if}
+
+  {#if !loading && !loadError}
+    <section class="settings-section danger-section" data-testid="reset-section">
+      <h2>Konfiguration zurücksetzen</h2>
+      <p class="hint">
+        Löscht alle eingerichteten Geräte (Wechselrichter, Akku, Smart Meter) und alle bisher
+        aufgezeichneten Regelzyklen. Danach landest du wieder am Anfang und kannst den Setup-Wizard
+        frisch durchlaufen — z.&nbsp;B. um einen neuen Akku einzurichten.
+      </p>
+      {#if !resetConfirmOpen}
+        <div class="confirm-actions">
+          <button
+            type="button"
+            class="warn-button"
+            onclick={openResetConfirm}
+            data-testid="reset-open"
+          >
+            Konfiguration zurücksetzen
+          </button>
+        </div>
+      {:else}
+        <div class="confirm-block" data-testid="reset-confirm">
+          <p class="warn-line">
+            Wirklich alle Geräte löschen? Aufgezeichnete Regelzyklen und Latenzmessungen werden mit
+            gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+          </p>
+          <div class="confirm-actions">
+            <button
+              type="button"
+              class="ghost-button"
+              onclick={cancelResetConfirm}
+              disabled={resetting}
+              data-testid="reset-cancel"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="warn-button"
+              onclick={confirmReset}
+              disabled={resetting}
+              data-testid="reset-confirm-action"
+            >
+              {resetting ? 'Lösche…' : 'Ja, alles löschen'}
+            </button>
+          </div>
+          {#if resetError}
+            <p class="error-line" data-testid="reset-error">{resetError}</p>
+          {/if}
+        </div>
+      {/if}
+    </section>
   {/if}
 </main>
 
@@ -527,5 +615,9 @@
     margin: 0;
     font-size: 0.88rem;
     color: var(--color-accent-primary);
+  }
+
+  .danger-section {
+    border-color: color-mix(in srgb, var(--color-accent-warning) 30%, transparent);
   }
 </style>

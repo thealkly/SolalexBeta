@@ -9,6 +9,7 @@ import type {
   ForcedMode,
   FunctionalTestResponse,
   HardwareConfigRequest,
+  ResetConfigResponse,
   SaveDevicesResponse,
   StateSnapshot,
 } from './types.js';
@@ -95,4 +96,8 @@ export async function patchBatteryConfig(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+export async function resetConfig(): Promise<ResetConfigResponse> {
+  return request<ResetConfigResponse>('/api/v1/devices/reset', { method: 'POST' });
 }

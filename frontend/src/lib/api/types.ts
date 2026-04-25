@@ -126,3 +126,8 @@ export interface BatteryConfigResponse {
   night_start: string;
   night_end: string;
 }
+
+export interface ResetConfigResponse {
+  status: string;
+  deleted_devices: number;
+}

@@ -204,3 +204,91 @@ describe('Settings — save flow', () => {
     expect(err.textContent ?? '').toContain('abgelehnt');
   });
 });
+
+describe('Settings — Konfig-Reset', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('renders the reset card for the marstek setup', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([makeWrCharge()]);
+    render(Settings);
+    await screen.findByLabelText('Min-SoC');
+    expect(screen.getByTestId('reset-section')).toBeTruthy();
+    expect(screen.getByTestId('reset-open')).toBeTruthy();
+  });
+
+  it('renders the reset card for a drossel-only setup so a new akku can be added', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([
+      {
+        id: 1,
+        type: 'generic',
+        role: 'wr_limit',
+        entity_id: 'number.opendtu_limit',
+        adapter_key: 'generic',
+        config_json: '{}',
+        last_write_at: null,
+        commissioned_at: '2026-04-25T12:00:00Z',
+        created_at: '2026-04-25T12:00:00Z',
+        updated_at: '2026-04-25T12:00:00Z',
+      },
+    ]);
+    render(Settings);
+    await screen.findByTestId('no-battery-hint');
+    expect(screen.getByTestId('reset-open')).toBeTruthy();
+  });
+
+  it('opens the inline confirm and cancels back without calling the API', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([makeWrCharge()]);
+    const reset = vi.spyOn(client, 'resetConfig');
+    render(Settings);
+    await screen.findByLabelText('Min-SoC');
+    await fireEvent.click(screen.getByTestId('reset-open'));
+    expect(screen.getByTestId('reset-confirm')).toBeTruthy();
+    await fireEvent.click(screen.getByTestId('reset-cancel'));
+    expect(screen.queryByTestId('reset-confirm')).toBeNull();
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('confirm calls resetConfig and triggers a full reload', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([makeWrCharge()]);
+    const reset = vi
+      .spyOn(client, 'resetConfig')
+      .mockResolvedValue({ status: 'reset', deleted_devices: 3 });
+    const reload = vi.fn();
+    // happy-dom's location.reload is read-only; stub via defineProperty.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, hash: '#/settings', reload },
+    });
+    render(Settings);
+    await screen.findByLabelText('Min-SoC');
+    await fireEvent.click(screen.getByTestId('reset-open'));
+    await fireEvent.click(screen.getByTestId('reset-confirm-action'));
+    await waitFor(() => {
+      expect(reset).toHaveBeenCalledTimes(1);
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+    expect(window.location.hash).toBe('#/');
+  });
+
+  it('renders the inline error line on reset failure and keeps the confirm open', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([makeWrCharge()]);
+    vi.spyOn(client, 'resetConfig').mockRejectedValue(
+      new ApiError(
+        500,
+        'urn:solalex:internal-error',
+        'Interner Fehler',
+        'Backend konnte nicht zurücksetzen.',
+      ),
+    );
+    render(Settings);
+    await screen.findByLabelText('Min-SoC');
+    await fireEvent.click(screen.getByTestId('reset-open'));
+    await fireEvent.click(screen.getByTestId('reset-confirm-action'));
+    const err = await screen.findByTestId('reset-error');
+    expect(err.textContent ?? '').toContain('zurücksetzen');
+    expect(screen.getByTestId('reset-confirm')).toBeTruthy();
+  });
+});

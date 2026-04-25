@@ -3,6 +3,7 @@
 GET   /api/v1/devices                       — list all configured devices.
 POST  /api/v1/devices                       — save (replace) hardware configuration.
 PATCH /api/v1/devices/battery-config        — update Akku-Bounds + Nacht-Fenster post-Commissioning (Story 3.6).
+POST  /api/v1/devices/reset                 — wipe device config + meta.forced_mode + reload controller.
 """
 
 from __future__ import annotations
@@ -19,16 +20,19 @@ from solalex.api.schemas.devices import (
     BatteryConfigResponse,
     DeviceResponse,
     HardwareConfigRequest,
+    ResetConfigResponse,
     SaveDevicesResponse,
 )
 from solalex.common.logging import get_logger
 from solalex.config import get_settings
 from solalex.persistence.db import connection_context
 from solalex.persistence.repositories.devices import (
+    delete_all,
     list_devices,
     replace_all,
     update_device_config_json,
 )
+from solalex.persistence.repositories.meta import delete_meta
 
 _logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
@@ -221,3 +225,31 @@ async def patch_battery_config(
         night_start=body.night_start,
         night_end=body.night_end,
     )
+
+
+@router.post("/reset", response_model=ResetConfigResponse)
+async def reset_config(request: Request) -> ResetConfigResponse:
+    """Wipe the entire device configuration so the user can re-run the wizard.
+
+    Drops all rows from ``devices`` (control_cycles + latency_measurements
+    cascade via ON DELETE CASCADE), removes the persisted ``forced_mode``
+    override from the meta table, then reloads the live controller so the
+    next sensor event sees an empty role/pool registry and dispatches
+    nothing. Idempotent — calling on an already-empty config returns
+    ``deleted_devices=0``.
+    """
+    db_path = get_settings().db_path
+    async with connection_context(db_path) as conn:
+        existing = await list_devices(conn)
+        await delete_all(conn)
+        await delete_meta(conn, "forced_mode")
+    deleted = len(existing)
+
+    controller = getattr(request.app.state, "controller", None)
+    if controller is not None:
+        await controller.set_forced_mode(None)
+        await controller.reload_devices_from_db()
+
+    _logger.info("devices_reset", extra={"deleted_devices": deleted})
+
+    return ResetConfigResponse(status="reset", deleted_devices=deleted)

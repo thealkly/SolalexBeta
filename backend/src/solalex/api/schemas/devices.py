@@ -140,3 +140,15 @@ class BatteryConfigResponse(BaseModel):
     night_discharge_enabled: bool
     night_start: str
     night_end: str
+
+
+# ---------------------------------------------------------------------------
+# Konfig-Reset — POST /api/v1/devices/reset
+# ---------------------------------------------------------------------------
+
+
+class ResetConfigResponse(BaseModel):
+    """Response from POST /api/v1/devices/reset."""
+
+    status: str
+    deleted_devices: int
