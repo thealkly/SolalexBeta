@@ -12,6 +12,7 @@ cap to avoid flooding the Supervisor log during token rotation windows.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from typing import Any
 
 from websockets.exceptions import (
@@ -52,6 +53,7 @@ class ReconnectingHaClient:
         self,
         token: str,
         url: str = "ws://supervisor/core/websocket",
+        on_connection_change: Callable[[bool], None] | None = None,
     ) -> None:
         self._token = token
         self._url = url
@@ -59,6 +61,25 @@ class ReconnectingHaClient:
         self._connected: bool = False
         self._stop_requested: bool = False
         self._reconnect_attempt: int = 0
+        # Story 5.1d — fire on every transition (False↔True). Wired by
+        # main.lifespan to mirror into StateCache so the polling endpoint
+        # can render the Connection-Tile. Failures inside the callback are
+        # swallowed so a buggy hook cannot stall the reconnect loop.
+        self._on_connection_change = on_connection_change
+
+    def _set_connected(self, connected: bool) -> None:
+        if self._connected == connected:
+            return
+        self._connected = connected
+        if self._on_connection_change is None:
+            return
+        try:
+            self._on_connection_change(connected)
+        except Exception:
+            log.exception(
+                "ha_ws_connection_change_callback_failed",
+                extra={"connected": connected},
+            )
 
     @property
     def ha_ws_connected(self) -> bool:
@@ -85,13 +106,13 @@ class ReconnectingHaClient:
         while not self._stop_requested:
             try:
                 await self._client.connect()
-                self._connected = True
+                self._set_connected(True)
                 await self._replay_subscriptions()
                 self._reconnect_attempt = 0
                 await self._client.listen(on_event)
                 # listen() returning without exception means the socket closed
                 # cleanly — treat like any other disconnect and reconnect.
-                self._connected = False
+                self._set_connected(False)
                 log.warning(
                     "ha_ws_disconnected",
                     extra={
@@ -100,7 +121,7 @@ class ReconnectingHaClient:
                     },
                 )
             except AuthError as exc:
-                self._connected = False
+                self._set_connected(False)
                 log.error(
                     "ha_ws_auth_invalid",
                     extra={
@@ -112,7 +133,7 @@ class ReconnectingHaClient:
                 # trying — the Supervisor may rotate the token at any time.
                 await self._sleep_if_running(BACKOFF_SCHEDULE_S[-1])
             except (ConnectionClosed, InvalidHandshake, InvalidURI, OSError) as exc:
-                self._connected = False
+                self._set_connected(False)
                 delay = self._backoff_delay(self._reconnect_attempt)
                 log.warning(
                     "ha_ws_disconnected",
@@ -129,7 +150,7 @@ class ReconnectingHaClient:
                 raise
             except WebSocketException as exc:
                 # Catch-all for protocol-level errors not covered above.
-                self._connected = False
+                self._set_connected(False)
                 delay = self._backoff_delay(self._reconnect_attempt)
                 log.exception(
                     "ha_ws_protocol_error",
@@ -147,7 +168,7 @@ class ReconnectingHaClient:
                 # decode error during the handshake, or a mid-replay failure.
                 # The supervisor must survive — Epic 3 wires downstream logic
                 # into ``on_event`` where any of those can surface.
-                self._connected = False
+                self._set_connected(False)
                 delay = self._backoff_delay(self._reconnect_attempt)
                 log.exception(
                     "ha_ws_unexpected_error",
@@ -208,5 +229,5 @@ class ReconnectingHaClient:
     async def close(self) -> None:
         """Request shutdown: mark stop flag, close the underlying socket."""
         self._stop_requested = True
-        self._connected = False
+        self._set_connected(False)
         await self._client.close()

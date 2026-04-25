@@ -3,7 +3,7 @@
   import * as client from '../lib/api/client.js';
   import { isApiError } from '../lib/api/errors.js';
   import { usePolling } from '../lib/polling/usePolling.js';
-  import LineChart from '../lib/components/charts/LineChart.svelte';
+  import LineChart, { formatWatts } from '../lib/components/charts/LineChart.svelte';
   import type { ChartSeries } from '../lib/components/charts/LineChart.svelte';
   import type { ControlMode, DeviceResponse, StateSnapshot } from '../lib/api/types.js';
 
@@ -37,9 +37,7 @@
   // functional test before regulation resumes.
   const needsRefunctionalTest = $derived(
     devices.some(
-      (d) =>
-        (d.role === 'wr_limit' || d.role === 'wr_charge') &&
-        d.commissioned_at === null,
+      (d) => (d.role === 'wr_limit' || d.role === 'wr_charge') && d.commissioned_at === null,
     ),
   );
 
@@ -204,13 +202,10 @@
   </header>
 
   {#if needsRefunctionalTest && !loadError && !testInProgress}
-    <section
-      class="refunctional-test-banner"
-      data-testid="refunctional-test-banner"
-    >
+    <section class="refunctional-test-banner" data-testid="refunctional-test-banner">
       <p>
-        Funktionstest erforderlich für den neuen Wechselrichter — Solalex pausiert die
-        Regelung, bis der Test bestätigt ist.
+        Funktionstest erforderlich für den neuen Wechselrichter — Solalex pausiert die Regelung, bis
+        der Test bestätigt ist.
       </p>
       <a class="banner-link" href="#/functional-test">Funktionstest starten</a>
     </section>
@@ -235,9 +230,11 @@
       {#if chartSeries.length > 0}
         <ul class="chart-legend" aria-label="Diagramm-Legende">
           {#each chartSeries as series (series.label)}
+            {@const last = series.data[series.data.length - 1]}
             <li class="legend-item">
               <span class="legend-dot" style="background: {series.color};"></span>
               <span class="legend-label">{series.label}</span>
+              <span class="legend-value">{last ? formatWatts(last.v) : '—'}</span>
             </li>
           {/each}
         </ul>
@@ -487,7 +484,7 @@
 
   .legend-item {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
   }
 
@@ -496,6 +493,14 @@
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
+    align-self: center;
+  }
+
+  .legend-value {
+    color: var(--color-text);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
   }
 
   .update-indicator {

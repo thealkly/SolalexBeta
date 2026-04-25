@@ -119,14 +119,19 @@ describe('Running — Live-Betriebs-View', () => {
       }),
     );
 
-    render(Running);
+    const { container } = render(Running);
     await flushPolling();
 
     expect(screen.getByText('Drossel')).toBeTruthy();
-    expect(screen.getByText('310 W')).toBeTruthy();
-    expect(screen.getByText('300 W')).toBeTruthy();
-    expect(screen.getByText('timeout')).toBeTruthy();
-    expect(screen.getByText('42 ms')).toBeTruthy();
+    // Scope value-lookups to the cycles list — the chart legend now also
+    // surfaces the latest target as "310 W" (Story 5.1c scope-extension),
+    // so a global getByText would hit two nodes.
+    const cycleList = container.querySelector('.cycle-list');
+    expect(cycleList).toBeTruthy();
+    expect(cycleList?.textContent).toContain('310 W');
+    expect(cycleList?.textContent).toContain('300 W');
+    expect(cycleList?.textContent).toContain('timeout');
+    expect(cycleList?.textContent).toContain('42 ms');
     expect(screen.getByText(/Nächster Write in 25 s/)).toBeTruthy();
   });
 
@@ -376,6 +381,46 @@ describe('Running — Live-Betriebs-View', () => {
     }
   });
 
+  it('shows the latest value next to each legend entry (Story 5.1c scope-extension)', async () => {
+    // Setup with grid_meter only so the legend has exactly one entry whose
+    // current value can be asserted unambiguously. The grid sensor delivers
+    // -150 W (export) — formatWatts rounds and renders "−150 W".
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      getDevicesMock.mockResolvedValue([
+        device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+      ]);
+      getStateSnapshotMock.mockResolvedValue(
+        snapshot({
+          current_mode: 'idle',
+          entities: [
+            {
+              entity_id: 'sensor.shelly_power',
+              state: -150,
+              unit: 'W',
+              role: 'grid_meter',
+              timestamp: '2026-04-25T12:00:00Z',
+            },
+          ],
+        }),
+      );
+
+      const { container } = render(Running);
+      await flushPolling();
+      await vi.advanceTimersByTimeAsync(1000);
+      await flushPolling();
+
+      const legend = container.querySelector('.chart-legend');
+      expect(legend).toBeTruthy();
+      const value = legend?.querySelector('.legend-value');
+      // formatWatts uses U+2212 mathematical minus, not ASCII hyphen, but we
+      // assert via a regex that accepts any minus-like char to stay robust.
+      expect(value?.textContent).toMatch(/[−-]?150 W/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('omits the update indicator before the first snapshot lands', async () => {
     // AC 8: solange noch kein Snapshot eingetroffen ist, zeigt der Indikator
     // weder Dot noch Text. Mock returns hanging promise from the start.
@@ -390,9 +435,7 @@ describe('Running — Live-Betriebs-View', () => {
 
   // Story 2.6 — Funktionstest-erforderlich-Banner.
   it('renders the refunctional-test banner when a control device is uncommissioned', async () => {
-    getDevicesMock.mockResolvedValue([
-      device({ id: 1, role: 'wr_limit', commissioned_at: null }),
-    ]);
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit', commissioned_at: null })]);
     getStateSnapshotMock.mockResolvedValue(snapshot());
 
     render(Running);

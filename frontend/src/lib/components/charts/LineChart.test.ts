@@ -69,4 +69,52 @@ describe('LineChart', () => {
     expect(html).toContain('−5 s');
     expect(html).not.toContain('−10.0 s');
   });
+
+  it('renders y-axis labels in watt units', () => {
+    // Make a series whose values span 0 ... 100 so the Y-axis tick labels
+    // become predictable: max 100, mid 50, min 0.
+    const data = Array.from({ length: 5 }, (_, i) => ({
+      t: now - (5 - i) * 800,
+      v: i * 25,
+    }));
+    const series: ChartSeries[] = [{ label: 'A', color: 'teal', data }];
+    const { html } = render(LineChart, { props: { series, windowMs, now } });
+    expect(html).toContain('100 W');
+    expect(html).toContain('50 W');
+    expect(html).toContain('0 W');
+  });
+
+  it('switches to kW units for values ≥ 1000 W', () => {
+    const data = Array.from({ length: 5 }, (_, i) => ({
+      t: now - (5 - i) * 800,
+      v: 500 + i * 500,
+    }));
+    const series: ChartSeries[] = [{ label: 'A', color: 'teal', data }];
+    const { html } = render(LineChart, { props: { series, windowMs, now } });
+    // max = 2500 → "2.5 kW", min = 500 → "500 W".
+    expect(html).toContain('2.5 kW');
+    expect(html).toContain('500 W');
+  });
+
+  it('renders a zero-line whenever the value range crosses zero', () => {
+    const data = [
+      { t: now - 4000, v: -200 },
+      { t: now - 2000, v: 100 },
+      { t: now - 500, v: 300 },
+    ];
+    const series: ChartSeries[] = [{ label: 'A', color: 'teal', data }];
+    const { html } = render(LineChart, { props: { series, windowMs, now } });
+    expect(html).toContain('zero-line');
+  });
+
+  it('omits the zero-line when all values are positive', () => {
+    const data = [
+      { t: now - 4000, v: 100 },
+      { t: now - 2000, v: 200 },
+      { t: now - 500, v: 300 },
+    ];
+    const series: ChartSeries[] = [{ label: 'A', color: 'teal', data }];
+    const { html } = render(LineChart, { props: { series, windowMs, now } });
+    expect(html).not.toContain('zero-line');
+  });
 });

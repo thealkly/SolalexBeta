@@ -1,6 +1,6 @@
 # Story 5.1d: Live-Betrieb mit Klartext-Diagnose und erweiterten Status-Infos
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Erstellt 2026-04-25 nach Smoke-Test Alex' lokales HA-Setup. Beobachtung: aktuelle Running.svelte zeigt nur kryptische "noop"-Zeilen ohne Begründung; User kann nicht erkennen, ob Solalex im Toleranzbereich, ohne Wechselrichter, ohne SoC oder mit kaputtem Sensor läuft. Liste auf 10 Einträge gedeckelt — Scroll-Container nutzlos. Beta-Tester werden ohne diese Klartext-Anzeige weder verstehen, ob das System läuft, noch was es gerade tut. Beta-Launch-blocking. -->
 
