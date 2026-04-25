@@ -99,6 +99,24 @@ Wichtig fuer Home Assistant Pulls:
   `solalexbeta-aarch64` auf **Public** stehen, sonst liefert GHCR beim
   anonymen Token-Request `401 Unauthorized`.
 
+### Vollautomatisches Release nach jedem Commit auf `main`
+
+Ab jetzt gibt es zusaetzlich den Workflow
+`.github/workflows/auto-release-on-main.yml`:
+
+- Trigger: jeder Push auf `main`
+- berechnet automatisch die naechste Version (`vX.Y.Z`)
+- setzt `addon/config.yaml` auf die neue Version
+- erstellt Auto-Commit + Tag
+- pusht Commit + Tag nach `solalex_development`
+- spiegelt Commit + Tag nach `thealkly/SolalexBeta`
+- die bestehende `release.yml` baut dann wie gehabt die Images und erzeugt
+  Release-Notes
+
+Erforderlich ist ein Repo-Secret im Development-Repo:
+- `SOLALEX_BETA_PUSH_TOKEN` (GitHub PAT mit `repo`-Recht), damit der
+  Workflow in `thealkly/SolalexBeta` pushen darf.
+
 ## Lizenz
 
 Proprietär — siehe [LICENSE](LICENSE). Source ist zur Auditierbarkeit offen, aber

@@ -1,0 +1,107 @@
+name: auto-release-on-main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release-main
+  cancel-in-progress: false
+
+jobs:
+  auto-release:
+    if: ${{ github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute next release version
+        id: version
+        run: |
+          python3 - <<'PY'
+          import re
+          import subprocess
+
+          tags = subprocess.check_output(
+              ['git', 'tag', '--list', 'v*.*.*'], text=True
+          ).splitlines()
+
+          versions = []
+          for tag in tags:
+              m = re.fullmatch(r'v(\d+)\.(\d+)\.(\d+)', tag.strip())
+              if m:
+                  versions.append(tuple(int(x) for x in m.groups()))
+
+          if versions:
+              major, minor, patch = max(versions)
+          else:
+              major, minor, patch = (0, 1, 0)
+
+          next_version = f"{major}.{minor}.{patch + 1}"
+          with open('/tmp/release_version.txt', 'w', encoding='utf-8') as f:
+              f.write(next_version)
+          print(f"next_version={next_version}")
+          PY
+
+          NEXT_VERSION="$(cat /tmp/release_version.txt)"
+          echo "version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Update addon manifest version
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import re
+
+          version = '${{ steps.version.outputs.version }}'
+          path = pathlib.Path('addon/config.yaml')
+          text = path.read_text(encoding='utf-8')
+          updated, count = re.subn(
+              r'^version:\s*".*"$',
+              f'version: "{version}"',
+              text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit('Could not update version in addon/config.yaml')
+          path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Commit and tag release
+        run: |
+          git add addon/config.yaml
+          if git diff --cached --quiet; then
+            echo "No version change to commit; exiting."
+            exit 0
+          fi
+
+          git commit -m "chore(release): ${{ steps.version.outputs.version }} [skip ci]"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin HEAD:main
+          git push origin "refs/tags/${{ steps.version.outputs.tag }}"
+
+      - name: Sync commit and tag to SolalexBeta
+        env:
+          BETA_PUSH_TOKEN: ${{ secrets.SOLALEX_BETA_PUSH_TOKEN }}
+        run: |
+          if [ -z "${BETA_PUSH_TOKEN}" ]; then
+            echo "Missing required repo secret: SOLALEX_BETA_PUSH_TOKEN"
+            echo "Create a classic PAT with repo scope and add it as Actions secret."
+            exit 1
+          fi
+
+          BETA_REMOTE="https://x-access-token:${BETA_PUSH_TOKEN}@github.com/thealkly/SolalexBeta.git"
+          git push "${BETA_REMOTE}" HEAD:main
+          git push "${BETA_REMOTE}" "refs/tags/${{ steps.version.outputs.tag }}"
