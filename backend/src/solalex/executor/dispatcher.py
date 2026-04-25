@@ -38,6 +38,50 @@ from solalex.state_cache import StateCache
 
 _logger = get_logger(__name__)
 
+# Keys that must never appear in DEBUG payloads even if an adapter or
+# upstream caller injects them into a HA service_data dict. We redact
+# rather than drop so the structural shape stays predictable for the
+# diagnose-export consumer (Story 4.5).
+_SENSITIVE_PAYLOAD_KEYS: frozenset[str] = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "auth_token",
+        "authorization",
+        "bearer",
+        "password",
+        "secret",
+        "supervisor_token",
+        "token",
+    }
+)
+
+
+def _sanitize_service_data(service_data: object) -> object:
+    if not isinstance(service_data, dict):
+        return service_data
+    return {
+        key: ("<redacted>" if key.lower() in _SENSITIVE_PAYLOAD_KEYS else value)
+        for key, value in service_data.items()
+    }
+
+
+def _debug_stage(stage: str, decision: str, /, **fields: object) -> None:
+    """Emit a `dispatch_stage` DEBUG record only when DEBUG is enabled.
+
+    AC 13: extra-dict construction must be skipped when the level filters
+    the record. The stdlib `logging.debug(...)` call would only filter the
+    record after the kwargs are evaluated, so wrap the build in an
+    explicit `isEnabledFor` guard.
+    """
+    if not _logger.isEnabledFor(logging.DEBUG):
+        return
+    _logger.debug(
+        "dispatch_stage",
+        extra={"stage": stage, "decision": decision, **fields},
+    )
+
+
 CommandKind = Literal["set_limit", "set_charge"]
 DispatchStatus = Literal["passed", "failed", "timeout", "vetoed"]
 
@@ -155,31 +199,25 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             reason=f"unknown_adapter: {decision.device.adapter_key!r}",
         )
         await _persist_cycle(ctx, cycle)
-        _logger.debug(
-            "dispatch_stage",
-            extra={
-                "stage": "adapter_lookup",
-                "decision": "block",
-                "device_id": cycle.device_id,
-                "adapter_key": decision.device.adapter_key,
-                "target_w": decision.target_value_w,
-                "reason": "unknown_adapter",
-            },
+        _debug_stage(
+            "adapter_lookup",
+            "block",
+            device_id=cycle.device_id,
+            adapter_key=decision.device.adapter_key,
+            target_w=decision.target_value_w,
+            reason="unknown_adapter",
         )
         _logger.warning(
             "dispatch_vetoed_unknown_adapter",
             extra={"device_id": cycle.device_id, "adapter_key": decision.device.adapter_key},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
-    _logger.debug(
-        "dispatch_stage",
-        extra={
-            "stage": "adapter_lookup",
-            "decision": "pass",
-            "device_id": decision.device.id,
-            "adapter_key": decision.device.adapter_key,
-            "target_w": decision.target_value_w,
-        },
+    _debug_stage(
+        "adapter_lookup",
+        "pass",
+        device_id=decision.device.id,
+        adapter_key=decision.device.adapter_key,
+        target_w=decision.target_value_w,
     )
 
     # --- Gate (a): Range check ---
@@ -243,35 +281,29 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             ),
         )
         await _persist_cycle(ctx, cycle)
-        _logger.debug(
-            "dispatch_stage",
-            extra={
-                "stage": "range_check",
-                "decision": "block",
-                "device_id": cycle.device_id,
-                "adapter_key": decision.device.adapter_key,
-                "target_w": decision.target_value_w,
-                "limit_min": limit_min,
-                "limit_max": limit_max,
-                "reason": "out_of_range",
-            },
+        _debug_stage(
+            "range_check",
+            "block",
+            device_id=cycle.device_id,
+            adapter_key=decision.device.adapter_key,
+            target_w=decision.target_value_w,
+            limit_min=limit_min,
+            limit_max=limit_max,
+            reason="out_of_range",
         )
         _logger.warning(
             "dispatch_vetoed_range",
             extra={"device_id": cycle.device_id, "reason": cycle.reason},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
-    _logger.debug(
-        "dispatch_stage",
-        extra={
-            "stage": "range_check",
-            "decision": "pass",
-            "device_id": decision.device.id,
-            "adapter_key": decision.device.adapter_key,
-            "target_w": decision.target_value_w,
-            "limit_min": limit_min,
-            "limit_max": limit_max,
-        },
+    _debug_stage(
+        "range_check",
+        "pass",
+        device_id=decision.device.id,
+        adapter_key=decision.device.adapter_key,
+        target_w=decision.target_value_w,
+        limit_min=limit_min,
+        limit_max=limit_max,
     )
 
     # --- Gate (b): Rate-limit (persistent) ---
@@ -304,35 +336,27 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             reason=reason,
         )
         await _persist_cycle(ctx, cycle)
-        _logger.debug(
-            "dispatch_stage",
-            extra={
-                "stage": "rate_limit",
-                "decision": "block",
-                "device_id": cycle.device_id,
-                "adapter_key": decision.device.adapter_key,
-                "target_w": decision.target_value_w,
-                "min_interval_s": min_interval_s,
-                "last_write_at": (
-                    last_write_at.isoformat() if last_write_at else None
-                ),
-            },
+        _debug_stage(
+            "rate_limit",
+            "block",
+            device_id=cycle.device_id,
+            adapter_key=decision.device.adapter_key,
+            target_w=decision.target_value_w,
+            min_interval_s=min_interval_s,
+            last_write_at=(last_write_at.isoformat() if last_write_at else None),
         )
         _logger.info(
             "dispatch_vetoed_rate_limit",
             extra={"device_id": cycle.device_id, "reason": reason},
         )
         return DispatchResult(status="vetoed", cycle=cycle, readback=None)
-    _logger.debug(
-        "dispatch_stage",
-        extra={
-            "stage": "rate_limit",
-            "decision": "pass",
-            "device_id": decision.device.id,
-            "adapter_key": decision.device.adapter_key,
-            "target_w": decision.target_value_w,
-            "min_interval_s": min_interval_s,
-        },
+    _debug_stage(
+        "rate_limit",
+        "pass",
+        device_id=decision.device.id,
+        adapter_key=decision.device.adapter_key,
+        target_w=decision.target_value_w,
+        min_interval_s=min_interval_s,
     )
 
     # --- Build + send the HA service call ---
@@ -345,27 +369,21 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
     # check and the actual send. If it dropped in-between, raise so the
     # fail-safe wrapper writes a vetoed row with no mark_write.
     if not ctx.ha_ws_connected_fn():
-        _logger.debug(
-            "dispatch_stage",
-            extra={
-                "stage": "ha_ws_recheck",
-                "decision": "block",
-                "device_id": decision.device.id,
-                "adapter_key": decision.device.adapter_key,
-                "target_w": decision.target_value_w,
-                "reason": "ha_ws_disconnected",
-            },
+        _debug_stage(
+            "ha_ws_recheck",
+            "block",
+            device_id=decision.device.id,
+            adapter_key=decision.device.adapter_key,
+            target_w=decision.target_value_w,
+            reason="ha_ws_disconnected",
         )
         raise RuntimeError("ha_ws_disconnected_between_check_and_send")
-    _logger.debug(
-        "dispatch_stage",
-        extra={
-            "stage": "ha_ws_recheck",
-            "decision": "pass",
-            "device_id": decision.device.id,
-            "adapter_key": decision.device.adapter_key,
-            "target_w": decision.target_value_w,
-        },
+    _debug_stage(
+        "ha_ws_recheck",
+        "pass",
+        device_id=decision.device.id,
+        adapter_key=decision.device.adapter_key,
+        target_w=decision.target_value_w,
     )
 
     if _logger.isEnabledFor(logging.DEBUG):
@@ -385,9 +403,7 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
                     if isinstance(command.service_data, dict)
                     else None
                 ),
-                "payload": dict(command.service_data)
-                if isinstance(command.service_data, dict)
-                else command.service_data,
+                "payload": _sanitize_service_data(command.service_data),
                 "expected_readback": decision.target_value_w,
             },
         )
@@ -458,19 +474,16 @@ async def dispatch(decision: PolicyDecision, ctx: DispatchContext) -> DispatchRe
             )
         await conn.commit()
 
-    _logger.debug(
-        "dispatch_stage",
-        extra={
-            "stage": "dispatch_complete",
-            "decision": "pass" if readback_result.status == "passed" else "block",
-            "device_id": cycle.device_id,
-            "adapter_key": decision.device.adapter_key,
-            "target_w": decision.target_value_w,
-            "readback_status": readback_result.status,
-            "actual_w": readback_result.actual_value_w,
-            "latency_ms": readback_result.latency_ms,
-            "cycle_duration_ms": cycle_duration_ms,
-        },
+    _debug_stage(
+        "dispatch_complete",
+        "pass" if readback_result.status == "passed" else "block",
+        device_id=cycle.device_id,
+        adapter_key=decision.device.adapter_key,
+        target_w=decision.target_value_w,
+        readback_status=readback_result.status,
+        actual_w=readback_result.actual_value_w,
+        latency_ms=readback_result.latency_ms,
+        cycle_duration_ms=cycle_duration_ms,
     )
     _logger.info(
         "dispatch_complete",

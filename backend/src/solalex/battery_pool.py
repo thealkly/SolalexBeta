@@ -196,6 +196,9 @@ class BatteryPool:
         Returns ``[]`` when every member is offline.
         """
         online = self._online_members(state_cache)
+        members_without_id = sum(
+            1 for m in self._members if m.charge_device.id is None
+        )
         if not online:
             if _logger.isEnabledFor(logging.DEBUG):
                 offline_ids = [
@@ -206,10 +209,13 @@ class BatteryPool:
                 _logger.debug(
                     "pool_set_setpoint",
                     extra={
-                        "pool_setpoint": watts,
+                        "requested_setpoint_w": watts,
+                        "applied": False,
                         "online_member_count": 0,
                         "per_member_setpoints": {},
+                        "offline_member_count": len(offline_ids),
                         "offline_member_ids": offline_ids,
+                        "members_without_id": members_without_id,
                     },
                 )
             return []
@@ -241,11 +247,13 @@ class BatteryPool:
             _logger.debug(
                 "pool_set_setpoint",
                 extra={
-                    "pool_setpoint": watts,
+                    "requested_setpoint_w": watts,
+                    "applied": True,
                     "online_member_count": n,
                     "per_member_setpoints": per_member,
                     "offline_member_count": len(offline_ids),
                     "offline_member_ids": offline_ids,
+                    "members_without_id": members_without_id,
                 },
             )
         return decisions

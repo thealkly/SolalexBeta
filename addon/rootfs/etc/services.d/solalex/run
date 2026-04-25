@@ -7,16 +7,33 @@ bashio::log.info "Solalex backend starting on ingress port ${SOLALEX_PORT:-8099}
 cd /opt/solalex
 
 # Read add-on option `log_level` and forward it as SOLALEX_LOG_LEVEL.
-# Pydantic-Settings validates the value against the allowed enum at startup.
-# Missing or empty option falls back to "info".
+# Normalize to lowercase + restrict to the allowed enum so Pydantic-Settings
+# never sees "DEBUG", "Debug", a tilde, or a manual-edit typo and crashes the
+# add-on at startup. Anything outside the whitelist falls back to "info" with
+# a bashio warning so the user sees what happened in the add-on log.
 SOLALEX_LOG_LEVEL_OPT="$(bashio::config 'log_level')"
-if [ -z "${SOLALEX_LOG_LEVEL_OPT}" ] || [ "${SOLALEX_LOG_LEVEL_OPT}" = "null" ]; then
-    SOLALEX_LOG_LEVEL_OPT="info"
+SOLALEX_LOG_LEVEL_OPT="$(printf '%s' "${SOLALEX_LOG_LEVEL_OPT}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+case "${SOLALEX_LOG_LEVEL_OPT}" in
+    debug|info|warning|error)
+        ;;
+    ""|"null"|"~")
+        SOLALEX_LOG_LEVEL_OPT="info"
+        ;;
+    *)
+        bashio::log.warning "Unbekanntes log_level '${SOLALEX_LOG_LEVEL_OPT}', falle auf 'info' zurueck."
+        SOLALEX_LOG_LEVEL_OPT="info"
+        ;;
+esac
+
+SOLALEX_ADDON_VERSION_OPT="$(bashio::addon.version)"
+if [ -z "${SOLALEX_ADDON_VERSION_OPT}" ] || [ "${SOLALEX_ADDON_VERSION_OPT}" = "null" ]; then
+    SOLALEX_ADDON_VERSION_OPT="unknown"
 fi
 
 export SOLALEX_DB_PATH="${SOLALEX_DB_PATH:-/data/solalex.db}"
 export SOLALEX_PORT="${SOLALEX_PORT:-8099}"
 export SOLALEX_LOG_LEVEL="${SOLALEX_LOG_LEVEL_OPT}"
+export SOLALEX_ADDON_VERSION="${SOLALEX_ADDON_VERSION_OPT}"
 export PYTHONPATH="/opt/solalex/src:${PYTHONPATH:-}"
 
 exec /opt/solalex/.venv/bin/uvicorn solalex.main:app \

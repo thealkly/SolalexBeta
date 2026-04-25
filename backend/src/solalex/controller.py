@@ -921,6 +921,10 @@ def _build_cycle_debug_extra(
         "entity_id": device.entity_id,
         "role": device.role,
         "source": source,
+        # Self-echo events (source == "solalex") emit a controller_cycle_decision
+        # DEBUG record but no control_cycles row — set this flag so diagnose
+        # consumers can correlate cleanly without joining timestamps.
+        "is_self_echo": source == "solalex",
         "mode": mode.value,
         "sensor_value_w": sensor_value_w,
         "derived_setpoint_w": derived_setpoint_w,

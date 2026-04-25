@@ -27,8 +27,19 @@ async def test_initialize_database_creates_file_and_enables_wal(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_run_startup_routes_log_level_into_logging(tmp_path: Path) -> None:
-    """Story 4.0 AC 4 — settings.log_level reaches configure_logging."""
+async def test_run_startup_routes_log_level_into_logging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Story 4.0 AC 4 — settings.log_level reaches configure_logging.
+
+    Hygiene: explicitly clear SOLALEX_LOG_LEVEL and SOLALEX_LOG_DIR so a
+    stray ENV from an earlier test or the host shell cannot override the
+    constructor params and produce a misleading false-pass / false-fail.
+    """
+    monkeypatch.delenv("SOLALEX_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SOLALEX_LOG_DIR", raising=False)
+    monkeypatch.delenv("SOLALEX_DB_PATH", raising=False)
+
     reset_logging_for_tests()
     try:
         settings = Settings(

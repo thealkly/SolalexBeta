@@ -25,23 +25,41 @@ log = get_logger(__name__)
 EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
-def _extract_subscribe_entity_id(payload: dict[str, Any]) -> str | None:
+def _coerce_entity_id_field(value: Any) -> str | None:
+    """Normalize an entity_id field (str | list[str]) to a single string.
+
+    HA accepts both shapes in a subscribe_trigger payload. For DEBUG-record
+    purposes we collapse a list into a comma-joined string so multi-entity
+    triggers stay searchable instead of falling through to ``None``.
+    """
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, list):
+        joined = ",".join(item for item in value if isinstance(item, str) and item)
+        return joined or None
+    return None
+
+
+def extract_subscribe_entity_id(payload: dict[str, Any]) -> str | None:
     """Best-effort entity_id read from a subscribe payload.
 
     HA accepts several shapes (``subscribe_trigger`` with a ``trigger`` block,
-    ``subscribe_events`` with bare data). When the entity is not derivable
+    ``subscribe_events`` with bare data) and the ``entity_id`` itself can be
+    either a string or a list of strings. When the entity is not derivable
     we return ``None`` and the caller falls back to ``payload_type`` so the
     debug record stays compact.
     """
     trigger = payload.get("trigger")
     if isinstance(trigger, dict):
-        eid = trigger.get("entity_id")
-        if isinstance(eid, str) and eid:
+        eid = _coerce_entity_id_field(trigger.get("entity_id"))
+        if eid is not None:
             return eid
-    eid = payload.get("entity_id")
-    if isinstance(eid, str) and eid:
-        return eid
-    return None
+    return _coerce_entity_id_field(payload.get("entity_id"))
+
+
+# Kept as a private alias so any in-tree imports continue to work; new
+# call-sites should use the public name above.
+_extract_subscribe_entity_id = extract_subscribe_entity_id
 
 # Upper bound for synchronous result-message replies (subscribe/call_service).
 # HA responds well under a second for these; 10 s is enough slack that a
@@ -114,34 +132,53 @@ class HaWebSocketClient:
             extra={"ha_version": auth_result.get("ha_version")},
         )
 
-    async def subscribe(self, payload: dict[str, Any]) -> int:
+    async def subscribe(
+        self,
+        payload: dict[str, Any],
+        *,
+        _action: str = "subscribe",
+        _persist: bool = True,
+    ) -> int:
         """Send a subscribe-style message and remember the payload for reconnects.
 
         The ``payload`` is the bare subscribe body without an ``id`` field —
         the client assigns and returns the fresh message ID. The supplied
         payload is stored verbatim so a re-subscribe after reconnect uses
         exactly the same trigger/event shape.
+
+        Internal kw-only parameters:
+            _action: tag for the DEBUG record. ``"subscribe"`` for normal calls,
+                ``"resubscribe"`` when invoked from the reconnect replay loop.
+                Keeps the diagnose-export to one DEBUG record per subscription
+                event instead of doubling on replay.
+            _persist: skip appending to ``_subscriptions`` when called from the
+                replay path — the payload is already in the list.
         """
         if self._ws is None:
             raise RuntimeError("client not connected")
         msg_id = self._next_id
         self._next_id += 1
         message = {"id": msg_id, **payload}
-        # Only persist after the send succeeds — a failed send shouldn't
-        # leave a phantom subscription that gets replayed on reconnect.
-        await self._ws.send(json.dumps(message))
-        self._subscriptions.append(payload)
         # Story 4.0 AC 12 — entity_id when derivable from the payload, else
         # only the payload type. Tokens and full WS frames are never logged.
-        log.debug(
-            "ha_ws_subscribe",
-            extra={
-                "action": "subscribe",
-                "subscription_id": msg_id,
-                "entity_id": _extract_subscribe_entity_id(payload),
-                "payload_type": payload.get("type"),
-            },
-        )
+        # Emit the DEBUG record either side of the send so a downstream WS
+        # failure still leaves a breadcrumb identifying the subscription.
+        debug_extra = {
+            "action": _action,
+            "subscription_id": msg_id,
+            "entity_id": extract_subscribe_entity_id(payload),
+            "payload_type": payload.get("type"),
+        }
+        try:
+            await self._ws.send(json.dumps(message))
+        except Exception:
+            log.debug("ha_ws_subscribe_failed", extra=debug_extra)
+            raise
+        # Only persist after the send succeeds — a failed send shouldn't
+        # leave a phantom subscription that gets replayed on reconnect.
+        if _persist:
+            self._subscriptions.append(payload)
+        log.debug("ha_ws_subscribe", extra=debug_extra)
         return msg_id
 
     async def get_states(self) -> list[dict[str, Any]]:

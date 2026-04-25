@@ -1,6 +1,6 @@
 # Story 4.0: Debug-Logging-Toggle & Hot-Path-Debug-Trace
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -122,6 +122,28 @@ so that ich Beta-Probleme über das HA-Add-on-Log-Tab live nachvollziehen kann o
   - [x] Backend: `mypy --strict`.
   - [x] Backend: `pytest`.
   - [x] SQL-Migrations-Ordering-Check bleibt unverändert; diese Story legt keine Migration an.
+
+### Review Findings (2026-04-25)
+
+- [x] [Review][Patch] Self-Echo-Events markieren statt unterdrücken [backend/src/solalex/controller.py:586 + _build_cycle_debug_extra:606-641] — DEBUG-Record bleibt erhalten (Decision: Beibehalten), aber zusätzliches Feld `is_self_echo: bool` ins `extra`-Dict aufnehmen, damit Diagnose-Konsumenten Self-Echos sauber von echten Cycles trennen können. Test entsprechend ergänzen.
+- [x] [Review][Decision-Resolved] AC7 nachschärfen: nur aktive/commissioned Devices — Decision: AC7 enger interpretieren als "ein Record pro Sensor-Event eines aktiven Devices". Early-Return-Pfade (uncommissioned, `test_in_progress`) bleiben unprotokolliert. Kein Code-Patch; AC-Wortlaut ggf. in Spec-Pflege schärfen.
+- [x] [Review][Patch] `dispatch_service_call_built` loggt rohes `service_data` ohne Whitelist [backend/src/solalex/executor/dispatcher.py:793-815] — Token-/Sensitiv-Daten-Leak-Risiko. AC9 verlangt explizit "keine Tokens, keine Secrets". `dict(command.service_data)` wird ungefiltert in DEBUG-Payload geschrieben. Test prüft nur zufällige String-Abwesenheit; künftige Adapter-Felder bleiben ungeschützt.
+- [x] [Review][Patch] `_normalize_level` akzeptiert beliebige Integer ohne Whitelist [backend/src/solalex/common/logging.py:478-479] — Verletzt deklarierte Public-Surface (`debug|info|warning|error`). Direkte Python-Aufrufe können `_normalize_level(99)` oder `_normalize_level(logging.CRITICAL)` durchschleusen, kontextfreier int-Pfad widerspricht der `ValueError`-Garantie aus dem Docstring.
+- [x] [Review][Patch] DEBUG-Records ohne `isEnabledFor`-Guard im Hot-Path verletzen AC13 [backend/src/solalex/executor/dispatcher.py:663,696,733,770,823 + executor/readback.py:852 + battery_pool.py get_soc] — alle 5 Dispatcher-Stages, `dispatch_complete`, `readback_compare` und `pool_get_soc` bauen ihre `extra={...}`-Dicts unconditional. Bei Level=info zahlen wir Dict-Allocations ohne Nutzen. AC13 verlangt explizit "keine teure Debug-Payload, wenn `isEnabledFor(DEBUG)` false ist".
+- [x] [Review][Patch] Pool empty-pool-Branch loggt asymmetrisches Schema [backend/src/solalex/battery_pool.py:374-393] — Empty-Branch fehlt `offline_member_count`, enthält aber `pool_setpoint=watts` obwohl kein Setpoint angewendet wurde. Diagnose-Export-Konsumenten (Story 4.5) müssen Felder als optional behandeln und sehen irreführende Setpoint-Werte.
+- [x] [Review][Patch] Pool-Members ohne `charge_device.id` werden silently aus DEBUG gefiltert [backend/src/solalex/battery_pool.py:398-407] — `online_member_count == n` (inkl. ID-loser), aber `per_member_setpoints` enthält weniger Einträge. Inkonsistente Aggregation; ID-lose Member sollten geloggt oder geblockt werden, nicht versteckt.
+- [x] [Review][Patch] Reconnect-Replay erzeugt zwei DEBUG-Records pro Subscription [backend/src/solalex/ha_client/reconnect.py:942-951 + client.py:903-911] — `_replay_subscriptions` ruft `subscribe()`, das selbst `action="subscribe"` loggt; Reconnect ergänzt `action="resubscribe"`. Bei flappy WS verdoppeltes Volumen.
+- [x] [Review][Patch] Replay-DEBUG bei Subscription-Failure verschluckt [backend/src/solalex/ha_client/reconnect.py:942-951] — Wenn `subscribe()` raised, gibt es weder Subscribe- noch Resubscribe-Trace. Diagnose-Lücke für genau die Failures, für die DEBUG existiert.
+- [x] [Review][Patch] `_extract_subscribe_entity_id` ignoriert HA-Listen-Form [backend/src/solalex/ha_client/client.py:876-892] — HA akzeptiert `entity_id: ["sensor.a", "sensor.b"]`. Nur `isinstance(eid, str)` wird geprüft → Liste fällt auf `None`, Debug-Record verliert Information.
+- [x] [Review][Patch] s6-run + Pydantic crashen Startup bei Großschreibung/Empty-String [addon/rootfs/etc/services.d/solalex/run + backend/src/solalex/config.py:547,556-563] — `SOLALEX_LOG_LEVEL=DEBUG` (Großschreibung), `""` oder Tippfehler crashen mit `ValidationError` statt Fallback. Fallback im s6-run greift nur bei leerem/`null`-bashio-Output. Lösung: s6-run normalisiert auf lowercase + whitelist-check before export, oder Pydantic-Validator akzeptiert case-insensitive.
+- [x] [Review][Patch] Privater `_extract_subscribe_entity_id`-Import in reconnect.py [backend/src/solalex/ha_client/reconnect.py:927-929] — Underscore-Prefix-Import quer durch Module bricht Lint-Konventionen. Helper als Public umbenennen oder in shared util verschieben.
+- [x] [Review][Patch] Controller-Cycle-DEBUG-Test deckt nur Noop-Pfad ab [backend/tests/unit/test_debug_traces.py:1221-1223] — Drossel-Branch (`len(decisions)==1` → `target_value_w`) und Speicher-Branch (`sum(...)`) der `_build_cycle_debug_extra`-Funktion werden nie ausgeführt. AC7-Coverage unvollständig.
+- [x] [Review][Patch] HA-WS-Test umgeht Mypy via `cast(object, _StubWs())` [backend/tests/unit/test_debug_traces.py:1511] — fragiles Setup, bricht bei Erweiterung von `subscribe()` (z. B. `recv` für Acks). Saubereres Mock oder `Protocol`-Typed Stub.
+- [x] [Review][Patch] `test_run_startup_routes_log_level_into_logging` zieht echte DB-Init mit + Env-Risiko [backend/tests/unit/test_startup.py:1557-1574] — Logging-Test schlägt aus dem falschen Grund fehl, wenn `initialize_database` raised. Kein `monkeypatch.delenv` für `SOLALEX_LOG_DIR`.
+- [x] [Review][Defer] Kein Test misst tatsächliches Idle-Volumen für AC13 — quantitativ schwer Unit-zu-testen, semantisch durch isEnabledFor-Patches mitgedeckt; in QA-Phase mit echtem Add-on-Run validieren.
+- [x] [Review][Defer] JSONFormatter `repr()`-Fallback verlustbehaftet bei nicht-serialisierbaren Werten [backend/src/solalex/common/logging.py:73-80] — pre-existing pattern, nicht durch diese Story eingeführt.
+- [x] [Review][Defer] `configure_logging` Idempotenz mit ersetzten `root.handlers` [backend/src/solalex/common/logging.py:507-515] — hypothetisch (Uvicorn könnte handlers ersetzen), in HA-Add-on-Kontext kein realistischer Pfad; Add-on-Restart resettet Prozess.
+- [x] [Review][Defer] `dispatch_service_call_built` ohne korrespondierenden `dispatch_complete` bei `call_service`-Exception [backend/src/solalex/executor/dispatcher.py:817-823] — orphan-event im Failure-Pfad; Diagnose-Export Story 4.5 muss korrelieren können, kein akuter Bug.
 
 ## Dev Notes
 

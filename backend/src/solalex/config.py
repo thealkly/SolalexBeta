@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["debug", "info", "warning", "error"]
@@ -44,12 +44,32 @@ class Settings(BaseSettings):
             "invalid values fail loud at startup."
         ),
     )
+    addon_version: str = Field(
+        default="unknown",
+        description="Home Assistant add-on version injected by the s6 service script.",
+    )
     port: int = Field(default=8099, ge=1, le=65535)
     supervisor_token: str | None = Field(
         default=None,
         description="Injected by HA Supervisor. Not yet consumed in Story 1.1.",
         validation_alias=AliasChoices("SUPERVISOR_TOKEN", "SOLALEX_SUPERVISOR_TOKEN"),
     )
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _normalize_log_level(cls, raw: object) -> object:
+        """Defensive coercion so a manually-set ENV like ``SOLALEX_LOG_LEVEL=DEBUG``
+        or an empty string from a botched export does not crash the add-on.
+
+        - lowercases strings
+        - treats empty/whitespace strings as "use default" (returns the
+          dataclass default sentinel, i.e. drops to ``"info"``)
+        - leaves the Literal-validation in charge of rejecting genuine typos
+        """
+        if isinstance(raw, str):
+            stripped = raw.strip().lower()
+            return stripped if stripped else "info"
+        return raw
 
 
 @lru_cache(maxsize=1)

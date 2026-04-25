@@ -207,3 +207,10 @@ Beim Review am 2026-04-23 bewusst aus dem Patch-Batch ausgelassen (siehe Story-2
 - **Marstek-Tile nicht disabled wenn `socEntities.length === 0`** (`frontend/src/routes/Config.svelte:133-141`) — User kann Marstek wählen obwohl Save sowieso disabled bleibt. UX-Polish.
 - **Functional-Test Target-Priorität generic > marstek** (`backend/src/solalex/api/routes/setup.py:170-187`) — hybrider Setup (Hoymiles + Marstek) testet nur Inverter, kein UI-Pfad für Marstek-only-Test. Pre-existing edge.
 - **`parse_readback` "unavailable"/"unknown" nicht distinkt von Junk-Werten** (`backend/src/solalex/adapters/generic.py:60-66`, `generic_meter.py:53-60`) — beide → `None`. Readback-Layer kann transient (HA temporarily down) nicht von permanent (config-Bug) unterscheiden.
+
+## Deferred from: code review of 4-0-debug-logging-toggle (2026-04-25)
+
+- Kein Test misst tatsächliches Idle-Volumen für AC13 — quantitativ schwer Unit-zu-testen, semantisch durch isEnabledFor-Patches mitgedeckt; in QA-Phase mit echtem Add-on-Run validieren.
+- JSONFormatter `repr()`-Fallback verlustbehaftet bei nicht-serialisierbaren Werten [backend/src/solalex/common/logging.py:73-80] — pre-existing pattern, nicht durch diese Story eingeführt.
+- `configure_logging` Idempotenz mit ersetzten `root.handlers` [backend/src/solalex/common/logging.py:507-515] — hypothetisch (Uvicorn könnte handlers ersetzen), in HA-Add-on-Kontext kein realistischer Pfad.
+- `dispatch_service_call_built` ohne korrespondierenden `dispatch_complete` bei `call_service`-Exception [backend/src/solalex/executor/dispatcher.py:817-823] — orphan-event im Failure-Pfad; Story 4.5 muss korrelieren können.

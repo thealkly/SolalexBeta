@@ -17,6 +17,7 @@ exit on a fresh state — the full 15 s is only consumed on true timeouts.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -206,17 +207,20 @@ async def verify_readback(
     # readback (success and failure). Lives next to the WARN/ERROR paths
     # for timeout/unavailable/non-numeric so all readback outcomes are
     # observable at DEBUG without altering existing higher-level logs.
-    _logger.debug(
-        "readback_compare",
-        extra={
-            "entity_id": device.entity_id,
-            "expected": expected_value_w,
-            "observed": actual_w,
-            "delta": diff,
-            "tolerance_w": tolerance_w,
-            "within_tolerance": passed,
-        },
-    )
+    # AC 13 — extra-dict construction is guarded so info-level runs do not
+    # pay for the build on every dispatch.
+    if _logger.isEnabledFor(logging.DEBUG):
+        _logger.debug(
+            "readback_compare",
+            extra={
+                "entity_id": device.entity_id,
+                "expected": expected_value_w,
+                "observed": actual_w,
+                "delta": diff,
+                "tolerance_w": tolerance_w,
+                "within_tolerance": passed,
+            },
+        )
 
     _logger.info(
         "readback_result",

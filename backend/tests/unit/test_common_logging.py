@@ -41,6 +41,16 @@ def test_normalize_level_accepts_int() -> None:
     assert _normalize_level(logging.WARNING) == logging.WARNING
 
 
+def test_normalize_level_rejects_unknown_int() -> None:
+    """Public surface is the four enum values — `_normalize_level(99)` or
+    `_normalize_level(logging.CRITICAL)` must fail loud, not silently pass.
+    """
+    with pytest.raises(ValueError, match="unsupported log level"):
+        _normalize_level(99)
+    with pytest.raises(ValueError, match="unsupported log level"):
+        _normalize_level(logging.CRITICAL)
+
+
 def test_normalize_level_rejects_unknown_string() -> None:
     with pytest.raises(ValueError, match="unsupported log level"):
         _normalize_level("verbose")

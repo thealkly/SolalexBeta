@@ -97,6 +97,87 @@ async def test_controller_emits_one_cycle_decision_debug_per_event(
     assert _extra(rec, "derived_setpoint_w") is None
     assert _extra(rec, "command_kinds") == []
     assert isinstance(_extra(rec, "pipeline_ms"), int)
+    # `is_self_echo` is always present and matches `source == "solalex"`.
+    assert _extra(rec, "is_self_echo") == (_extra(rec, "source") == "solalex")
+
+
+def test_build_cycle_debug_extra_drossel_branch_uses_single_target() -> None:
+    """AC 7 — Drossel-Branch (one decision) reports its target watt directly."""
+    from solalex.controller import _build_cycle_debug_extra
+
+    device = DeviceRecord(
+        id=1,
+        adapter_key="generic",
+        type="wr_drossel",
+        role="wr_limit",
+        entity_id="number.test",
+        config_json="{}",
+    )
+    decision = PolicyDecision(
+        device=device, target_value_w=420, mode="drossel", command_kind="set_limit"
+    )
+    extra = _build_cycle_debug_extra(
+        device=device,
+        source="manual",
+        mode=Mode.DROSSEL,
+        sensor_value_w=300.0,
+        decisions=[decision],
+        pipeline_ms=12,
+    )
+    assert extra["decision_count"] == 1
+    assert extra["derived_setpoint_w"] == 420
+    assert extra["command_kinds"] == ["set_limit"]
+    assert extra["is_self_echo"] is False
+
+
+def test_build_cycle_debug_extra_speicher_branch_sums_pool_targets() -> None:
+    """AC 7 — Speicher-Branch (multiple decisions) reports the sum across pool members."""
+    from solalex.controller import _build_cycle_debug_extra
+
+    device = DeviceRecord(
+        id=1,
+        adapter_key="generic",
+        type="wr_speicher",
+        role="meter_grid",
+        entity_id="sensor.grid",
+        config_json="{}",
+    )
+    pool_member_a = DeviceRecord(
+        id=2,
+        adapter_key="marstek_venus",
+        type="wr_charge",
+        role="wr_charge",
+        entity_id="number.bat_a",
+        config_json="{}",
+    )
+    pool_member_b = DeviceRecord(
+        id=3,
+        adapter_key="marstek_venus",
+        type="wr_charge",
+        role="wr_charge",
+        entity_id="number.bat_b",
+        config_json="{}",
+    )
+    decisions = [
+        PolicyDecision(
+            device=pool_member_a, target_value_w=300, mode="speicher", command_kind="set_charge"
+        ),
+        PolicyDecision(
+            device=pool_member_b, target_value_w=200, mode="speicher", command_kind="set_charge"
+        ),
+    ]
+    extra = _build_cycle_debug_extra(
+        device=device,
+        source="solalex",
+        mode=Mode.SPEICHER,
+        sensor_value_w=-500.0,
+        decisions=decisions,
+        pipeline_ms=15,
+    )
+    assert extra["decision_count"] == 2
+    assert extra["derived_setpoint_w"] == 500
+    assert extra["command_kinds"] == ["set_charge"]
+    assert extra["is_self_echo"] is True
 
 
 @pytest.mark.asyncio
@@ -236,6 +317,32 @@ async def test_dispatcher_happy_path_emits_service_call_built(
     assert "access_token" not in payload_text.lower()
 
 
+def test_sanitize_service_data_redacts_known_secret_keys() -> None:
+    """Defensive sanitizing: even if an adapter accidentally bundles a known
+    secret key into ``service_data``, the DEBUG payload redacts the value
+    while keeping the structural shape intact for diagnose consumers.
+    """
+    from solalex.executor.dispatcher import _sanitize_service_data
+
+    sanitized = _sanitize_service_data(
+        {
+            "entity_id": "number.x",
+            "value": 50,
+            "access_token": "leaked",
+            "Supervisor_Token": "also-leaked",
+            "nested": {"password": "passthrough-not-deep-redacted"},
+        }
+    )
+    assert isinstance(sanitized, dict)
+    assert sanitized["entity_id"] == "number.x"
+    assert sanitized["value"] == 50
+    assert sanitized["access_token"] == "<redacted>"
+    assert sanitized["Supervisor_Token"] == "<redacted>"
+    # Deep nesting is intentionally NOT redacted in v1 — adapters must not
+    # nest secrets, and the recursive variant has different perf trade-offs.
+    assert sanitized["nested"] == {"password": "passthrough-not-deep-redacted"}
+
+
 # ---------------------------------------------------------------------------
 # Readback — `readback_compare` even on success.
 # ---------------------------------------------------------------------------
@@ -330,9 +437,12 @@ def test_battery_pool_set_setpoint_emits_pool_debug(
     setpoint_records = [r for r in caplog.records if r.message == "pool_set_setpoint"]
     assert len(setpoint_records) == 1
     rec = setpoint_records[0]
-    assert _extra(rec, "pool_setpoint") == 800
+    assert _extra(rec, "requested_setpoint_w") == 800
+    assert _extra(rec, "applied") is True
     assert _extra(rec, "online_member_count") == 1
     assert _extra(rec, "per_member_setpoints") == {1: 800}
+    assert _extra(rec, "offline_member_count") == 0
+    assert _extra(rec, "members_without_id") == 0
 
 
 def test_battery_pool_get_soc_emits_pool_debug(
@@ -373,17 +483,8 @@ async def test_ha_ws_subscribe_emits_debug_record_with_entity_id(
     """AC 12 — subscribe DEBUG includes action + subscription_id + entity_id."""
     from solalex.ha_client.client import HaWebSocketClient
 
-    sent: list[str] = []
-
-    class _StubWs:
-        async def send(self, message: str) -> None:
-            sent.append(message)
-
-        async def close(self) -> None:
-            pass
-
     client = HaWebSocketClient(token="THIS_IS_A_SECRET", url="ws://x")
-    client._ws = cast(object, _StubWs())  # type: ignore[assignment]
+    client._ws = _make_stub_ws()  # type: ignore[assignment]
     payload = {
         "type": "subscribe_trigger",
         "trigger": {"platform": "state", "entity_id": "sensor.shelly_grid_power"},
@@ -402,3 +503,85 @@ async def test_ha_ws_subscribe_emits_debug_record_with_entity_id(
         {k: _extra(rec, k) for k in ("action", "subscription_id", "entity_id", "payload_type")}
     )
     assert "THIS_IS_A_SECRET" not in serialised
+
+
+@pytest.mark.asyncio
+async def test_ha_ws_subscribe_supports_list_entity_id(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`extract_subscribe_entity_id` collapses a list of entity_ids into a
+    comma-joined string instead of falling through to ``None``.
+    """
+    from solalex.ha_client.client import HaWebSocketClient
+
+    client = HaWebSocketClient(token="x", url="ws://x")
+    client._ws = _make_stub_ws()  # type: ignore[assignment]
+    payload = {
+        "type": "subscribe_trigger",
+        "trigger": {
+            "platform": "state",
+            "entity_id": ["sensor.a", "sensor.b"],
+        },
+    }
+    with caplog.at_level(logging.DEBUG, logger="solalex.ha_client.client"):
+        await client.subscribe(payload)
+
+    subs = [r for r in caplog.records if r.message == "ha_ws_subscribe"]
+    assert len(subs) == 1
+    assert _extra(subs[0], "entity_id") == "sensor.a,sensor.b"
+
+
+@pytest.mark.asyncio
+async def test_ha_ws_subscribe_failure_emits_debug_then_reraises(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """If the WS send raises, a `ha_ws_subscribe_failed` DEBUG breadcrumb is
+    emitted before the exception propagates so diagnose-export can see the
+    intent that did not make it onto the wire.
+    """
+    from solalex.ha_client.client import HaWebSocketClient
+
+    class _RaisingWs:
+        async def send(self, message: str) -> None:
+            raise RuntimeError("connection reset")
+
+        async def close(self) -> None:
+            pass
+
+    client = HaWebSocketClient(token="x", url="ws://x")
+    client._ws = _RaisingWs()  # type: ignore[assignment]
+    payload = {
+        "type": "subscribe_trigger",
+        "trigger": {"platform": "state", "entity_id": "sensor.x"},
+    }
+    with (
+        caplog.at_level(logging.DEBUG, logger="solalex.ha_client.client"),
+        pytest.raises(RuntimeError, match="connection reset"),
+    ):
+        await client.subscribe(payload)
+
+    failed = [r for r in caplog.records if r.message == "ha_ws_subscribe_failed"]
+    assert len(failed) == 1
+    assert _extra(failed[0], "entity_id") == "sensor.x"
+    # The success-path DEBUG record must NOT be emitted when the send raised.
+    assert all(r.message != "ha_ws_subscribe" for r in caplog.records)
+    # And the subscription must not have been persisted (no phantom replay).
+    assert client.subscriptions == []
+
+
+def _make_stub_ws() -> object:
+    """Test-local helper: minimal `Protocol`-compatible stub for `client._ws`.
+
+    Defined as a function instead of `cast(object, _StubWs())` at the call
+    site so the `# type: ignore[assignment]` only covers the mypy-private
+    `_ws` attribute, not the stub class itself.
+    """
+
+    class _StubWs:
+        async def send(self, message: str) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    return _StubWs()

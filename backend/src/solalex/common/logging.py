@@ -90,6 +90,12 @@ def _normalize_level(level: int | str) -> int:
     set raise ``ValueError`` instead of silently degrading to INFO.
     """
     if isinstance(level, int) and not isinstance(level, bool):
+        if level not in _LEVEL_NAME_TO_INT.values():
+            raise ValueError(
+                f"unsupported log level {level!r} — "
+                f"expected one of {sorted(_LEVEL_NAME_TO_INT)} "
+                f"(int values {sorted(_LEVEL_NAME_TO_INT.values())})"
+            )
         return level
     if isinstance(level, str):
         try:
