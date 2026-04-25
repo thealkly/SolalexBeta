@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import Running from './Running.svelte';
-import type { DeviceResponse, RecentCycle, StateSnapshot } from '../lib/api/types.js';
+import type {
+  DeviceResponse,
+  EntitySnapshot,
+  RecentCycle,
+  StateSnapshot,
+} from '../lib/api/types.js';
 
 // Mock the fetch-based client helpers so the component exercises pure render
 // logic against a controlled StateSnapshot stream — no backend needed.
@@ -48,6 +53,34 @@ function cycle(overrides: Partial<RecentCycle> = {}): RecentCycle {
     target_value_w: 100,
     readback_status: 'passed',
     latency_ms: 50,
+    reason: null,
+    ...overrides,
+  };
+}
+
+function entity(overrides: Partial<EntitySnapshot>): EntitySnapshot {
+  // Story 5.1d adds ``effective_value_w`` and ``display_label`` to every
+  // EntitySnapshot — provide sensible defaults so existing tests don't have
+  // to repeat the boilerplate.
+  const role = overrides.role ?? 'unknown';
+  const stateNum =
+    typeof overrides.state === 'number' && Number.isFinite(overrides.state)
+      ? overrides.state
+      : null;
+  const labelByRole: Record<string, string> = {
+    grid_meter: 'Netz-Leistung',
+    wr_limit: 'Wechselrichter-Limit',
+    wr_charge: 'Akku-Ladeleistung',
+    battery_soc: 'Akku-SoC',
+  };
+  return {
+    entity_id: 'sensor.test',
+    state: 0,
+    unit: 'W',
+    role,
+    timestamp: '2026-04-25T12:00:00Z',
+    effective_value_w: stateNum,
+    display_label: labelByRole[role] ?? null,
     ...overrides,
   };
 }
@@ -60,6 +93,8 @@ function snapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
     current_mode: 'idle',
     recent_cycles: [],
     rate_limit_status: [],
+    ha_ws_connected: true,
+    ha_ws_disconnected_since: null,
     ...overrides,
   };
 }
@@ -130,7 +165,8 @@ describe('Running — Live-Betriebs-View', () => {
     expect(cycleList).toBeTruthy();
     expect(cycleList?.textContent).toContain('310 W');
     expect(cycleList?.textContent).toContain('300 W');
-    expect(cycleList?.textContent).toContain('timeout');
+    // Story 5.1d — status spalte zeigt deutsche Klartext-Begriffe.
+    expect(cycleList?.textContent).toContain('Timeout');
     expect(cycleList?.textContent).toContain('42 ms');
     expect(screen.getByText(/Nächster Write in 25 s/)).toBeTruthy();
   });
@@ -197,10 +233,10 @@ describe('Running — Live-Betriebs-View', () => {
     expect(screen.queryByText(/Nächster Write in 55 s/)).toBeNull();
   });
 
-  it('caps the cycles list at ten entries even when the payload carries more', async () => {
-    // AC 14: even if the backend ever ships more than 10 cycles the UI must
-    // stay bounded. Exercises the `.slice(0, 10)` guard in `recentCycles`.
-    const eleven = Array.from({ length: 11 }, (_, i) =>
+  it('caps the cycles list at fifty entries even when the payload carries more', async () => {
+    // Story 5.1d AC 5 — limit raised from 10 to 50; the existing CSS scroll
+    // window now covers the longer history. Frontend slice(0, 50) gates this.
+    const fiftyOne = Array.from({ length: 51 }, (_, i) =>
       cycle({
         device_id: 1,
         target_value_w: 100 + i,
@@ -210,14 +246,14 @@ describe('Running — Live-Betriebs-View', () => {
     );
     getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
     getStateSnapshotMock.mockResolvedValue(
-      snapshot({ current_mode: 'drossel', recent_cycles: eleven }),
+      snapshot({ current_mode: 'drossel', recent_cycles: fiftyOne }),
     );
 
     const { container } = render(Running);
     await flushPolling();
 
     const rows = container.querySelectorAll('.cycle-list .cycle-row');
-    expect(rows.length).toBe(10);
+    expect(rows.length).toBe(50);
   });
 
   it('renders three chart series (grid / target / readback) when all data flows', async () => {
@@ -235,20 +271,18 @@ describe('Running — Live-Betriebs-View', () => {
         snapshot({
           current_mode: 'drossel',
           entities: [
-            {
+            entity({
               entity_id: 'sensor.shelly_power',
               state: -123,
-              unit: 'W',
               role: 'grid_meter',
               timestamp: '2026-04-24T12:00:00Z',
-            },
-            {
+            }),
+            entity({
               entity_id: 'number.wr_limit',
               state: 200,
-              unit: 'W',
               role: 'wr_limit',
               timestamp: '2026-04-24T12:00:00Z',
-            },
+            }),
           ],
           recent_cycles: [cycle({ device_id: 1, target_value_w: 310 })],
         }),
@@ -394,13 +428,12 @@ describe('Running — Live-Betriebs-View', () => {
         snapshot({
           current_mode: 'idle',
           entities: [
-            {
+            entity({
               entity_id: 'sensor.shelly_power',
               state: -150,
-              unit: 'W',
               role: 'grid_meter',
               timestamp: '2026-04-25T12:00:00Z',
-            },
+            }),
           ],
         }),
       );
@@ -454,5 +487,269 @@ describe('Running — Live-Betriebs-View', () => {
     await flushPolling();
 
     expect(screen.queryByTestId('refunctional-test-banner')).toBeNull();
+  });
+
+  // ------------------------------------------------------------------
+  // Story 5.1d — Klartext-Diagnose im Live-Betrieb
+  // ------------------------------------------------------------------
+
+  // AC 2 — Status-Spalte mappt Backend-Tupel auf deutsche Labels.
+  describe.each([
+    ['passed', null, 'Übernommen', 'passed'],
+    ['failed', null, 'Fehlgeschlagen', 'failed'],
+    ['timeout', null, 'Timeout', 'timeout'],
+    ['vetoed', 'fail_safe: ha_ws_disconnected', 'Fail-Safe', 'vetoed'],
+    ['vetoed', 'rate_limit: too soon', 'Abgelehnt', 'vetoed'],
+    ['noop', 'noop: deadband (smoothed=12w, deadband=20w)', 'Im Toleranzbereich', 'noop-deadband'],
+    ['noop', 'noop: kein_wr_limit_device', 'Kein Wechselrichter', 'noop-no-wr'],
+    [
+      'noop',
+      'noop: min_step_nicht_erreicht (delta=10w, min=20w)',
+      'Schritt zu klein',
+      'noop-min-step',
+    ],
+    ['noop', 'noop: kein_soc_messwert', 'SoC fehlt', 'noop-no-soc'],
+    ['noop', 'noop: nicht_grid_meter_event', 'Beobachtung', 'noop-other'],
+    ['noop', null, 'Beobachtung', 'noop-other'],
+    ['noop', 'mode_switch: drossel→speicher (pool_below)', 'Mode-Wechsel', 'noop-mode-switch'],
+    ['noop', 'hardware_edit: replace (...)', 'Hardware geändert', 'noop-hardware-edit'],
+    ['noop', 'noop: max_soc_erreicht (aggregated=99%)', 'Max-SoC erreicht', 'noop-max-soc'],
+    ['noop', 'noop: min_soc_erreicht (aggregated=10%)', 'Min-SoC erreicht', 'noop-min-soc'],
+    ['noop', 'noop: nacht_gate_aktiv', 'Nacht-Modus aktiv', 'noop-night-gate'],
+    ['noop', 'noop: wr_limit_state_cache_miss', 'WR-Status fehlt', 'noop-no-wr-state'],
+    ['noop', 'noop: sensor_nicht_numerisch', 'Sensor-Wert ungültig', 'noop-sensor-bad'],
+    ['noop', 'noop: kein_akku_pool', 'Kein Akku', 'noop-no-pool'],
+  ])('cycle status-mapping for [%s | %s]', (status, reason, expectedLabel, expectedDataStatus) => {
+    it(`renders "${expectedLabel}" with data-status="${expectedDataStatus}"`, async () => {
+      getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+      getStateSnapshotMock.mockResolvedValue(
+        snapshot({
+          current_mode: 'drossel',
+          recent_cycles: [
+            cycle({
+              readback_status: status as RecentCycle['readback_status'],
+              reason,
+              target_value_w: status === 'passed' ? 100 : null,
+              sensor_value_w: 12,
+            }),
+          ],
+        }),
+      );
+
+      const { container } = render(Running);
+      await flushPolling();
+
+      const span = container.querySelector(`.cycle-readback[data-status="${expectedDataStatus}"]`);
+      expect(span).toBeTruthy();
+      expect(span?.textContent?.trim()).toBe(expectedLabel);
+    });
+  });
+
+  it('renders the cycle-list header row above the entries', async () => {
+    // AC 1 — Header-Zeile vor der Cycle-Liste mit den 5 Spaltentiteln.
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        recent_cycles: [cycle({ target_value_w: 310 })],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const header = container.querySelector('[data-testid="cycle-header"]');
+    expect(header).toBeTruthy();
+    const text = header?.textContent ?? '';
+    expect(text).toContain('vor');
+    expect(text).toContain('Quelle');
+    expect(text).toContain('Ziel');
+    expect(text).toContain('Status');
+    expect(text).toContain('Latenz');
+  });
+
+  it('renders the smoothed sensor value next to "—" on noop rows', async () => {
+    // AC 3 — Bei target_value_w=null + sensor_value_w!=null zeigt die Ziel-
+    // Spalte den gemessenen Wert in Klammern.
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        recent_cycles: [
+          cycle({
+            readback_status: 'noop',
+            reason: 'noop: deadband (smoothed=12w, deadband=20w)',
+            target_value_w: null,
+            sensor_value_w: 12,
+          }),
+        ],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const target = container.querySelector('.cycle-target');
+    expect(target).toBeTruthy();
+    expect(target?.textContent ?? '').toContain('—');
+    expect(target?.textContent ?? '').toContain('gemessen 12 W');
+  });
+
+  it('exposes the full backend reason as a native title tooltip', async () => {
+    // AC 4 — Tooltip via natives title-Attribut, kein Custom-Component.
+    const fullReason = 'noop: deadband (smoothed=12w, deadband=20w)';
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        recent_cycles: [
+          cycle({ readback_status: 'noop', reason: fullReason, target_value_w: null }),
+        ],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const span = container.querySelector('.cycle-readback');
+    expect(span?.getAttribute('title')).toBe(fullReason);
+  });
+
+  // AC 13 — Mode-Erklärungs-Zeile direkt unter <h1>Live-Betrieb</h1>.
+  it('renders the German mode-explanation line under the page title', async () => {
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'drossel' }));
+
+    render(Running);
+    await flushPolling();
+
+    const expl = await screen.findByTestId('mode-explanation');
+    expect(expl.textContent ?? '').toContain('Drossel — verhindert ungewollte Einspeisung');
+  });
+
+  it('switches the mode-explanation when the current mode changes', async () => {
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    render(Running);
+    await flushPolling();
+
+    const expl = await screen.findByTestId('mode-explanation');
+    expect(expl.textContent ?? '').toContain('Idle — wartet auf erstes Sensor-Event');
+  });
+
+  // AC 12 — Status-Tile-Reihe oberhalb des Charts.
+  it('renders the status-tile row with grid + WR + connection tiles', async () => {
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit' }),
+      device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        entities: [
+          entity({
+            entity_id: 'sensor.shelly_power',
+            state: 2120,
+            role: 'grid_meter',
+          }),
+          entity({
+            entity_id: 'number.opendtu_limit_nonpersistent_absolute',
+            state: 1500,
+            role: 'wr_limit',
+          }),
+        ],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const tiles = container.querySelector('[data-testid="status-tiles"]');
+    expect(tiles).toBeTruthy();
+    expect(tiles?.querySelector('[data-tile="grid"]')).toBeTruthy();
+    expect(tiles?.querySelector('[data-tile="wr-limit"]')).toBeTruthy();
+    expect(tiles?.querySelector('[data-tile="connection"]')).toBeTruthy();
+    // Soc tile only when battery_soc entity present — drossel-only here.
+    expect(tiles?.querySelector('[data-tile="soc"]')).toBeNull();
+  });
+
+  it('renders the soc tile only when a battery_soc entity is present', async () => {
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_charge', entity_id: 'number.charge' }),
+      device({ id: 2, role: 'battery_soc', entity_id: 'sensor.soc' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'speicher',
+        entities: [entity({ entity_id: 'sensor.soc', state: 54, role: 'battery_soc' })],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const tiles = container.querySelector('[data-testid="status-tiles"]');
+    const soc = tiles?.querySelector('[data-tile="soc"]');
+    expect(soc).toBeTruthy();
+    expect(soc?.textContent ?? '').toContain('54 %');
+  });
+
+  it('flips the connection tile to "Getrennt" with a seconds counter', async () => {
+    // AC 12 + AC 15 — bei ha_ws_connected=false zeigt das Tile "Getrennt"
+    // und einen Sekunden-Zähler relativ zu ha_ws_disconnected_since.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-04-25T12:00:30Z'));
+      getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+      getStateSnapshotMock.mockResolvedValue(
+        snapshot({
+          current_mode: 'idle',
+          ha_ws_connected: false,
+          ha_ws_disconnected_since: '2026-04-25T12:00:00Z',
+        }),
+      );
+
+      const { container } = render(Running);
+      await flushPolling();
+
+      const conn = container.querySelector('[data-tile="connection"]');
+      expect(conn).toBeTruthy();
+      expect(conn?.getAttribute('data-connected')).toBe('false');
+      expect(conn?.textContent ?? '').toContain('Getrennt');
+      expect(conn?.textContent ?? '').toMatch(/vor 30 s/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('renders the Netz-Leistung tile with the post-invert effective value', async () => {
+    // AC 14 — effective_value_w fließt direkt in das Tile ein, inkl. der
+    // "Bezug aus dem Netz" / "Einspeisung ins Netz"-Sub-Label-Logik.
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit' }),
+      device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({
+        current_mode: 'drossel',
+        entities: [
+          entity({
+            entity_id: 'sensor.shelly_power',
+            state: 1500, // raw HA reading
+            role: 'grid_meter',
+            effective_value_w: -1500, // post invert_sign
+          }),
+        ],
+      }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const grid = container.querySelector('[data-tile="grid"]');
+    expect(grid).toBeTruthy();
+    expect(grid?.textContent ?? '').toContain('-1500 W');
+    expect(grid?.textContent ?? '').toContain('Einspeisung ins Netz');
   });
 });

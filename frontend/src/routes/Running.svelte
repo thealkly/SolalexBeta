@@ -5,7 +5,13 @@
   import { usePolling } from '../lib/polling/usePolling.js';
   import LineChart, { formatWatts } from '../lib/components/charts/LineChart.svelte';
   import type { ChartSeries } from '../lib/components/charts/LineChart.svelte';
-  import type { ControlMode, DeviceResponse, StateSnapshot } from '../lib/api/types.js';
+  import type {
+    ControlMode,
+    DeviceResponse,
+    EntitySnapshot,
+    RecentCycle,
+    StateSnapshot,
+  } from '../lib/api/types.js';
 
   const WINDOW_MS = 5000;
 
@@ -13,8 +19,91 @@
     drossel: 'Drossel',
     speicher: 'Speicher',
     multi: 'Multi',
+    export: 'Einspeisung',
     idle: 'Idle',
   };
+
+  // Story 5.1d — explanatory subtitle for the current mode. Describes what
+  // the mode does, not how it feels (CLAUDE.md UX-DR30 — Charakter-Zeile
+  // beschreibt Tun, nicht Zahl). ``idle`` covers boot + post-disconnect.
+  const MODE_EXPLANATION: Record<ControlMode, string> = {
+    drossel: 'Drossel — verhindert ungewollte Einspeisung durch WR-Limit-Anpassung',
+    speicher: 'Speicher — Akku gleicht Einspeisung und Bezug aus',
+    multi: 'Multi — Akku zuerst, WR-Limit als Fallback bei vollem Speicher',
+    export: 'Einspeisung — gezielt Überschuss ins Netz, Akku ist voll',
+    idle: 'Idle — wartet auf erstes Sensor-Event',
+  };
+
+  // Story 5.1d — German Klartext for the cycle Status-Spalte. Mapping is
+  // driven by ``readback_status`` plus a ``reason``-prefix discriminator
+  // for the noop / vetoed branches. Returned ``dataStatus`` feeds the
+  // CSS attribute selectors in the style block. See AC 2 mapping table.
+  type CycleStatusView = {
+    label: string;
+    dataStatus: string;
+    tooltip: string;
+  };
+
+  function formatCycleStatus(cycle: RecentCycle): CycleStatusView {
+    const reason = cycle.reason ?? '';
+    const tooltip = reason || (cycle.readback_status ?? 'noop');
+    switch (cycle.readback_status) {
+      case 'passed':
+        return { label: 'Übernommen', dataStatus: 'passed', tooltip };
+      case 'failed':
+        return { label: 'Fehlgeschlagen', dataStatus: 'failed', tooltip };
+      case 'timeout':
+        return { label: 'Timeout', dataStatus: 'timeout', tooltip };
+      case 'vetoed':
+        if (reason.startsWith('fail_safe:')) {
+          return { label: 'Fail-Safe', dataStatus: 'vetoed', tooltip };
+        }
+        return { label: 'Abgelehnt', dataStatus: 'vetoed', tooltip };
+      case 'noop':
+      case null:
+      default:
+        if (reason.startsWith('mode_switch:')) {
+          return { label: 'Mode-Wechsel', dataStatus: 'noop-mode-switch', tooltip };
+        }
+        if (reason.startsWith('hardware_edit:')) {
+          return { label: 'Hardware geändert', dataStatus: 'noop-hardware-edit', tooltip };
+        }
+        if (reason.startsWith('noop: deadband')) {
+          return { label: 'Im Toleranzbereich', dataStatus: 'noop-deadband', tooltip };
+        }
+        if (reason.startsWith('noop: kein_wr_limit_device')) {
+          return { label: 'Kein Wechselrichter', dataStatus: 'noop-no-wr', tooltip };
+        }
+        if (reason.startsWith('noop: min_step_nicht_erreicht')) {
+          return { label: 'Schritt zu klein', dataStatus: 'noop-min-step', tooltip };
+        }
+        if (reason.startsWith('noop: kein_soc_messwert')) {
+          return { label: 'SoC fehlt', dataStatus: 'noop-no-soc', tooltip };
+        }
+        if (reason.startsWith('noop: nicht_grid_meter_event')) {
+          return { label: 'Beobachtung', dataStatus: 'noop-other', tooltip };
+        }
+        if (reason.startsWith('noop: max_soc_erreicht')) {
+          return { label: 'Max-SoC erreicht', dataStatus: 'noop-max-soc', tooltip };
+        }
+        if (reason.startsWith('noop: min_soc_erreicht')) {
+          return { label: 'Min-SoC erreicht', dataStatus: 'noop-min-soc', tooltip };
+        }
+        if (reason.startsWith('noop: nacht_gate_aktiv')) {
+          return { label: 'Nacht-Modus aktiv', dataStatus: 'noop-night-gate', tooltip };
+        }
+        if (reason.startsWith('noop: wr_limit_state_cache_miss')) {
+          return { label: 'WR-Status fehlt', dataStatus: 'noop-no-wr-state', tooltip };
+        }
+        if (reason.startsWith('noop: sensor_nicht_numerisch')) {
+          return { label: 'Sensor-Wert ungültig', dataStatus: 'noop-sensor-bad', tooltip };
+        }
+        if (reason.startsWith('noop: kein_akku_pool')) {
+          return { label: 'Kein Akku', dataStatus: 'noop-no-pool', tooltip };
+        }
+        return { label: 'Beobachtung', dataStatus: 'noop-other', tooltip };
+    }
+  }
 
   let devices = $state<DeviceResponse[]>([]);
   let loadError = $state<string | null>(null);
@@ -78,9 +167,46 @@
     return Math.min(...active);
   });
 
-  const recentCycles = $derived(snapshot?.recent_cycles.slice(0, 10) ?? []);
+  // Story 5.1d — surface up to 50 cycles. Existing CSS max-height + scroll
+  // on .cycle-list keeps the visible window manageable while making the
+  // longer history reachable for diagnosis.
+  const recentCycles = $derived(snapshot?.recent_cycles.slice(0, 50) ?? []);
   const currentMode = $derived<ControlMode>(snapshot?.current_mode ?? 'idle');
   const testInProgress = $derived(snapshot?.test_in_progress ?? false);
+
+  // Story 5.1d — Status-Tile inputs derived from the snapshot.
+  function findEntityByRole(role: string): EntitySnapshot | undefined {
+    const snap = snapshot;
+    if (!snap) return undefined;
+    return snap.entities.find((e) => e.role === role);
+  }
+
+  const gridEntity = $derived(findEntityByRole('grid_meter'));
+  const wrLimitEntity = $derived(findEntityByRole('wr_limit'));
+  const socEntity = $derived(findEntityByRole('battery_soc'));
+  const haWsConnected = $derived<boolean>(snapshot?.ha_ws_connected ?? true);
+  const haWsDisconnectedSince = $derived<string | null>(snapshot?.ha_ws_disconnected_since ?? null);
+  const haWsDisconnectedSeconds = $derived.by(() => {
+    if (haWsConnected) return null;
+    if (haWsDisconnectedSince === null) return null;
+    const since = new Date(haWsDisconnectedSince).getTime();
+    if (!Number.isFinite(since)) return null;
+    return Math.max(0, Math.floor((nowTs - since) / 1000));
+  });
+
+  // Battery-min/max from the device.config_json (Settings persistence).
+  const batteryConfig = $derived.by(() => {
+    const dev = devices.find((d) => d.role === 'wr_charge');
+    if (!dev) return null;
+    try {
+      const cfg = JSON.parse(dev.config_json) as Record<string, unknown>;
+      const minSoc = typeof cfg.min_soc === 'number' ? (cfg.min_soc as number) : null;
+      const maxSoc = typeof cfg.max_soc === 'number' ? (cfg.max_soc as number) : null;
+      return { minSoc, maxSoc };
+    } catch {
+      return null;
+    }
+  });
 
   $effect(() => {
     return polling.data.subscribe((snap) => {
@@ -178,6 +304,38 @@
   function formatLatency(ms: number | null): string {
     return ms === null ? '—' : `${ms} ms`;
   }
+
+  function formatSensor(w: number | null): string {
+    if (w === null) return '—';
+    return `${Math.round(w)} W`;
+  }
+
+  // Story 5.1d — Netz-Leistung tile sub-label per sign of effective_value_w.
+  // ``effective_value_w`` already incorporates the Story 2.5 ``invert_sign``
+  // override so the sub-label stays aligned with the controller's view.
+  function formatGridSubLabel(value: number | null): string {
+    if (value === null || !Number.isFinite(value)) return '—';
+    if (Math.abs(value) < 30) return 'nahezu 0 W';
+    if (value > 0) return 'Bezug aus dem Netz';
+    return 'Einspeisung ins Netz';
+  }
+
+  function formatGridValue(value: number | null): string {
+    if (value === null || !Number.isFinite(value)) return '—';
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? '+' : '';
+    return `${sign}${rounded} W`;
+  }
+
+  function formatSocValue(state: number | string | null): string {
+    if (typeof state !== 'number' || !Number.isFinite(state)) return '—';
+    return `${Math.round(state)} %`;
+  }
+
+  function formatWrLimitValue(state: number | string | null): string {
+    if (typeof state !== 'number' || !Number.isFinite(state)) return '—';
+    return `${Math.round(state)} W`;
+  }
 </script>
 
 <main class="running-page">
@@ -199,6 +357,9 @@
       {/if}
     </div>
     <h1>Live-Betrieb</h1>
+    <p class="mode-explanation" data-testid="mode-explanation">
+      {MODE_EXPLANATION[currentMode]}
+    </p>
   </header>
 
   {#if needsRefunctionalTest && !loadError && !testInProgress}
@@ -223,6 +384,49 @@
       </p>
     </section>
   {:else}
+    <section class="status-tiles" data-testid="status-tiles">
+      {#if gridEntity}
+        <div class="status-tile" data-tile="grid">
+          <span class="status-tile-label">Netz-Leistung</span>
+          <span class="status-tile-value">{formatGridValue(gridEntity.effective_value_w)}</span>
+          <span class="status-tile-sub">{formatGridSubLabel(gridEntity.effective_value_w)}</span>
+        </div>
+      {/if}
+      {#if wrLimitEntity}
+        <div class="status-tile" data-tile="wr-limit">
+          <span class="status-tile-label">Wechselrichter-Limit</span>
+          <span class="status-tile-value">{formatWrLimitValue(wrLimitEntity.state)}</span>
+          <span class="status-tile-sub">Aktuelles Limit</span>
+        </div>
+      {/if}
+      {#if socEntity}
+        <div class="status-tile" data-tile="soc">
+          <span class="status-tile-label">Akku-SoC</span>
+          <span class="status-tile-value">{formatSocValue(socEntity.state)}</span>
+          {#if batteryConfig && batteryConfig.minSoc !== null && batteryConfig.maxSoc !== null}
+            <span class="status-tile-sub"
+              >Min {batteryConfig.minSoc} % / Max {batteryConfig.maxSoc} %</span
+            >
+          {:else}
+            <span class="status-tile-sub">Aktueller Ladestand</span>
+          {/if}
+        </div>
+      {/if}
+      <div class="status-tile" data-tile="connection" data-connected={haWsConnected}>
+        <span class="status-tile-label">Verbindung</span>
+        <span class="status-tile-value">{haWsConnected ? 'Verbunden' : 'Getrennt'}</span>
+        <span class="status-tile-sub">
+          {#if haWsConnected}
+            Home Assistant
+          {:else if haWsDisconnectedSeconds !== null}
+            vor {haWsDisconnectedSeconds} s
+          {:else}
+            warte auf Verbindung
+          {/if}
+        </span>
+      </div>
+    </section>
+
     <section class="running-card">
       <div class="chart-wrap">
         <LineChart series={chartSeries} windowMs={WINDOW_MS} now={nowTs} />
@@ -252,16 +456,32 @@
       {#if recentCycles.length === 0}
         <p class="cycles-empty">Noch keine Zyklen erfasst.</p>
       {:else}
+        <div class="cycle-header" aria-hidden="true" data-testid="cycle-header">
+          <span class="cycle-header-cell">vor</span>
+          <span class="cycle-header-cell">Quelle</span>
+          <span class="cycle-header-cell">Ziel</span>
+          <span class="cycle-header-cell">Status</span>
+          <span class="cycle-header-cell">Latenz</span>
+        </div>
         <ul class="cycle-list" aria-label="Letzte Regelzyklen">
           {#each recentCycles as cycle (cycle.id)}
+            {@const status = formatCycleStatus(cycle)}
             <li class="cycle-row">
               <span class="cycle-ts">{formatRelative(cycle.ts)}</span>
               <span class="cycle-source" data-source={cycle.source}>
                 {cycle.source}
               </span>
-              <span class="cycle-target">{formatTarget(cycle.target_value_w)}</span>
-              <span class="cycle-readback" data-status={cycle.readback_status ?? 'noop'}>
-                {cycle.readback_status ?? 'noop'}
+              <span class="cycle-target">
+                {#if cycle.target_value_w === null && cycle.sensor_value_w !== null}
+                  — <span class="cycle-target-sub"
+                    >(gemessen {formatSensor(cycle.sensor_value_w)})</span
+                  >
+                {:else}
+                  {formatTarget(cycle.target_value_w)}
+                {/if}
+              </span>
+              <span class="cycle-readback" data-status={status.dataStatus} title={status.tooltip}>
+                {status.label}
               </span>
               <span class="cycle-latency">{formatLatency(cycle.latency_ms)}</span>
             </li>
@@ -302,6 +522,13 @@
     letter-spacing: -0.01em;
   }
 
+  .mode-explanation {
+    margin: 6px 0 0 0;
+    font-size: 0.86rem;
+    color: var(--color-text-secondary);
+    max-width: 60ch;
+  }
+
   .mode-chip {
     display: inline-flex;
     align-items: center;
@@ -317,7 +544,8 @@
 
   .mode-chip[data-mode='drossel'],
   .mode-chip[data-mode='speicher'],
-  .mode-chip[data-mode='multi'] {
+  .mode-chip[data-mode='multi'],
+  .mode-chip[data-mode='export'] {
     background: color-mix(in srgb, var(--color-accent-primary) 18%, var(--color-surface) 82%);
     color: var(--color-accent-primary);
   }
@@ -338,6 +566,60 @@
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  /* Status-Tiles row (Story 5.1d) — sits between header and chart-card. */
+  .status-tiles {
+    width: min(100%, 760px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .status-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg) 4%);
+    min-width: 0;
+  }
+
+  .status-tile-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .status-tile-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-tile-sub {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+  }
+
+  .status-tile[data-tile='connection'][data-connected='true'] .status-tile-value {
+    color: var(--color-accent-primary);
+  }
+
+  .status-tile[data-tile='connection'][data-connected='false'] .status-tile-value {
+    color: var(--color-accent-warning);
+  }
+
+  @media (max-width: 560px) {
+    .status-tiles {
+      grid-template-columns: 1fr;
+    }
   }
 
   .chart-wrap {
@@ -375,6 +657,20 @@
     text-decoration: underline;
   }
 
+  /* Cycle-Liste — Header above + extended status mapping (Story 5.1d). */
+  .cycle-header {
+    display: grid;
+    grid-template-columns: 90px 100px 1fr 110px 64px;
+    gap: var(--space-2);
+    padding: 4px var(--space-1);
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   .cycle-list {
     list-style: none;
     margin: 0;
@@ -388,7 +684,7 @@
 
   .cycle-row {
     display: grid;
-    grid-template-columns: 90px 100px 80px 80px 64px;
+    grid-template-columns: 90px 100px 1fr 110px 64px;
     gap: var(--space-2);
     align-items: center;
     padding: 6px var(--space-1);
@@ -448,6 +744,7 @@
     color: var(--color-text-secondary);
     font-size: 0.72rem;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .cycle-readback[data-status='passed'] {
@@ -463,12 +760,43 @@
 
   .cycle-readback[data-status='vetoed'] {
     background: color-mix(in srgb, var(--color-accent-warning) 10%, var(--color-surface) 90%);
+    color: var(--color-accent-warning);
+  }
+
+  .cycle-readback[data-status='noop-mode-switch'],
+  .cycle-readback[data-status='noop-hardware-edit'] {
+    background: color-mix(in srgb, var(--color-accent-primary) 10%, var(--color-surface) 90%);
+    color: var(--color-accent-primary);
+  }
+
+  .cycle-readback[data-status='noop-no-wr'],
+  .cycle-readback[data-status='noop-no-wr-state'],
+  .cycle-readback[data-status='noop-no-pool'],
+  .cycle-readback[data-status='noop-no-soc'],
+  .cycle-readback[data-status='noop-sensor-bad'] {
+    background: color-mix(in srgb, var(--color-accent-warning) 10%, var(--color-surface) 90%);
+    color: var(--color-accent-warning);
+  }
+
+  .cycle-readback[data-status='noop-deadband'],
+  .cycle-readback[data-status='noop-min-step'],
+  .cycle-readback[data-status='noop-max-soc'],
+  .cycle-readback[data-status='noop-min-soc'],
+  .cycle-readback[data-status='noop-night-gate'],
+  .cycle-readback[data-status='noop-other'] {
+    background: color-mix(in srgb, var(--color-neutral-muted) 14%, var(--color-surface) 86%);
     color: var(--color-text-secondary);
   }
 
   .cycle-target,
   .cycle-latency {
     color: var(--color-text);
+  }
+
+  .cycle-target-sub {
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+    margin-left: 4px;
   }
 
   .chart-legend {

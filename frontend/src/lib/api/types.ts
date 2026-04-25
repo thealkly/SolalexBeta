@@ -73,6 +73,14 @@ export interface EntitySnapshot {
   unit: string;
   role: string;
   timestamp: string | null;
+  // Story 5.1d — UI-ready fields owned by the backend.
+  // ``effective_value_w`` is the post-``invert_sign`` (Story 2.5) value
+  // for ``role === 'grid_meter'``; for other roles it falls back to the
+  // raw numeric ``state`` (or ``null`` when non-numeric). ``display_label``
+  // is the German glossar label keyed by role so the frontend does not
+  // maintain a parallel mapping table.
+  effective_value_w: number | null;
+  display_label: string | null;
 }
 
 export type CycleSource = 'solalex' | 'manual' | 'ha_automation';
@@ -82,12 +90,19 @@ export interface RecentCycle {
   id: number;
   ts: string;
   device_id: number;
-  mode: ControlMode;
+  // Story 5.1d — extended with ``audit`` (mode_switch / hardware_edit
+  // noop rows) and ``export`` (Story 3.8 surplus-export). Mirror of the
+  // Pydantic ``CycleMode`` literal in backend/api/schemas/control.py.
+  mode: 'drossel' | 'speicher' | 'multi' | 'audit' | 'export';
   source: CycleSource;
   sensor_value_w: number | null;
   target_value_w: number | null;
   readback_status: CycleReadbackStatus | null;
   latency_ms: number | null;
+  // Story 5.1d — Klartext rationale for the cycle list. ``null`` for
+  // pre-existing rows that predate the migration; the UI renders a
+  // generic „Beobachtung" fallback in that case.
+  reason: string | null;
 }
 
 export interface RateLimitEntry {
@@ -95,7 +110,11 @@ export interface RateLimitEntry {
   seconds_until_next_write: number | null;
 }
 
-export type ControlMode = 'drossel' | 'speicher' | 'multi' | 'idle';
+// Story 5.1d — extended with ``export`` (Story 3.8 surplus-export). The
+// ``audit`` cycle-row mode never reaches ``current_mode`` (controller
+// can't be in audit-mode, only its noop rows are tagged audit-like via
+// the ``reason`` column). Mirror of the Pydantic ``current_mode`` literal.
+export type ControlMode = 'drossel' | 'speicher' | 'multi' | 'export' | 'idle';
 
 // Story 3.5 — manual mode override.
 // Backend Literal["drossel","speicher","multi"] | null mirrors here:
@@ -116,6 +135,10 @@ export interface StateSnapshot {
   current_mode: ControlMode;
   recent_cycles: RecentCycle[];
   rate_limit_status: RateLimitEntry[];
+  // Story 5.1d — HA-WS connection diagnostics for the Connection-Tile.
+  // ``ha_ws_disconnected_since`` is set on disconnect, cleared on connect.
+  ha_ws_connected: boolean;
+  ha_ws_disconnected_since: string | null;
 }
 
 // Story 3.6 — Settings PATCH /api/v1/devices/battery-config.

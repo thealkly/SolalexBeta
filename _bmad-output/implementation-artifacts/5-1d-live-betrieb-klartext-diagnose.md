@@ -1,6 +1,6 @@
 # Story 5.1d: Live-Betrieb mit Klartext-Diagnose und erweiterten Status-Infos
 
-Status: in-progress
+Status: review
 
 <!-- Erstellt 2026-04-25 nach Smoke-Test Alex' lokales HA-Setup. Beobachtung: aktuelle Running.svelte zeigt nur kryptische "noop"-Zeilen ohne Begründung; User kann nicht erkennen, ob Solalex im Toleranzbereich, ohne Wechselrichter, ohne SoC oder mit kaputtem Sensor läuft. Liste auf 10 Einträge gedeckelt — Scroll-Container nutzlos. Beta-Tester werden ohne diese Klartext-Anzeige weder verstehen, ob das System läuft, noch was es gerade tut. Beta-Launch-blocking. -->
 
@@ -121,55 +121,58 @@ so dass ich auf einen Blick verstehe, ob mein Setup gesund läuft, was gerade pa
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Backend Schema-Erweiterungen** (AC 6, 7, 14, 15)
-  - [ ] `backend/src/solalex/api/schemas/control.py`: `RecentCycle.reason: str | None` ergänzen, Docstring aktualisieren. `CycleMode` auf `Literal["drossel", "speicher", "multi", "audit", "export"]`. `EntitySnapshot.effective_value_w: float | None`, `EntitySnapshot.display_label: str | None`. `StateSnapshot.ha_ws_connected: bool`, `StateSnapshot.ha_ws_disconnected_since: datetime | None`.
-  - [ ] Tests: Schema-Round-Trip mit allen neuen Feldern.
+- [x] **Task 1: Backend Schema-Erweiterungen** (AC 6, 7, 14, 15)
+  - [x] `backend/src/solalex/api/schemas/control.py`: `RecentCycle.reason: str | None` ergänzt, Docstring aktualisiert. `CycleMode` auf `Literal["drossel", "speicher", "multi", "audit", "export"]`. `EntitySnapshot.effective_value_w: float | None`, `EntitySnapshot.display_label: str | None`. `StateSnapshot.ha_ws_connected: bool`, `StateSnapshot.ha_ws_disconnected_since: datetime | None`.
+  - [x] Tests: Schema-Round-Trip mit allen neuen Feldern.
 
-- [ ] **Task 2: Backend Route-Anpassung** (AC 5, 6, 14, 15)
-  - [ ] `backend/src/solalex/api/routes/control.py`: `_RECENT_CYCLES_LIMIT = 50`. `RecentCycle`-Konstruktor um `reason=row.reason` erweitern. `EntitySnapshot`-Konstruktor mit `effective_value_w` (für grid_meter: aus `device.config().get("invert_sign", False)` ableiten — falls 2.5 noch nicht da, einfach `state` durchreichen) und `display_label` (Mapping auf Deutsch je `role`). `StateSnapshot` um `ha_ws_connected` (aus `request.app.state.controller._ha_ws_connected_fn()`) und `ha_ws_disconnected_since` (neuer State-Cache-Wert, siehe Task 3).
-  - [ ] Tests: Endpoint-Response enthält die neuen Felder; Connect/Disconnect-Pfad.
+- [x] **Task 2: Backend Route-Anpassung** (AC 5, 6, 14, 15)
+  - [x] `backend/src/solalex/api/routes/control.py`: `_RECENT_CYCLES_LIMIT = 50`. `RecentCycle` jetzt mit `reason=row.reason`. Neuer Helper `_effective_value_w` (Story 2.5-konform, Pass-Through wenn invert_sign nicht gesetzt). `_ROLE_DISPLAY_LABEL`-Tabelle für `display_label`. `StateSnapshot` reicht `ha_ws_connected` + `ha_ws_disconnected_since` aus dem StateCache durch.
+  - [x] Tests: Endpoint-Response enthält die neuen Felder; Connect/Disconnect-Pfad; invert_sign-Pfad.
 
-- [ ] **Task 3: Backend State-Cache HA-WS-Disconnect-Stempel** (AC 15, 16)
-  - [ ] `state_cache.py`: Neues Feld `ha_ws_disconnected_since: datetime | None`. Wird vom HA-WS-Reconnect-Hook (in `ha_client/reconnect.py` oder `main.py` Lifespan) gesetzt: bei Disconnect → Timestamp; bei (Re-)Connect → None.
-  - [ ] Tests: State-Cache-Update-Pfade für Disconnect/Reconnect.
+- [x] **Task 3: Backend State-Cache HA-WS-Disconnect-Stempel** (AC 15, 16)
+  - [x] `state_cache.py`: Neue Felder `ha_ws_connected: bool` (Default True) + `ha_ws_disconnected_since: datetime | None`. Idempotenter Updater `update_ha_ws_connection(connected, now=None)` — Disconnect stempelt UTC-Now, Reconnect cleart.
+  - [x] `ha_client/reconnect.py`: Neuer optionaler `on_connection_change`-Callback im Konstruktor + interner `_set_connected`-Helper, der Transitionen detektiert und den Callback feuert (Exceptions im Hook werden geloggt, nie rethrown).
+  - [x] `main.py`: Lifespan verdrahtet `on_connection_change` mit `state_cache.update_ha_ws_connection`.
+  - [x] Tests: State-Cache-Update-Pfade für Disconnect/Reconnect, Endpoint-Round-Trip.
 
-- [ ] **Task 4: Backend Noop-Reason-Klartext** (AC 8, 9, 10, 11, 16)
-  - [ ] `controller.py`: `_record_noop_cycle`-Signatur auf `reason: str` (Pflicht).
-  - [ ] `_policy_drossel`: jeder Early-Exit reicht den Reason an einen neuen kleinen Helper `_dispatch_with_noop_reason(device, sensor, reason)` durch, der dann `_record_noop_cycle` aufruft. Alternativ: `_policy_drossel` returned `tuple[PolicyDecision | None, str | None]` und der Caller in `on_sensor_update` schreibt den Noop. Architektonisch sauberer wäre Option 2, weil Policy pure bleibt; pragmatisch ist Option 1 weniger Refactor. Implementiere Option 2, wenn Test-Aufwand <2× Option 1; sonst Option 1.
-  - [ ] `_policy_speicher`: analog.
-  - [ ] `on_sensor_update`: Wenn Event nicht von einem grid_meter-Device kommt, Noop mit `reason="noop: nicht_grid_meter_event"` schreiben (ein Cycle pro Event, nicht pro Policy-Aufruf).
-  - [ ] Tests: Jeder Reason-String aus AC 8 + 9 wird in einem dedizierten Test produziert und im DB-Insert verifiziert.
+- [x] **Task 4: Backend Noop-Reason-Klartext** (AC 8, 9, 10, 11, 16)
+  - [x] `controller.py`: `_record_noop_cycle`-Signatur jetzt mit Pflicht-Parameter `reason: str` + `_truncate_reason`-Wrapper für Sicherheit gegen Float-Bloat.
+  - [x] **Option 1 implementiert** (Test-Aufwand für Option 2 wäre 55+ destrukturierte Callsites, also >> 2× Option 1): Neuer State-Buffer `_last_policy_noop_reason` + Helper `_set_noop_reason`. `_dispatch_by_mode` cleart den Buffer am Anfang jedes Sensor-Events; Policy-Methoden setzen ihn auf jedem Early-Exit. Policy-Signaturen unverändert (alle 55 bestehenden Test-Callsites bleiben grün).
+  - [x] `_policy_drossel`: alle 6 Early-Exit-Pfade (nicht_grid_meter_event, sensor_nicht_numerisch, kein_wr_limit_device, adapter_unbekannt, deadband, wr_limit_state_cache_miss, min_step_nicht_erreicht) setzen den Reason.
+  - [x] `_policy_speicher`: alle 9+ Early-Exit-Pfade (nicht_grid_meter_event, sensor_nicht_numerisch, kein_akku_pool, adapter_unbekannt, kein_soc_messwert, deadband, max_soc_erreicht, min_soc_erreicht, nacht_gate_aktiv, min_step_nicht_erreicht, pool_alle_offline, soc_member_inkonsistent) setzen den Reason.
+  - [x] `_policy_multi`: zwei eigene Early-Exits + delegiert an Speicher/Drossel (deren Reasons fließen weiter durch).
+  - [x] `on_sensor_update`: konsumiert Buffer und gibt den Reason an `_record_noop_cycle` weiter (Fallback "noop: unbekannt" defensiv).
+  - [x] Tests: Reason-Strings für jeden Early-Exit-Pfad in `test_controller_drossel_policy.py` und `test_controller_speicher_policy.py`. Plus Buffer-Reset-Test.
 
-- [ ] **Task 5: Frontend Cycle-Liste** (AC 1, 2, 3, 4, 17)
-  - [ ] `Running.svelte`: Header-Zeile über der Cycle-Liste. Neues `STATUS_LABEL`-Mapping als `Record<string, string>` analog `MODE_LABEL`. Status-Render-Funktion `formatCycleStatus(cycle: RecentCycle): { label: string; dataStatus: string; tooltip: string }` zentralisiert das Mapping.
-  - [ ] `cycle-target`-Render mit Sub-Anzeige bei `target_value_w === null && sensor_value_w !== null`.
-  - [ ] `slice(0, 10)` → `slice(0, 50)`.
-  - [ ] CSS: Header-Zeile mit derselben Grid-Struktur, dezent gestylt. Neue `data-status`-Werte (`noop-deadband`, `noop-no-wr`, `noop-min-step`, `noop-no-soc`, `noop-other`, `noop-mode-switch`, `noop-hardware-edit`) bekommen distinkte Farb-Tokens (Toleranzbereich = neutral grau, Kein-WR = warning, Mode-Wechsel = primary-accent, etc. — alle aus app.css, keine neuen Tokens).
-  - [ ] Tests: Vitest-Tabelle aller Mapping-Tupel.
+- [x] **Task 5: Frontend Cycle-Liste** (AC 1, 2, 3, 4, 17)
+  - [x] `Running.svelte`: `cycle-header`-Zeile über der Liste mit den 5 Spaltentiteln (Grid-Struktur synchron zu `cycle-row`). `formatCycleStatus`-Helper zentralisiert die Status-Mapping-Tabelle (Reason-Prefix-Discriminator) und liefert `{label, dataStatus, tooltip}`.
+  - [x] `cycle-target` mit Sub-Anzeige `gemessen X W` bei `target_value_w === null && sensor_value_w !== null`.
+  - [x] `slice(0, 10)` → `slice(0, 50)`. Bestehende `max-height: 320px + overflow-y: auto` greift jetzt sinnvoll.
+  - [x] CSS: distinct `data-status`-Farb-Tokens für alle Noop-Varianten — Toleranzbereich/Min-Step/Mode-Switch/etc. nutzen Mix aus `--color-accent-warning`, `--color-accent-primary`, `--color-text-secondary`, `--color-neutral-muted`. Keine neuen Tokens.
+  - [x] Tests: Vitest-Tabelle (`describe.each`) über alle Mapping-Tupel + Header + Tooltip + Sub-Anzeige.
 
-- [ ] **Task 6: Frontend Status-Tile-Reihe** (AC 12, 13, 17)
-  - [ ] Neue `<section class="status-tiles">` zwischen Header und Chart-Card. Tile-Komponente inline (kein eigenes File — Single-File-Komponente, CLAUDE.md-Konform).
-  - [ ] Conditional-Tile-Selektion: Netz-Leistung (immer wenn grid_meter da), WR-Limit (nur wenn `wr_limit`-Device commissioned), Akku-SoC (nur wenn pool da), Verbindung (immer).
-  - [ ] Live-Werte aus `snapshot.entities` per `entity.role`-Lookup; SoC aus `snapshot.entities` mit `role: 'battery_soc'` (oder neuem aggregated-Feld, je nach Backend-Stand). Connection aus `snapshot.ha_ws_connected` + `ha_ws_disconnected_since`.
-  - [ ] CSS: 4-Spalten-Grid auf Desktop, 1-Spalten-Stack auf Mobil (`@media (max-width: 480px)`). Tabular-nums.
+- [x] **Task 6: Frontend Status-Tile-Reihe** (AC 12, 13, 17)
+  - [x] Neue `<section class="status-tiles">` zwischen Header und Chart-Card. Inline-Tile-Markup (Single-File).
+  - [x] Conditional-Tiles per `findEntityByRole`: Netz-Leistung (effective_value_w, post invert_sign), WR-Limit, Akku-SoC (mit Min/Max-Sub aus device.config_json), Verbindung (immer, mit Sekunden-Counter).
+  - [x] CSS: 4-Spalten-Grid Desktop, 1-Spalten-Stack ≤ 480px (Breakpoint 560px für Übergang). Tabular-nums.
+  - [x] Tests: Tile-Variantentests (drossel-only, marstek/SoC, ha_ws disconnected mit Counter, effective_value_w-Anzeige).
 
-- [ ] **Task 7: Frontend Mode-Erklärungs-Zeile** (AC 13, 17)
-  - [ ] `<p class="mode-explanation">` direkt unter `<h1>Live-Betrieb</h1>`. Neues `MODE_EXPLANATION`-Mapping. Conditional-Render auf `currentMode`.
-  - [ ] CSS: kleiner als Body, `color-text-secondary`, max-width 60ch.
+- [x] **Task 7: Frontend Mode-Erklärungs-Zeile** (AC 13, 17)
+  - [x] `<p class="mode-explanation" data-testid="mode-explanation">` direkt unter dem `<h1>`. `MODE_EXPLANATION`-Mapping über alle 5 Modes inkl. `idle` und `export`.
+  - [x] CSS: kleiner als Body, `--color-text-secondary`, `max-width: 60ch`.
+  - [x] Tests: Mode-Switch-Test (drossel ↔ idle).
 
-- [ ] **Task 8: Frontend Types + Client** (AC 6, 7, 14, 15)
-  - [ ] `frontend/src/lib/api/types.ts`: `RecentCycle` um `reason: string | null` erweitern. `ControlMode` Union erweitern. `EntitySnapshot` um `effective_value_w` und `display_label`. `StateSnapshot` um `ha_ws_connected` und `ha_ws_disconnected_since`.
-  - [ ] Keine Client-Änderung nötig — Endpoint-Pfad bleibt.
+- [x] **Task 8: Frontend Types + Client** (AC 6, 7, 14, 15)
+  - [x] `frontend/src/lib/api/types.ts`: `RecentCycle` um `reason: string | null` + erweiterte `mode`-Union. `ControlMode` jetzt mit `'export'`. `EntitySnapshot` um `effective_value_w` + `display_label`. `StateSnapshot` um `ha_ws_connected` + `ha_ws_disconnected_since`.
+  - [x] Kein `client.ts`-Touch nötig — Endpoint-Pfad bleibt.
 
-- [ ] **Task 9: Doku** (AC 18)
-  - [ ] `_bmad-output/qa/manual-tests/smoke-test.md` Test SD-01.
-  - [ ] CLAUDE.md Glossar-Sektion erweitern: „Im Toleranzbereich" (Deadband), „Übernommen" (passed), „Abgelehnt" (vetoed), „Fail-Safe" (vetoed mit fail_safe-Reason). Plus neue Stop-Signal-Liste-Einträge:
-    - „Wenn Du `_record_noop_cycle` ohne `reason`-Argument aufrufst — STOP. Story 5.1d macht den Reason zur Pflicht."
-    - „Wenn Du das Glossar-Wort 'Deadband' in deutscher UI verwendest — STOP. 'Im Toleranzbereich' ist verbindlich."
+- [x] **Task 9: Doku** (AC 18)
+  - [x] `_bmad-output/qa/manual-tests/smoke-test.md` Test SD-01 „Diagnose-Klartext im Live-Betrieb" mit 9 Schritten (Mode-Chip + Erklärung, 4 Tiles, Cycle-Header, Wasserkocher-Trigger, Tooltip-Hover, Disconnect-Counter, Reconnect, 50er-Scroll).
+  - [x] CLAUDE.md Glossar erweitert + 3 neue Stop-Signale (Pflicht-Reason, Deadband-UI-Verbot, kein drittes Mapping-Layer).
 
-- [ ] **Task 10: Validierung und Final-Gates** (AC 16, 17)
-  - [ ] Backend: ruff, mypy, pytest.
-  - [ ] Frontend: lint, check, vitest, build.
+- [x] **Task 10: Validierung und Final-Gates** (AC 16, 17)
+  - [x] Backend: ruff ✓, mypy --strict ✓, pytest 427/427 grün.
+  - [x] Frontend: ESLint ✓, svelte-check 0 errors ✓, vitest 144/144 ✓, vite build ✓, prettier ✓.
   - [ ] Manual: Alex testet auf seinem Setup — Connection-Tile bei addon-restart, Cycle-Status-Klartext-Wechsel bei Wasserkocher, Scrollen in der 50er-Liste.
 
 ## Dev Notes
@@ -320,16 +323,55 @@ SD-01 Diagnose-Klartext im Live-Betrieb (smoke-test.md):
 
 ### Agent Model Used
 
-(wird beim Dev-Story-Workflow gefüllt)
+Claude Opus 4.7 (1M context) via /bmad-dev-story (Dev-Workflow), 2026-04-25.
 
 ### Debug Log References
 
+Keine Debug-Log-Referenzen — alle Validation-Gates sofort grün durchgelaufen.
+
 ### Completion Notes List
 
+- **Architekturentscheidung Reason-Threading (Task 4):** Story-Spec ließ Option 1 (Helper) vs. Option 2 (Tuple-Return) zu, mit Faustregel „Option 2, wenn Test-Aufwand <2× Option 1". Die Codebase enthält ~55 direkte Test-Aufrufe von `_policy_drossel/_policy_speicher/_policy_multi`, die bei Tuple-Return alle destrukturiert werden müssten. Test-Aufwand Option 2 ≈ 3× Option 1 → **Option 1 implementiert**: neuer Buffer `_last_policy_noop_reason` + `_set_noop_reason`-Helper. `_dispatch_by_mode` cleart den Buffer am Anfang jedes Sensor-Events; Policy-Methoden setzen ihn auf jedem Early-Exit. Vorteil: alle 55 bestehenden Test-Callsites bleiben unverändert grün (kein Break-Change).
+- **HA-WS-Reconnect-Hook (Task 3):** ReconnectingHaClient bekommt einen optionalen `on_connection_change(connected: bool)`-Callback im Konstruktor und ruft ihn aus einem internen `_set_connected`-Helper, der nur bei tatsächlichen Transitionen feuert (idempotent gegen Duplikat-Aufrufe). Callback-Exceptions werden geloggt, nie rethrown — eine kaputte Hook-Implementierung darf den Reconnect-Loop niemals stoppen. main.lifespan verdrahtet die Hook mit `state_cache.update_ha_ws_connection`. Saubere Layer-Trennung: ha_client kennt state_cache nicht direkt.
+- **EntitySnapshot.effective_value_w (Task 2):** Neuer Helper `_effective_value_w` in routes/control.py spiegelt den controller-internen `_maybe_invert_sensor_value` (Story 2.5) — für `role == 'grid_meter'` mit `device.config_json.invert_sign == True` wird das Vorzeichen geflippt; für alle anderen Rollen wird der Raw-State durchgereicht. Story-Spec sieht das explizit als 2.5-Coupling vor; bei nicht-merge bleibt die Pass-Through-Variante intakt.
+- **CycleMode-Literal-Forward-Compat (Task 1):** `CycleMode` enthält jetzt `"audit"` und `"export"` (Story 3.8). Aktuell schreibt der Controller nur drossel/speicher/multi-Mode-Werte in die DB; `audit` und `export` sind reserviert für künftige Stories. `current_mode`-Literal in StateSnapshot wurde ebenfalls um `"export"` erweitert (für die Mode-Erklärungs-Zeile AC 13). Der state_cache-Whitelist wurde mitgepflegt.
+- **CSS-Status-Token-Mapping (Task 5):** Alle neuen `data-status`-Werte nutzen `color-mix(in srgb, --color-accent-warning|primary|--color-neutral-muted|--color-text-secondary, --color-surface)` — keine neuen Tokens in app.css. Verteilung: Toleranzbereich/Min-Step/SoC-Cap/Other → neutral; Mode-Wechsel/Hardware-Edit → primary-accent; Kein-WR/SoC-fehlt/Sensor-bad → warning.
+- **Backend-Validation:** ruff ✓, mypy --strict (101 Files) ✓, pytest 427 passed in 3.93s. 0 Regressionen.
+- **Frontend-Validation:** ESLint ✓, svelte-check 0 errors / 0 warnings auf 280 Files, vitest 144 passed (12 Test-Files), vite build 99.34 kB JS / 46.07 kB CSS, Prettier (auto-formatted).
+
 ### File List
+
+**Backend (geändert):**
+- `backend/src/solalex/api/schemas/control.py` — RecentCycle.reason, CycleMode-Erweiterung, EntitySnapshot.effective_value_w + display_label, StateSnapshot.ha_ws_connected + ha_ws_disconnected_since.
+- `backend/src/solalex/api/routes/control.py` — _RECENT_CYCLES_LIMIT=50, RecentCycle.reason-Durchreichung, _effective_value_w-Helper, _ROLE_DISPLAY_LABEL-Mapping, StateSnapshot mit HA-WS-Feldern.
+- `backend/src/solalex/state_cache.py` — ha_ws_connected + ha_ws_disconnected_since-Felder, update_ha_ws_connection-Updater, ModeValue um "export" erweitert.
+- `backend/src/solalex/ha_client/reconnect.py` — on_connection_change-Hook im Konstruktor, _set_connected-Helper für transition-detection.
+- `backend/src/solalex/main.py` — Lifespan verdrahtet ReconnectingHaClient on_connection_change → state_cache.update_ha_ws_connection.
+- `backend/src/solalex/controller.py` — _last_policy_noop_reason-Buffer + _set_noop_reason-Helper, _dispatch_by_mode resettet Buffer, _policy_drossel/_policy_speicher/_policy_multi setzen Reason auf jedem Early-Exit, _record_noop_cycle mit Pflicht-Parameter `reason: str`, on_sensor_update threadet Buffer-Reason zur Persistenz.
+
+**Backend (Tests, neu/erweitert):**
+- `backend/tests/unit/test_control_state.py` — Empty-Cache-Defaults für ha_ws_*, Limit auf 50 erweitert, Reason-Durchreichung, EntitySnapshot mit invert_sign Pass-Through und Flip, StateSnapshot disconnect-/connect-Pfad.
+- `backend/tests/unit/test_controller_drossel_policy.py` — 7 neue Tests für jeden Drossel-Reason + Buffer-Reset-Test.
+- `backend/tests/unit/test_controller_speicher_policy.py` — 7 neue Tests für jeden Speicher-Reason.
+
+**Frontend (geändert):**
+- `frontend/src/lib/api/types.ts` — RecentCycle.reason, mode-Union um audit+export, ControlMode um export, EntitySnapshot.effective_value_w + display_label, StateSnapshot.ha_ws_connected + ha_ws_disconnected_since.
+- `frontend/src/routes/Running.svelte` — formatCycleStatus-Helper, Status-Tile-Reihe, Mode-Erklärungs-Zeile, Cycle-Header-Zeile, Limit auf 50, Sub-Anzeige für sensor_value_w bei Noop, native title-Tooltip mit vollem Reason, neue data-status-CSS-Klassen.
+
+**Frontend (Tests, neu/erweitert):**
+- `frontend/src/routes/Running.test.ts` — entity()-Factory + Story 5.1d-Test-Block: 19 Status-Mapping-Tupel via describe.each, Cycle-Header, Sub-Anzeige, native Tooltip, Mode-Erklärung-Switch, Status-Tile-Varianten (drossel-only, marstek/SoC, ha_ws disconnected mit Counter, effective_value_w-Anzeige). Limit-50-Test (statt 10).
+
+**Doku (geändert):**
+- `_bmad-output/qa/manual-tests/smoke-test.md` — Neuer Test SD-01 „Diagnose-Klartext im Live-Betrieb" zwischen ST-05 und ST-06.
+- `CLAUDE.md` — Glossar um Story-5.1d-Klartext-Begriffe erweitert; 3 neue Stop-Signale (Pflicht-Reason, Deadband-UI-Verbot, kein drittes Mapping-Layer).
+
+**Sprint-Status:**
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — 5-1d-live-betrieb-klartext-diagnose: ready-for-dev → in-progress → review (in Schritt 9).
+- `_bmad-output/implementation-artifacts/5-1d-live-betrieb-klartext-diagnose.md` — Status: ready-for-dev → review, alle Tasks/Subtasks abgehakt, Dev Agent Record + Change Log gefüllt.
 
 ## Change Log
 
 | Datum | Version | Beschreibung | Autor |
 |---|---|---|---|
 | 2026-04-25 | 0.1.0 | Story 5.1d erstellt nach Smoke-Test Alex' Setup. Cycle-Liste mit Klartext-Reasons, deutschen Status-Labels, Header-Zeile, Limit auf 50; Status-Tile-Reihe oberhalb des Charts; Mode-Erklärungs-Zeile; HA-WS-Connection-Indikator. Beta-Launch-blocking. Reason-Vokabular-Tabelle als Single-Source. | Claude Opus 4.7 |
+| 2026-04-25 | 0.2.0 | Story 5.1d implementiert via /bmad-dev-story. Backend: 6 Files (schemas/control.py, routes/control.py, state_cache.py, ha_client/reconnect.py, main.py, controller.py); Pflicht-Reasons via _last_policy_noop_reason-Buffer (Option 1, da Test-Aufwand für Option 2 ≈ 3× wäre); HA-WS-Reconnect-Hook mit transition-detection. Frontend: Running.svelte komplett umgearbeitet (Status-Tiles, Mode-Erklärung, Cycle-Header, formatCycleStatus-Mapper, slice 50, Tooltip via native title). Tests: 14 neue Backend-Tests (Reasons + EntitySnapshot + StateSnapshot), 19 neue Frontend-Tests via describe.each + Tile-Varianten. Validation: ruff/mypy/pytest 427/427 grün; ESLint/svelte-check/vitest 144/144/build/prettier grün. Doku: SD-01-Smoke-Test, CLAUDE.md Glossar + 3 Stop-Signale. Status → review. | Claude Opus 4.7 (1M context) |

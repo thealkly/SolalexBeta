@@ -100,6 +100,46 @@ so dass ich vor dem Speichern verifizieren kann, dass Drossel/Speicher in die ri
   - [x] Frontend: `cd frontend && npm run lint && npm run check && npm test && npm run build`
   - [x] Manual: Alex testet auf seinem ESPHome-SML — Toggle-Zustand + Live-Preview-Wert vor dem Speichern stimmen mit Wasserkocher-Test überein.
 
+### Review Findings
+
+Code-Review 2026-04-25 (3-Layer adversarial: Blind Hunter + Edge Case Hunter + Acceptance Auditor; Diff `7d3bf25..HEAD` gefiltert auf 15 Story-2.5-Files).
+
+#### Decision-needed
+
+- [ ] [Review][Decision] **Fail-Open vs. Skip-Cycle bei `invert_sign`-Config-Parse-Failure** — `_maybe_invert_sensor_value` returnt aktuell den un-flipped Wert, wenn `device.config()` ein `JSONDecodeError` wirft (controller.py:384-396). Bei einem zuvor mit `invert_sign=true` konfigurierten Meter kehrt damit das Sign nach DB-Korruption schweigend zurück auf positiv-Bezug-Konvention — exakt der Fehlerfall, gegen den die Story schützen sollte. Optionen: (a) **Skip-Cycle** (return None, Controller bricht das Sensor-Event ab), (b) **Fail-Safe-Halt** (zusätzlich Mode auf idle stellen bis Operator das fixt), (c) **Status quo** (no-flip + log).
+
+#### Patch (high)
+
+- [ ] [Review][Patch] **`id(pool)` als Key für `_speicher_pending_setpoints` ist nach `reload_devices_from_db` nicht stabil** [backend/src/solalex/controller.py:1135] — CPython recycled freigegebene IDs; Vergleich kann nach Reload (Story 2.6 PUT-Endpoint) entweder garantiert mismatchen oder versehentlich auf einen anderen Pool matchen. Vorher `pool_key`. Stabilen Identifier wiederherstellen.
+- [ ] [Review][Patch] **Audit-Cycle-Mode kennt `Mode.EXPORT` nicht und fällt auf "drossel" zurück** [backend/src/solalex/api/routes/devices.py:345-353] — Wenn der Controller im `Mode.EXPORT` läuft (Amendment 2026-04-25), wird der Audit-Eintrag fälschlich als `drossel` geloggt. CLAUDE.md: Audit-Trail-Klarheit ist non-verhandelbar. EXPORT-Branch ergänzen (idle-Default als sentinel statt drossel).
+- [ ] [Review][Patch] **`get_entity_state` ruft bei jedem Cache-Miss `get_states` auf — Polling-Hammer auf HA** [backend/src/solalex/api/routes/setup.py:684-737] — `LivePreviewCard` pollt im 1-s-Takt. Bei stillen Sensoren (kein `state_changed`) feuert jede Anfrage einen vollen `get_states`-Snapshot. Mitigation: Whitelist-Cache pro Entity einmal befüllen (z.B. `{entity_id: classification}` mit kurzer TTL), danach nur cached subscribe + `value_w=null` zurückgeben.
+- [ ] [Review][Patch] **Toggle-Off im editMode wird durch `_merge_config` verschluckt** [backend/src/solalex/api/routes/devices.py:132-144 + 170-190] — User mit gespeichertem `invert_sign=true` deaktiviert den Toggle und speichert. Frontend sendet `invert_sign=False` → omit-when-False schreibt `{}` ins Body. PUT mergt `existing={"invert_sign":true}` mit incoming `{}` → bleibt `{invert_sign:true}`. `_row_diff_kind` meldet `identical`, kein DB-Write. Der un-flip schlägt schweigend fehl → Control-Loop regelt weiter in falsche Richtung. AC 7 Merge-Semantik muss Key-Deletes unterstützen oder `invert_sign` explizit als `False` persistiert werden (nicht omit-when-False).
+- [ ] [Review][Patch] **Speicher-Policy-Test mit invertiertem Smart-Meter fehlt (AC 11 / Task 3)** [backend/tests/unit/test_controller_invert_sign.py] — Spec fordert explizit „Speicher: Charge bei +Wert statt Discharge". Aktuell nur Drossel-Buffer-Tests. Test ergänzen, der `Mode.SPEICHER` mit `invert_sign=True` + +Wert füttert und Charge-Decision verifiziert.
+
+#### Patch (medium)
+
+- [ ] [Review][Patch] **Drossel-Policy-Test bleibt auf Buffer-Ebene statt Policy-Outcome (AC 11)** [backend/tests/unit/test_controller_invert_sign.py] — `test_drossel_buffer_contains_inverted_value` prüft `list(buf) == [-5.0]`, nicht „kein Drossel-Down bei +Wert". Buffer-Test ist Implementations-Detail-Aufnahme; Policy-Outcome-Test schützt vor Refactorings, die den Buffer umgehen.
+- [ ] [Review][Patch] **`_merge_config(existing, target) != existing.config_json` — Vergleich gegen unklarem Type** [backend/src/solalex/api/routes/devices.py:226] — Wenn `existing.config_json` als JSON-String aus der DB kommt und `_merge_config` ein dict zurückgibt, vergleicht der Code dict vs str → immer != → unnötige UPDATEs jeden PUT. Falls beides dicts sind (Repository deserializes), könnte trotzdem Key-Reihenfolge zu False-Negativen führen. Symmetric-Diff statt Inequality + cast verifizieren.
+- [ ] [Review][Patch] **`gridMeter`-Insert markiert ALLE NULL-`commissioned_at`-Meter als commissioned** [backend/src/solalex/api/routes/devices.py:262-268] — `UPDATE devices SET commissioned_at = ? WHERE role = 'grid_meter' AND commissioned_at IS NULL` filtert nicht nach der frisch eingefügten Row. Bei zukünftigen Multi-Meter-Szenarien oder Legacy-Daten werden alle als commissioned markiert. WHERE-Filter um `id = ?` ergänzen.
+- [ ] [Review][Patch] **`get_entity_state` Subscribe-Failure → 200 mit `value_w=null` statt 5xx** [backend/src/solalex/api/routes/setup.py:725-737] — Wenn `ensure_entity_subscriptions` raises, wird das suggestiv als „noch keine Werte" reportet. Frontend pollt weiter, jeder Tick re-subscribed (mit `get_states`-Roundtrip). Mindestens 503 (HA unreachable) oder Cached-Error-State.
+- [ ] [Review][Patch] **`invert_sign_config_parse_failed` läuft pro Sensor-Event, wenn `config_json` malformed** [backend/src/solalex/controller.py:384-390] — Bei 1–10 Hz Sensor-Rate spamt `logger.exception` `/data/logs/` und rotiert genuine Errors aus. Once-per-device-Flag analog zum Cap-Flag-Pattern (siehe `_speicher_night_gate_active`) oder einmal-pro-N-Cycles rate-limiten.
+
+#### Patch (low)
+
+- [ ] [Review][Patch] **`LivePreviewCard.svelte` `subscribe`-Subscriptions werden nie cleant** [frontend/src/lib/components/LivePreviewCard.svelte:1700-1712] — `p.data.subscribe(...)` und `p.error.subscribe(...)` werfen den Unsubscriber weg. Bei Entity-Wechsel oder Component-Unmount bleiben Closures hängen. Unsubscriber sammeln und in `onDestroy` + bei Entity-Wechsel cleanen.
+- [ ] [Review][Patch] **Sub-Watt-Drift versteckt sich an der 50-W-Threshold-Grenze** [frontend/src/lib/components/LivePreviewCard.svelte:1768] — `Math.round(50.4)` zeigt „50 W", aber `Math.abs(effectiveValueW) < 50` ist false → „Bezug aus dem Netz" trotz „nahezu 0 W"-Optik. Threshold gegen rounded value oder konsistent rounden.
+- [ ] [Review][Patch] **`entity_id` wird ohne Regex-Validation in Cache-Lookup + Subscribe gereicht** [backend/src/solalex/api/routes/setup.py:684] — HA's entity_id-Constraint (`^[a-z][a-z0-9_]*\.[a-z0-9_]+$`) wird im Backend nicht enforced. Defensiver Regex-Check vor Cache-Lookup; fail-fast bei mismatch (422 statt subscribe-attempt + 403).
+
+#### Defer
+
+- [x] [Review][Defer] **Vitest „saveDevices wird mit invert_sign aufgerufen" fehlt (AC 12, 4. Bullet)** [frontend/src/routes/Config.test.ts] — happy-dom propagiert `change`-Events auf `<select bind:value>` nicht zurück in Svelte-5-Runen-Setter; Begründung im Code-Comment dokumentiert. Abdeckung über Backend-Roundtrip-Test + LivePreviewCard-Isolation + Manual-SR-01. Patch wäre eine andere Test-Strategie (props-mocking statt DOM-driven), Aufwand > Nutzen für Beta.
+- [x] [Review][Defer] **Vitest „Polling stoppt bei Entity-Wechsel auf leer" partiell** [frontend/src/lib/components/LivePreviewCard.test.ts] — Mount/Unmount getestet, der Branch `entityId === ''` → `stopPolling()` direkt nicht. In der Praxis durch `{#if}` in Config.svelte abgefangen, theoretisch aber eigene Pfad. Low-Risk.
+- [x] [Review][Defer] **`get_states`-Roundtrip auf Cache-Miss-Pfad weicht von AC 5 wörtlich ab** [backend/src/solalex/api/routes/setup.py:698] — Spec sagt „kein neuer HA-WS-Call". Cache-Miss zwingt aber zu einem Roundtrip, weil Whitelist-Verifikation sonst nicht möglich ist. Trade-off mit AC 6 bewusst, durch Patch P3 (Whitelist-Cache) deutlich entschärft.
+- [x] [Review][Defer] **`adapter_key`-Wechsel bei gleicher (entity_id, role) wird als `override_only` klassifiziert** [backend/src/solalex/api/routes/devices.py:133-142] — Adapter-Wechsel bei gleicher Entity sollte `commissioned_at` zurücksetzen + Functional-Test erzwingen. Story-2.6-Scope (PUT-Endpoint), nicht 2.5.
+- [x] [Review][Defer] **`override_only`-Branch DELETEt nichts und INSERTet nichts — orphan-rows bei Multi-Row-Schema-Edge-Case** [backend/src/solalex/api/routes/devices.py:230-237] — Pre-existing Schema-Issue (kein UNIQUE-Constraint auf (entity_id, role) sichtbar). Nicht Story-2.5-Scope.
+- [x] [Review][Defer] **Mehrere `grid_meter`-Devices: nur das erste wird invertiert; Buffer-Mix möglich** [backend/src/solalex/controller.py:367-396] — v1 erlaubt nur ein grid_meter; Multi-Meter ist v1.5+. Aktuell pre-existing Schema-Voraussetzung.
+- [x] [Review][Defer] **Concurrent PUT + battery-config PATCH: lost-update auf `wr_charge.config_json`** [backend/src/solalex/api/routes/devices.py:271-303] — Generelles Concurrency-Issue auf der DB-Schicht (PUT liest existing außerhalb seiner BEGIN-IMMEDIATE-Transaktion). Story-2.6/3.6-übergreifender Punkt; Mitigation wäre SELECT-FOR-UPDATE-Equivalent oder optimistic-locking-Token. Nicht Story-2.5-Scope.
+
 ## Dev Notes
 
 ### Architektur-Bezugspunkte

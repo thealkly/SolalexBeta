@@ -2,6 +2,16 @@
 
 Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story-Scopes liegen. Aus dieser Liste speisen sich Kandidaten für Folge-Stories (Refactors, Tech-Debt-Epics, Security-Hardening).
 
+## Deferred from: code review of 2-5-smart-meter-sign-invert-mit-live-preview (2026-04-25)
+
+- **Vitest „saveDevices wird mit invert_sign aufgerufen" fehlt (AC 12, 4. Bullet)** — happy-dom propagiert `change`-Events auf `<select bind:value>` nicht zurück in Svelte-5-Runen-Setter; Begründung im Config.test.ts-Code-Comment dokumentiert. Abdeckung über Backend-Roundtrip-Test + LivePreviewCard-Isolation + Manual-SR-01. Patch wäre eine andere Test-Strategie (props-mocking statt DOM-driven), Aufwand > Nutzen für Beta. (Frontend `routes/Config.test.ts`.)
+- **Vitest „Polling stoppt bei Entity-Wechsel auf leer" partiell** — Mount/Unmount in `LivePreviewCard.test.ts` getestet; der Branch `entityId === ''` → `stopPolling()` direkt nicht. In der Praxis durch `{#if}`-Guard in `Config.svelte` abgefangen, theoretisch aber eigene Pfad. Low-Risk.
+- **`get_states`-Roundtrip auf Cache-Miss-Pfad weicht von AC 5 wörtlich ab** — Spec „kein neuer HA-WS-Call"; Cache-Miss zwingt aber zu einem Roundtrip, weil Whitelist-Verifikation sonst nicht möglich ist. Trade-off mit AC 6 bewusst, durch Whitelist-Cache-Patch deutlich entschärft. (Backend `api/routes/setup.py:698`.)
+- **`adapter_key`-Wechsel bei gleicher (entity_id, role) wird als `override_only` klassifiziert** — Adapter-Wechsel bei gleicher Entity sollte `commissioned_at` zurücksetzen + Functional-Test erzwingen. Story-2.6-Scope (PUT-Endpoint), nicht 2.5. (Backend `api/routes/devices.py:133-142`.)
+- **`override_only`-Branch DELETEt/INSERTet nichts — orphan-rows bei Multi-Row-Schema-Edge-Case** — Pre-existing Schema-Issue (kein UNIQUE-Constraint auf (entity_id, role) sichtbar in der Migration). Nicht Story-2.5-Scope. (Backend `api/routes/devices.py:230-237`.)
+- **Mehrere `grid_meter`-Devices: nur das erste wird invertiert; Buffer-Mix möglich** — v1 erlaubt nur ein grid_meter; Multi-Meter ist v1.5+. Aktuell pre-existing Schema-Voraussetzung. (Backend `controller.py:367-396`.)
+- **Concurrent PUT + battery-config PATCH: lost-update auf `wr_charge.config_json`** — Generelles Concurrency-Issue auf der DB-Schicht (PUT liest existing außerhalb seiner BEGIN-IMMEDIATE-Transaktion). Story-2.6/3.6-übergreifender Punkt; Mitigation wäre SELECT-FOR-UPDATE-Equivalent oder optimistic-locking-Token. Nicht Story-2.5-Scope. (Backend `api/routes/devices.py:271-303`.)
+
 ## Deferred from: code review of 3-6-user-config-min-max-soc-nacht-entlade-zeitfenster (2026-04-25)
 
 - **MULTI-Max-SoC-Fallback nutzt Speicher-Deadband als Drossel-Gate** — `_is_feed_in_after_smoothing()` liest den Speicher-Deadband (`30 W`) als Vorfilter, bevor `_policy_drossel()` ueberhaupt entscheiden darf. Dadurch bleibt Einspeisung zwischen Drossel-Deadband (`10 W`) und Speicher-Deadband ungedrosselt. Deferred, weil dies aus dem gebuendelten Story-3.5-Control-Patch stammt und Story 3.6 laut Scope `_policy_multi` nicht anfassen sollte. Kandidat fuer Story-3.5/3.8-Follow-up.

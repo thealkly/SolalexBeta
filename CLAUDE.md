@@ -230,6 +230,9 @@ solalex/
 - Wenn Du den Vorzeichen-Flip für invertierte Smart-Meter im Adapter `parse_readback` einbaust statt im Controller — **STOP**. Story 2.5: `_maybe_invert_sensor_value`-Helper im Controller, vor dem Smoothing-Buffer. Adapter-Konvention bleibt unverändert (Vertrag mit Hardware, auch von WR-Readback genutzt).
 - Wenn Du eine zweite Config-Komponente (`HardwareEdit.svelte` o. ä.) neben `Config.svelte` baust statt `editMode`-Prop — **STOP**. Story 2.6: Initial-Setup und Edit teilen sich eine Komponente. Doppelte Komponenten driften auseinander.
 - Wenn Du den Gate für `/hardware-edit` ins `WIZARD_ROUTES`-Set aufnimmst — **STOP**. Wizard-Set würde commissioned User wieder rauswerfen. `/hardware-edit` braucht einen eigenen Branch in `gate.ts` analog zu `/settings`.
+- Wenn Du `_record_noop_cycle` ohne `reason`-Argument aufrufst — **STOP**. Story 5.1d macht den Reason zum Pflicht-Parameter. Neue Early-Exit-Pfade in den Policies müssen `self._set_noop_reason("…")` setzen (Reason-Vokabular-Tabelle in `_bmad-output/implementation-artifacts/5-1d-live-betrieb-klartext-diagnose.md`).
+- Wenn Du das Wort „Deadband" in deutscher UI verwendest — **STOP**. „Im Toleranzbereich" ist verbindlich (Story 5.1d Glossar). Reason-Strings im Backend dürfen weiterhin `noop: deadband …` heißen — der Frontend-Mapper übersetzt.
+- Wenn Du den Backend-Reason im Frontend nochmal mappst, statt das Backend ihn liefern zu lassen — **STOP**. Story 5.1d: `EntitySnapshot.display_label` (Backend-Glossar) und `formatCycleStatus`-Mapping (Frontend, Reason-Prefix-Discriminator) sind die zwei Single-Sources. Keine dritte Mapping-Tabelle.
 
 ---
 
@@ -273,4 +276,4 @@ Bei Widerspruch zwischen Dokumenten gewinnt die Architecture. Bei Widerspruch zw
 - **Zahlen im UI sind nackt** (keine emotionalen Adjektive, keine Trend-Icons ohne Anlass). Charakter-Zeilen beschreiben nur das Tun, nicht die Zahl.
 - **Keine Tabellen**, **keine Modal-Dialoge**, **keine Tooltips**, **keine Loading-Spinner** (Skeleton-Pulse ≥ 400 ms). Anti-Pattern-Liste in `_bmad-output/planning-artifacts/ux-design-specification.md` (UX-DR30).
 - **Keine Push-Notifications**, keine E-Mails, keine HA-Notifications — „Pull nicht Push" (NFR27).
-- **Glossar verbindlich:** Akku (nicht Batterie/Speicher), Wechselrichter/WR, Smart Meter, Setup-Wizard.
+- **Glossar verbindlich:** Akku (nicht Batterie/Speicher), Wechselrichter/WR, Smart Meter, Setup-Wizard. **Story 5.1d Klartext-Begriffe für UI-Cycle-Status:** „Im Toleranzbereich" (statt „Deadband"), „Übernommen" (statt „passed"), „Abgelehnt" (statt „vetoed"), „Fail-Safe" (vetoed-Variante mit `fail_safe:`-Reason), „Mode-Wechsel" / „Hardware geändert" / „SoC fehlt" / „Kein Wechselrichter" / „Schritt zu klein" / „Beobachtung". Reason-Vokabular-Tabelle ist autoritativ in `_bmad-output/implementation-artifacts/5-1d-live-betrieb-klartext-diagnose.md`.

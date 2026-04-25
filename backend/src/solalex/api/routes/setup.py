@@ -9,6 +9,7 @@ POST /api/v1/setup/commission    — activate commissioning (Story 2.2).
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -34,6 +35,19 @@ router = APIRouter(prefix="/api/v1/setup", tags=["setup"])
 
 # Serializes concurrent test requests — only one functional test at a time.
 _test_lock: asyncio.Lock | None = None
+
+# Process-wide allow-list cache for ``get_entity_state``. Once an entity
+# has been classified as ``wr_limit`` or ``power`` against a fresh HA
+# snapshot we skip the synchronous ``get_states`` round trip on every
+# subsequent cache miss — otherwise a steady sensor that never emits
+# ``state_changed`` would force a full HA snapshot per 1 s polling tick
+# from ``LivePreviewCard`` (Story-2.5 review P3). Cleared on add-on
+# restart by virtue of being a module-level set.
+_ENTITY_STATE_WHITELIST: set[str] = set()
+# Pattern enforced on ``entity_id`` query params before any cache or
+# HA-WS lookup. Mirrors HA's own entity-id grammar
+# (``<domain>.<object_id>``, lowercase letters/digits/underscore).
+_ENTITY_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9_]+$")
 
 
 def _get_test_lock() -> asyncio.Lock:
@@ -151,10 +165,24 @@ async def get_entity_state(
     hygiene; prevents UI from acting as an arbitrary HA entity reader).
 
     Reads from ``state_cache.last_states`` — no DB hit, no synchronous
-    HA-WS round trip on cache hit. On cache miss the endpoint subscribes
-    to the entity (so the next 1 s poll receives a value via the normal
-    state_changed dispatch) and returns ``value_w=null`` immediately.
+    HA-WS round trip on cache hit. The first call for an entity verifies
+    against a fresh HA snapshot, caches the allow-list verdict in
+    ``_ENTITY_STATE_WHITELIST`` and subscribes; subsequent polls return
+    ``value_w=null`` straight from the allow-list without hammering HA
+    once per second on a steady sensor.
     """
+    if not _ENTITY_ID_PATTERN.match(entity_id):
+        # Reject entity_ids that violate HA's own grammar before they
+        # reach the cache lookup or the HA-WS subscribe path.
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Ungültige entity_id '{entity_id}'. "
+                "Erwartet wird das Format <domain>.<object_id> "
+                "(Kleinbuchstaben, Ziffern, Unterstriche)."
+            ),
+        )
+
     ha_client = request.app.state.ha_client
     if not ha_client.ha_ws_connected:
         raise HTTPException(
@@ -176,9 +204,17 @@ async def get_entity_state(
     cls = _classify_entity(entity_id, cached_attrs) if cached is not None else None
 
     if cls not in ("wr_limit", "power"):
-        # Cache miss OR cached but not in whitelist class. Verify against
-        # a fresh HA snapshot — this is the only path that incurs a
-        # synchronous get_states call, gated by the cache-miss branch.
+        if entity_id in _ENTITY_STATE_WHITELIST:
+            # Already verified once. Cache miss this tick (steady sensor
+            # has not emitted state_changed yet) → return null without a
+            # fresh get_states roundtrip. Frontend keeps polling; the
+            # next state_changed lands a value automatically.
+            return EntityStateResponse(
+                entity_id=entity_id, value_w=None, ts=None
+            )
+
+        # First request for this entity — verify against a fresh HA
+        # snapshot. Pays for itself: the verdict is cached above.
         raw_states = await _fetch_states_or_raise(ha_client)
         target_state: dict[str, Any] | None = None
         for state in raw_states:
@@ -205,23 +241,35 @@ async def get_entity_state(
             )
         # Subscribe so the next poll lands a value via the normal
         # dispatch path. ensure_entity_subscriptions is idempotent — it
-        # checks the existing subscription list before sending.
+        # checks the existing subscription list before sending. A
+        # subscribe failure is propagated as 503 so the frontend
+        # surfaces the error instead of polling silently against null.
         try:
             await ensure_entity_subscriptions(
                 ha_client.client, [entity_id], state_cache
             )
-        except Exception:
+        except Exception as exc:
             _logger.exception(
                 "entity_state_subscribe_failed",
                 extra={"entity_id": entity_id},
             )
-        # First call after subscribe — value not yet in cache.
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"Subscribe auf Entity '{entity_id}' bei Home Assistant "
+                    "fehlgeschlagen. Lade die Seite neu, sobald HA wieder "
+                    "stabil ist."
+                ),
+            ) from exc
+        _ENTITY_STATE_WHITELIST.add(entity_id)
         return EntityStateResponse(
             entity_id=entity_id, value_w=None, ts=None
         )
 
     # Cache hit + whitelisted. ``cached`` is non-None on this branch
-    # because cls != None implies cached was non-None above.
+    # because cls != None implies cached was non-None above. Memoize
+    # the verdict so future cache evictions do not pay for re-verify.
+    _ENTITY_STATE_WHITELIST.add(entity_id)
     assert cached is not None  # for mypy
     ha_state = HaState(
         entity_id=entity_id,

@@ -206,6 +206,24 @@ Jeder Fall ist atomar abhakbar. Reihenfolge ist Walkthrough-Reihenfolge — bei 
 
 ---
 
+### SD-01 — Diagnose-Klartext im Live-Betrieb (Story 5.1d)
+
+**Vorbedingung:** Solalex commissioned, Drossel-Mode aktiv, Solar > Last (leichte Einspeisung).
+
+| # | Schritt | Erwartung | ☐ |
+|---|---|---|---|
+| 1 | Route `#/running` öffnen | Mode-Chip „Drossel" + Erklärungs-Zeile „Drossel — verhindert ungewollte Einspeisung durch WR-Limit-Anpassung" direkt unter dem H1 | ☐ |
+| 2 | Status-Tile-Reihe oberhalb des Charts sichtbar | „Netz-Leistung" (mit Sub-Label „Bezug aus dem Netz" / „Einspeisung ins Netz" / „nahezu 0 W"), „Wechselrichter-Limit" + Sub „Aktuelles Limit", „Verbindung" zeigt „Verbunden" (grüner Akzent) | ☐ |
+| 3 | Cycle-Liste hat Header | Zeile „vor / Quelle / Ziel / Status / Latenz" über der Liste, dezent in Akzent-grau | ☐ |
+| 4 | Wasserkocher anschalten (Last) | Cycle-Status wechselt von „Im Toleranzbereich" auf „Übernommen" (grün-Akzent) mit Watt-Zahl in Ziel-Spalte | ☐ |
+| 5 | Wasserkocher aus, Tab offen lassen | Status nach 1–2 Zyklen wieder „Im Toleranzbereich"; Ziel-Spalte zeigt „— (gemessen X W)" | ☐ |
+| 6 | Hover über Status-Spalte | Native Browser-Tooltip mit vollem Backend-`reason` (z. B. `noop: deadband (smoothed=12w, deadband=20w)`) erscheint | ☐ |
+| 7 | HA-Container neu starten (Supervisor → Reload Add-ons) | Connection-Tile wechselt auf „Getrennt" (Warning-Farbe) mit Sub-Zeile „vor X s" — Counter zählt sekundengenau hoch | ☐ |
+| 8 | Reconnect abwarten (≤ 30 s) | Connection-Tile wieder „Verbunden", Sub-Zeile „Home Assistant" | ☐ |
+| 9 | In der Cycle-Liste scrollen | Bis zu 50 Zyklen sichtbar (statt vorher 10), Scroll innerhalb der Karte funktioniert | ☐ |
+
+---
+
 ### ST-06 — Spot-Checks nach Live-Betrieb
 
 Kurze Querschecks, jeweils 1 Klick, ohne erneutes Setup.

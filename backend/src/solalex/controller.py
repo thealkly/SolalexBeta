@@ -114,6 +114,23 @@ def _utc_now() -> datetime:
     return datetime.now(tz=UTC)
 
 
+def _pool_key(pool: BatteryPool) -> tuple[int, ...]:
+    """Stable identifier for a ``BatteryPool`` across reload cycles.
+
+    ``id(pool)`` would change after every ``reload_devices_from_db`` (and
+    CPython recycles freed addresses), making ``_speicher_pending_setpoints``
+    look up entries against a phantom previous pool. Sorting the
+    charge-device IDs gives a deterministic key tied to the DB rows.
+    """
+    return tuple(
+        sorted(
+            m.charge_device.id
+            for m in pool.members
+            if m.charge_device.id is not None
+        )
+    )
+
+
 def select_initial_mode(
     devices_by_role: dict[str, DeviceRecord],
     battery_pool: BatteryPool | None,
@@ -227,15 +244,17 @@ class Controller:
         # not exercise the Speicher policy keep working unchanged.
         self._battery_pool: BatteryPool | None = battery_pool
         self._speicher_buffers: dict[int, deque[float]] = {}
-        # Per-pool last dispatched setpoint (key: id(pool)). v1 has at most
-        # one pool; the dict reserves room for v1.5 multi-pool without a
-        # signature refactor.
-        self._speicher_last_setpoint_w: dict[int, int] = {}
+        # Per-pool last dispatched setpoint. The pool key is a stable tuple
+        # of charge-device IDs (sorted) — outliving ``reload_devices_from_db``
+        # because device.id is the DB primary key, not the in-memory pool
+        # instance address. v1 has at most one pool; the dict reserves room
+        # for v1.5 multi-pool without a signature refactor.
+        self._speicher_last_setpoint_w: dict[tuple[int, ...], int] = {}
         # Pending dispatch intents keyed by charge device id. The policy
         # records the requested pool setpoint here, but the "last dispatched"
         # memo is only updated once the executor confirms that a command was
         # actually sent (not when range/rate-limit/fail-safe vetoes it).
-        self._speicher_pending_setpoints: dict[int, tuple[int, int]] = {}
+        self._speicher_pending_setpoints: dict[int, tuple[tuple[int, ...], int]] = {}
         # Boolean flags drive the once-per-band log line so the diagnostics
         # log does not spam an entry on every sensor event while the pool is
         # parked at the Hard-Cap (analogous to test_in_progress flag pattern).
@@ -254,6 +273,10 @@ class Controller:
         # right after dispatch returns. Tests can read this attribute
         # directly to assert reason strings without parsing the DB.
         self._last_policy_noop_reason: str | None = None
+        # Story 2.5 — once-per-device latch for malformed-config_json on
+        # grid_meter rows. Clears as soon as the parse succeeds again so
+        # a re-corruption emits a fresh log entry.
+        self._invert_sign_parse_failed_logged: set[int] = set()
 
     @property
     def current_mode(self) -> Mode:
@@ -347,13 +370,22 @@ class Controller:
         if not decisions:
             if source != "solalex":
                 # Exactly one noop cycle per sensor event — never per virtual
-                # pool member (Story 3.4 AC 8).
+                # pool member (Story 3.4 AC 8). Story 5.1d: thread the
+                # policy-level early-exit reason from ``_set_noop_reason``
+                # through to the persisted row so the UI cycle-list can
+                # render German Klartext (e.g. „Im Toleranzbereich").
+                reason = (
+                    self._last_policy_noop_reason
+                    if self._last_policy_noop_reason is not None
+                    else "noop: unbekannt"
+                )
                 await self._record_noop_cycle(
                     device=device,
                     source=source,
                     sensor_value_w=sensor_value,
                     now=now,
                     cycle_duration_ms=pipeline_ms,
+                    reason=reason,
                 )
             return
 
@@ -384,6 +416,13 @@ class Controller:
         Downstream helpers (``_is_feed_in_after_smoothing`` etc.) read from
         the smoothing buffer that was filled with the post-flip value, so
         no second flip is needed there.
+
+        Returns ``None`` when ``device.config_json`` is malformed — the
+        sign-flip intent cannot be determined safely, and silently
+        falling back to the un-flipped value would reverse the control
+        loop on a meter the user explicitly inverted. Skipping the cycle
+        is safer than regulating in the wrong direction (Story-2.5
+        review D1).
         """
         if value_w is None:
             return None
@@ -392,13 +431,23 @@ class Controller:
         try:
             cfg = device.config()
         except Exception:
-            _logger.exception(
-                "invert_sign_config_parse_failed",
-                extra={"entity_id": device.entity_id},
-            )
-            return value_w
+            # Once-per-device log discipline: a corrupted config_json on
+            # a 1-10 Hz sensor would otherwise spam /data/logs/ and
+            # rotate genuine errors out (Story-2.5 review P10).
+            device_id = device.id
+            if device_id is not None and device_id not in self._invert_sign_parse_failed_logged:
+                _logger.exception(
+                    "invert_sign_config_parse_failed",
+                    extra={"entity_id": device.entity_id, "device_id": device_id},
+                )
+                self._invert_sign_parse_failed_logged.add(device_id)
+            return None
         if not isinstance(cfg, dict):
-            return value_w
+            return None
+        # Healthy parse → clear any prior latched log flag so a future
+        # corruption logs again.
+        if device.id is not None:
+            self._invert_sign_parse_failed_logged.discard(device.id)
         if cfg.get("invert_sign", False) is True:
             return -value_w
         return value_w
@@ -893,8 +942,10 @@ class Controller:
              non-feed-in) → ``[]``.
         """
         if device.role != "grid_meter":
+            self._set_noop_reason("noop: nicht_grid_meter_event")
             return []
         if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            self._set_noop_reason("noop: sensor_nicht_numerisch")
             return []
 
         pool = self._battery_pool
@@ -1139,12 +1190,15 @@ class Controller:
                             },
                         )
                         self._speicher_night_gate_active = True
+                        # Active 0 W stop on gate entry — produces N decisions
+                        # for the pool, so reason buffer stays empty (no noop).
                         return self._speicher_decisions_for_setpoint(
                             pool=pool,
                             soc_breakdown=soc_breakdown,
                             proposed=0,
                             smoothed=smoothed,
                         )
+                    self._set_noop_reason("noop: nacht_gate_aktiv")
                     return []
                 else:
                     self._speicher_night_gate_active = False
@@ -1156,11 +1210,17 @@ class Controller:
         # Sign-flip: feed-in (negative smoothed) → positive charge setpoint;
         # import (positive smoothed) → negative discharge setpoint. ``round``
         # gives symmetric nearest-integer steps (Story 3.2 Review P5).
-        pool_key = id(pool)
+        pool_key = _pool_key(pool)
         last = self._speicher_last_setpoint_w.get(pool_key, 0)
         raw_proposed = -int(round(smoothed))
         proposed = _clamp_step(last, raw_proposed, params.limit_step_clamp_w)
         if abs(proposed - last) < params.min_step_w:
+            self._set_noop_reason(
+                _truncate_reason(
+                    f"noop: min_step_nicht_erreicht "
+                    f"(delta={proposed - last}w, min={params.min_step_w}w)"
+                )
+            )
             return []
 
         return self._speicher_decisions_for_setpoint(
@@ -1184,6 +1244,7 @@ class Controller:
             # All members offline — pool already filtered them. Skip the
             # last-setpoint memo so the next online cycle is not gated by
             # a value that never reached hardware.
+            self._set_noop_reason("noop: pool_alle_offline")
             return []
 
         soc_member_ids = set(soc_breakdown.per_member)
@@ -1194,12 +1255,14 @@ class Controller:
             # Never dispatch to a pool member whose SoC did not contribute to
             # the aggregate. A partial SoC view would otherwise allow blind
             # charge/discharge for the missing member.
+            self._set_noop_reason("noop: soc_member_inkonsistent")
             return []
 
+        pool_key = _pool_key(pool)
         for decision in decisions:
             if decision.device.id is not None:
                 self._speicher_pending_setpoints[decision.device.id] = (
-                    id(pool),
+                    pool_key,
                     proposed,
                 )
 
@@ -1261,8 +1324,15 @@ class Controller:
         sensor_value_w: float | None,
         now: datetime,
         cycle_duration_ms: int,
+        reason: str,
     ) -> None:
-        """Persist a noop cycle for manual / ha_automation attribution (AC 5)."""
+        """Persist a noop cycle for manual / ha_automation attribution (AC 5).
+
+        Story 5.1d — ``reason`` is now a Pflicht-Parameter so every noop
+        row carries a Klartext rationale that the Live-Betriebs-View
+        Cycle-Liste can render. The buffer is filled by the policy via
+        :meth:`_set_noop_reason` and consumed by ``on_sensor_update``.
+        """
         device_id = device.id
         if device_id is None:
             return
@@ -1279,7 +1349,7 @@ class Controller:
             readback_mismatch=False,
             latency_ms=None,
             cycle_duration_ms=cycle_duration_ms,
-            reason=None,
+            reason=_truncate_reason(reason),
         )
         try:
             async with self._db_conn_factory() as conn:

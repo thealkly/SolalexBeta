@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -39,6 +39,11 @@ from solalex.persistence.repositories.meta import delete_meta
 
 _logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
+
+# Mirrors the ``control_cycles.mode`` CHECK constraint. When Story 3.8
+# ships ``Mode.EXPORT`` plus a CHECK migration, ``"export"`` joins the
+# set in the same patch — keeping audit and CHECK in lockstep.
+_ALLOWED_AUDIT_MODES: frozenset[str] = frozenset({"drossel", "speicher", "multi"})
 
 
 def _to_response(record: DeviceRecord) -> DeviceResponse:
@@ -126,12 +131,12 @@ def _build_rows_from_request(body: HardwareConfigRequest) -> list[DeviceRecord]:
     if body.grid_meter_entity_id:
         # Story 2.5 — persist the sign-invert toggle into the grid_meter
         # device.config_json so the controller's _maybe_invert_sensor_value
-        # helper picks it up. Omit the key when False so existing rows keep
-        # their config_json minimal and round-trip stably through repeated
-        # saves.
-        meter_config: dict[str, Any] = {}
-        if body.invert_sign:
-            meter_config["invert_sign"] = True
+        # helper picks it up. ``invert_sign`` is written explicitly (True or
+        # False) so a PUT with the toggle de-activated clears the previously
+        # stored ``True`` — ``_merge_config`` is left-biased and would
+        # otherwise drop an absent key, leaving the controller stuck on the
+        # inverted sign convention (Story-2.5 review P4).
+        meter_config: dict[str, Any] = {"invert_sign": bool(body.invert_sign)}
         rows.append(
             DeviceRecord(
                 id=None,
@@ -139,7 +144,7 @@ def _build_rows_from_request(body: HardwareConfigRequest) -> list[DeviceRecord]:
                 role="grid_meter",
                 entity_id=body.grid_meter_entity_id,
                 adapter_key="generic_meter",
-                config_json=json.dumps(meter_config) if meter_config else "{}",
+                config_json=json.dumps(meter_config),
             )
         )
 
@@ -417,15 +422,16 @@ async def _write_hardware_edit_audit_cycle(
         return
 
     controller = getattr(request.app.state, "controller", None)
+    # Default to ``drossel`` when the controller is absent (early lifespan,
+    # tests). Otherwise pick the active mode through the allow-list so a
+    # future ``Mode.EXPORT`` (Story 3.8 surplus-export) lands in the audit
+    # row verbatim instead of being silently relabelled as ``drossel`` —
+    # CLAUDE.md flags audit-trail clarity as non-negotiable.
     mode_value: Mode = "drossel"
     if controller is not None:
         raw_mode = controller.current_mode.value
-        if raw_mode == "speicher":
-            mode_value = "speicher"
-        elif raw_mode == "multi":
-            mode_value = "multi"
-        elif raw_mode == "drossel":
-            mode_value = "drossel"
+        if raw_mode in _ALLOWED_AUDIT_MODES:
+            mode_value = cast(Mode, raw_mode)
 
     existing_summary = sorted(
         f"{d.role}={d.entity_id}" for d in existing if d.role

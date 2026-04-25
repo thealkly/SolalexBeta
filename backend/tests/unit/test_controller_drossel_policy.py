@@ -694,3 +694,145 @@ async def test_devices_by_role_filters_uncommissioned(tmp_path: Path) -> None:
     assert "grid_meter" not in devices_by_role, (
         "uncommissioned grid_meter must not leak into devices_by_role"
     )
+
+
+# ---------------------------------------------------------------------------
+# Story 5.1d — Drossel-Policy noop-reasons fed via _set_noop_reason buffer.
+# Each early-exit branch must populate ``_last_policy_noop_reason`` so the
+# Live-Betriebs-View Cycle-Liste can render German Klartext.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_kein_wr_limit_device(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    # Drop the wr_limit device so the policy hits the kein_wr_limit branch.
+    devices_by_role.pop("wr_limit")
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    decision = controller._policy_drossel(
+        devices_by_role["grid_meter"], sensor_value_w=-100.0
+    )
+    assert decision is None
+    assert controller._last_policy_noop_reason == "noop: kein_wr_limit_device"
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_deadband(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    await _seed_wr_state(state_cache, current_limit_w=500)
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    # Steady ±2 W oscillation — well inside the 5-W deadband (Generic default).
+    for sample in [-2.0, 2.0, -1.0, 1.0, -2.0]:
+        controller._policy_drossel(
+            devices_by_role["grid_meter"], sensor_value_w=sample
+        )
+    reason = controller._last_policy_noop_reason
+    assert reason is not None
+    assert reason.startswith("noop: deadband")
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_min_step_nicht_erreicht(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    await _seed_wr_state(state_cache, current_limit_w=500)
+    params = DrosselParams(
+        deadband_w=5, min_step_w=20, smoothing_window=5, limit_step_clamp_w=200
+    )
+    monkeypatch.setattr(
+        ADAPTERS["generic"], "get_drossel_params", lambda _device: params
+    )
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    for _ in range(5):
+        controller._policy_drossel(
+            devices_by_role["grid_meter"], sensor_value_w=-10.0
+        )
+    reason = controller._last_policy_noop_reason
+    assert reason is not None
+    assert reason.startswith("noop: min_step_nicht_erreicht")
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_wr_limit_state_cache_miss(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    # Do NOT seed the wr state — _read_current_wr_limit_w returns None.
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    for _ in range(5):
+        controller._policy_drossel(
+            devices_by_role["grid_meter"], sensor_value_w=-100.0
+        )
+    assert controller._last_policy_noop_reason == "noop: wr_limit_state_cache_miss"
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_sensor_nicht_numerisch(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    await _seed_wr_state(state_cache, current_limit_w=500)
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    decision = controller._policy_drossel(
+        devices_by_role["grid_meter"], sensor_value_w=None
+    )
+    assert decision is None
+    assert controller._last_policy_noop_reason == "noop: sensor_nicht_numerisch"
+
+
+@pytest.mark.asyncio
+async def test_drossel_noop_reason_nicht_grid_meter_event(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    await _seed_wr_state(state_cache, current_limit_w=500)
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    # Pass the wr_limit device (role != grid_meter) — early-exit branch.
+    decision = controller._policy_drossel(
+        devices_by_role["wr_limit"], sensor_value_w=-100.0
+    )
+    assert decision is None
+    assert controller._last_policy_noop_reason == "noop: nicht_grid_meter_event"
+
+
+@pytest.mark.asyncio
+async def test_drossel_decision_clears_previous_noop_reason(tmp_path: Path) -> None:
+    """A successful dispatch via _dispatch_by_mode must reset the buffer."""
+    db = tmp_path / "test.db"
+    devices_by_role = await _seed_drossel_devices(db)
+    state_cache = StateCache()
+    await _seed_wr_state(state_cache, current_limit_w=500)
+    controller = _make_controller(db, devices_by_role, state_cache=state_cache)
+
+    # Prime with deadband-only samples — leaves a stale reason in the buffer.
+    for sample in [-2.0, 2.0, -1.0, 1.0, -2.0]:
+        controller._policy_drossel(
+            devices_by_role["grid_meter"], sensor_value_w=sample
+        )
+    assert controller._last_policy_noop_reason is not None
+
+    # Now route through _dispatch_by_mode (resets buffer at entry) with a
+    # value that yields a real PolicyDecision — buffer must end up None.
+    controller._drossel_buffers.clear()
+    for _ in range(4):
+        controller._dispatch_by_mode(
+            Mode.DROSSEL, devices_by_role["grid_meter"], sensor_value_w=-100.0
+        )
+    decisions = controller._dispatch_by_mode(
+        Mode.DROSSEL, devices_by_role["grid_meter"], sensor_value_w=-100.0
+    )
+    assert decisions  # non-empty
+    assert controller._last_policy_noop_reason is None

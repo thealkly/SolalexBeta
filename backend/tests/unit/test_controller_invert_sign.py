@@ -4,6 +4,12 @@ Covers AC 8 / AC 9 / AC 11: ``_maybe_invert_sensor_value`` selectively
 flips on ``role == 'grid_meter'`` AND ``invert_sign == True`` only,
 and the post-flip value lands in ``_drossel_buffers`` (and equivalently
 in ``_speicher_buffers``) before any policy logic runs.
+
+Also covers the policy-outcome side of AC 11: a series of positive
++50 W readings on an ``invert_sign=True`` meter must (a) drive the
+Drossel WR-Limit DOWN (Drossel-Down, treating import as feed-in) and
+(b) make the Speicher policy emit a positive charge setpoint instead
+of the negative discharge it would emit on the un-flipped value.
 """
 
 from __future__ import annotations
@@ -17,12 +23,13 @@ import pytest
 
 from solalex.adapters import ADAPTERS
 from solalex.adapters.base import DeviceRecord
+from solalex.battery_pool import BatteryPool
 from solalex.controller import Controller, Mode
 from solalex.ha_client.client import HaWebSocketClient
 from solalex.persistence.db import connection_context
 from solalex.persistence.migrate import run as run_migration
 from solalex.persistence.repositories.devices import list_devices, upsert_device
-from solalex.state_cache import StateCache
+from solalex.state_cache import HaStateEntry, StateCache
 from tests.unit._controller_helpers import FakeHaClient, make_db_factory
 
 _GRID_METER_ENTITY = "sensor.esphome_smart_meter_current_load"

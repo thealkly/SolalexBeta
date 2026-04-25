@@ -1188,3 +1188,130 @@ async def test_speicher_sign_convention_load_yields_negative_setpoint(
     assert len(decisions) == 1
     # 400 W import → -400 W discharge.
     assert decisions[0].target_value_w == -400
+
+
+# ---------------------------------------------------------------------------
+# Story 5.1d — Speicher-Policy noop-reasons fed via _set_noop_reason buffer.
+# Story spec lists every Klartext-Reason that the policy must produce; the
+# tests below assert the buffer contents on each early-exit branch.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_kein_akku_pool(tmp_path: Path) -> None:
+    """No commissioned pool → kein_akku_pool reason."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+    # Override the controller's pool to ``None`` to exercise the branch.
+    controller._battery_pool = None
+    decisions = controller._policy_speicher(
+        seeds["grid_meter"], sensor_value_w=-200.0
+    )
+    assert decisions == []
+    assert controller._last_policy_noop_reason == "noop: kein_akku_pool"
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_kein_soc_messwert(tmp_path: Path) -> None:
+    """SoC entity returns no numeric value → kein_soc_messwert reason."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+    # Wipe the SoC entity so pool.get_soc() returns None.
+    soc_entity = seeds["pool_devices"][0][1].entity_id
+    state_cache.last_states.pop(soc_entity, None)
+
+    decisions = controller._policy_speicher(
+        seeds["grid_meter"], sensor_value_w=-200.0
+    )
+    assert decisions == []
+    assert controller._last_policy_noop_reason == "noop: kein_soc_messwert"
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_deadband(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+    # ±2 W oscillation — well inside the Marstek deadband.
+    for sample in [-2.0, 1.0, -1.0, 2.0]:
+        controller._policy_speicher(seeds["grid_meter"], sensor_value_w=sample)
+    reason = controller._last_policy_noop_reason
+    assert reason is not None
+    assert reason.startswith("noop: deadband")
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_max_soc_erreicht(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=99.0
+    )
+    # Feed-in (negative smoothed) at >= max_soc → max_soc_erreicht.
+    for _ in range(5):
+        controller._policy_speicher(
+            seeds["grid_meter"], sensor_value_w=-200.0
+        )
+    reason = controller._last_policy_noop_reason
+    assert reason is not None
+    assert reason.startswith("noop: max_soc_erreicht")
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_min_soc_erreicht(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=10.0
+    )
+    # Import (positive smoothed) at <= min_soc → min_soc_erreicht.
+    for _ in range(5):
+        controller._policy_speicher(
+            seeds["grid_meter"], sensor_value_w=200.0
+        )
+    reason = controller._last_policy_noop_reason
+    assert reason is not None
+    assert reason.startswith("noop: min_soc_erreicht")
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_sensor_nicht_numerisch(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+    decisions = controller._policy_speicher(
+        seeds["grid_meter"], sensor_value_w=None
+    )
+    assert decisions == []
+    assert controller._last_policy_noop_reason == "noop: sensor_nicht_numerisch"
+
+
+@pytest.mark.asyncio
+async def test_speicher_noop_reason_nicht_grid_meter_event(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_devices(db, pool_size=1)
+    state_cache = StateCache()
+    controller, _ = _make_speicher_controller(
+        db, seeds, state_cache=state_cache, aggregated_pct=50.0
+    )
+    # Pass the wr_charge device (role != grid_meter) — early-exit branch.
+    charge_device = seeds["pool_devices"][0][0]
+    decisions = controller._policy_speicher(charge_device, sensor_value_w=-200.0)
+    assert decisions == []
+    assert controller._last_policy_noop_reason == "noop: nicht_grid_meter_event"
