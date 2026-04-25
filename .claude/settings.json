@@ -38,11 +38,15 @@
       "Bash(git stash *)",
       "Bash(echo \"[exit $?]\")",
       "Bash(grep -E \"^pool/?$\")",
-      "Bash(awk ' *)"
+      "Bash(awk ' *)",
+      "Bash(git mv *)",
+      "Bash(git -C /Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment diff --stat HEAD)",
+      "Bash(npx vitest *)"
     ],
     "additionalDirectories": [
       "/tmp",
-      "/Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/_bmad-output/implementation-artifacts"
+      "/Users/alexander/Documents/Local-Projekte/Dev/Alkly/SolarBot/SolalexDevelopment/_bmad-output/implementation-artifacts",
+      "/tmp/code-review-5-1a"
     ]
   }
 }
