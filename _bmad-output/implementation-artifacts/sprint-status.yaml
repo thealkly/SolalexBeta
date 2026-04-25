@@ -1,5 +1,5 @@
 # generated: 2026-04-21
-# last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup: Review vom 2026-04-23 war vollständig abgearbeitet, aber Status nicht auf done gezogen — 4 Skipped-in-Batch-Items in deferred-work.md verschoben; Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1)
+# last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup: Review vom 2026-04-23 war vollständig abgearbeitet, aber Status nicht auf done gezogen — 4 Skipped-in-Batch-Items in deferred-work.md verschoben; Story 2.3a → done nach Code-Review mit Patch-Suite D1/D2/D3/P1/P2/P3/P5 + Test-Stack-Ausbau happy-dom/@testing-library; Story 3.2 → done nach Code-Review mit Scope-Erweiterung; Story 2.3 → done nach Code-Review; Story 3.1 → done nach Code-Review; Story 2.2 → done nach Code-Review; Story 5.1 → 5.1a + 5.1b gesplittet via Sprint Change Proposal 2026-04-24; Story 2.3a gespawnt aus 2.3-Review D1; Story 5.1a → done nach Code-Review mit Patch-Suite P1–P10 + D1-Resolution Idle-Heartbeat-Override, DF1 Polling-Error-Surface deferred auf 4.3)
 # project: SolalexDevelopment
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-21
-last_updated: 2026-04-24 (Story 2.1 → done nach Status-Cleanup; 2.3a → done nach Code-Review; 3.2 → done; 2.3 → done; 3.1 → done; 5.1 → 5.1a + 5.1b gesplittet; 5.1a → review nach Dev-Implementierung)
+last_updated: 2026-04-25 (Story 4.0 → ready-for-dev via create-story: Debug-Logging-Toggle + Hot-Path-Debug-Trace Story erstellt; Epic 4 gestartet. Vorher: Story 3.4 → review via dev-story: Speicher-Modus produktiv — _policy_speicher ersetzt Stub mit Smoothing/Hard-Cap/Sign-Flip; SpeicherParams in adapters/base; Marstek-Override + signed Range (-2500, 2500); _dispatch_by_mode list-signature für Multi-Member-Dispatch; battery_pool an Controller durchgereicht. 31 neue Tests + 2 angepasste, 219 Tests total grün; Ruff + MyPy strict + 5 Drift-Checks grün; keine SQL-Migration, keine API-/Frontend-Änderung, keine neue Dependency)
 
 project: SolalexDevelopment
 project_key: NOKEY
@@ -74,15 +74,17 @@ development_status:
   # Key aktualisiert: Amendment 2026-04-22 — Mono-Modul + persistenter Rate-Limiter explizit
   3-1-core-controller-mono-modul-sensor-policy-executor-event-source-readback-persistenter-rate-limit: done
   3-2-drossel-modus-wr-limit-regelung-fuer-nulleinspeisung: done
-  3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: backlog
-  3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: backlog
+  3-3-akku-pool-abstraktion-mit-gleichverteilung-soc-aggregation: done
+  3-4-speicher-modus-akku-lade-entlade-regelung-innerhalb-soc-grenzen: review
   3-5-adaptive-strategie-auswahl-hysterese-basierter-modus-wechsel-inkl-multi-modus: backlog
   3-6-user-config-min-max-soc-nacht-entlade-zeitfenster: backlog
   3-7-fail-safe-bei-kommunikations-ausfall: backlog
   epic-3-retrospective: optional
 
   # Epic 4: Diagnose, Latenz-Messung & Support-Workflow
-  epic-4: backlog
+  epic-4: in-progress
+  # Neu 2026-04-25: Voraussetzung für 4.1, kleiner Scope (~halber Tag) — Add-on-Option `log_level` + Hot-Path-Debug-Trace
+  4-0-debug-logging-toggle-und-hot-path-debug-trace: ready-for-dev
   4-1-diagnose-route-mit-abgesetztem-opening-letzte-100-regelzyklen: backlog
   4-2-letzte-20-fehler-warnungen-mit-klartext-handlungsempfehlung: backlog
   4-3-verbindungs-status-panel-ha-ws-entities-lizenz: backlog
@@ -94,7 +96,7 @@ development_status:
   # Epic 5: Dashboard mit Euro-Wert & Live-Visualisierung
   epic-5: backlog
   # Key geändert: Sprint Change Proposal 2026-04-24 — Story 5.1 in 5.1a (vorgezogen, Live-Betriebs-View nach Commissioning) + 5.1b (Rest-Scope: Hero + Nav + Euro-Wert) gesplittet
-  5-1a-live-betriebs-view-post-commissioning-mini-shell: review
+  5-1a-live-betriebs-view-post-commissioning-mini-shell: done
   5-1b-dashboard-hero-euro-wert-responsive-navigation: backlog
   5-2-bezugspreis-anpassung-inline-per-stepper: backlog
   5-3-beleg-kpis-getrennt-ausgewiesen-kwh-selbst-verbraucht-kwh-selbst-gesteuert: backlog

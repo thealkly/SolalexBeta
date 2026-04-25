@@ -995,6 +995,62 @@ So that mein Netz-Export und meine Hardware nie unkontrolliert aus dem Ruder lau
 
 Alex bekommt mit einem Klick einen strukturierten Diagnose-Export von einem Beta-Tester. Nutzer sieht Verbindungs-Status, letzte 100 Regelzyklen, letzte 20 Fehler, E2E-Latenz pro Device. GitHub-Issues hat ein Bug-Report-Template mit Hardware-/Firmware-Feldern.
 
+### Story 4.0: Debug-Logging-Toggle & Hot-Path-Debug-Trace
+
+As a Alex (Support) / Beta-Tester,
+I want einen Add-on-Option-Schalter, mit dem ich das Solalex-Log-Level zur Laufzeit auf `debug` ziehen kann, und genug `_logger.debug(...)`-Punkte im Regel-Hot-Path, damit ein DEBUG-Log einen Vorfall vollständig nacherzählt,
+So that ich Beta-Probleme über das HA-Add-on-Log-Tab live nachvollziehen kann ohne Container-Rebuild und der Diagnose-Export aussagekräftige Traces enthält.
+
+**Begründung (für Beta-Phase als Voraussetzung für 4.1):** `common/logging.py` schreibt heute schon JSON-strukturiert (`/data/logs/` rotiert + stdout → HA Add-on-Log-Tab), aber das Default-Level ist hardcoded `INFO` und es gibt im Regel-Hot-Path kaum `_logger.debug(...)`-Calls. Ohne Toggle muss ein Beta-Tester für jeden Vorfall die App neu bauen. Mit Toggle reicht „Debug an → Vorfall reproduzieren → Diagnose exportieren".
+
+**Acceptance Criteria:**
+
+**Given** `addon/config.yaml`
+**When** der Nutzer die Add-on-Konfiguration in HA öffnet
+**Then** ein Feld `log_level` mit Optionen `debug | info | warning | error` ist sichtbar (Default `info`)
+**And** das Feld ist mit einer kurzen deutschen Beschreibung versehen („Nur für Support-Anfragen auf `debug` stellen — produziert mehr Logs.")
+
+**Given** der Nutzer setzt `log_level: debug` und startet das Add-on neu
+**When** `run_startup(settings)` läuft
+**Then** `Settings.log_level` wird aus der Env-Variable `SOLALEX_LOG_LEVEL` gelesen und an `configure_logging(log_dir, level=...)` durchgereicht
+**And** `logger.debug(...)`-Records werden ab sofort in `/data/logs/solalex.log` und auf stdout (HA Add-on-Log-Tab) sichtbar
+
+**Given** der Controller verarbeitet ein Sensor-Event (`controller.on_sensor_update`)
+**When** Log-Level `debug` aktiv ist
+**Then** ein DEBUG-Record wird geschrieben mit `extra={sensor_value, mode, derived_setpoint}` — pro Zyklus genau eine Zeile
+
+**Given** der Executor prüft die Veto-Kaskade (Range-Check / Rate-Limit / Readback-Erwartung)
+**When** Log-Level `debug` aktiv ist
+**Then** jede Veto-Stufe loggt ihre Entscheidung (`pass | block`) mit Begründung und betroffenem Device als DEBUG
+
+**Given** ein Adapter-Modul baut einen `HaServiceCall` (Drossel-Limit oder Akku-Setpoint)
+**When** Log-Level `debug` aktiv ist
+**Then** der erzeugte Call wird mit `extra={service, target_entity, payload, expected_readback}` als DEBUG geloggt — direkt vor dem Senden
+
+**Given** ein Adapter-Modul vergleicht den Readback-State mit dem erwarteten Wert
+**When** Log-Level `debug` aktiv ist
+**Then** ein DEBUG-Record mit `extra={expected, observed, delta, within_tolerance}` wird geschrieben (auch bei erfolgreichem Match — beim Mismatch bleibt der bestehende WARN/ERROR-Pfad)
+
+**Given** der Akku-Pool verteilt einen Setpoint
+**When** Log-Level `debug` aktiv ist
+**Then** ein DEBUG-Record mit `extra={pool_setpoint, per_member_setpoints, soc_breakdown}` wird geschrieben
+
+**Given** der HA-WS-Client subscribed/unsubscribed eine Entity
+**When** Log-Level `debug` aktiv ist
+**Then** ein DEBUG-Record mit `extra={entity_id, action, subscription_id}` wird geschrieben
+
+**Given** Log-Level `info` (Default)
+**When** das Add-on im Idle-Zustand läuft
+**Then** das Log-Volumen pro Stunde übersteigt nicht das heutige Niveau — `debug`-Records werden komplett gefiltert (Performance-NFR)
+
+**Given** der Diagnose-Export aus Story 4.5
+**When** er ausgeführt wird
+**Then** das Bundle enthält die rotierten Log-Dateien aus `/data/logs/` ungefiltert (also auch DEBUG, falls aktiv) — keine separate Sanitisierung
+
+**Given** ein Test
+**When** er `configure_logging` mit unterschiedlichen Levels aufruft
+**Then** der Effekt ist beobachtbar (Records erscheinen / verschwinden je nach Level) — abgedeckt von Unit-Tests in `tests/unit/test_common_logging.py`
+
 ### Story 4.1: Diagnose-Route mit abgesetztem Opening + Letzte 100 Regelzyklen
 
 As a Alex (Support) / fortgeschrittener Nutzer,

@@ -126,11 +126,13 @@ async def test_fail_safe_when_ws_disconnected(
 
     def _fake_dispatch(
         self: Controller, mode: Mode, dev: DeviceRecord, sensor_value_w: float | None
-    ) -> PolicyDecision | None:
+    ) -> list[PolicyDecision]:
         del self, mode, sensor_value_w
-        return PolicyDecision(
-            device=dev, target_value_w=50, mode="drossel", command_kind="set_limit"
-        )
+        return [
+            PolicyDecision(
+                device=dev, target_value_w=50, mode="drossel", command_kind="set_limit"
+            )
+        ]
 
     monkeypatch.setattr(Controller, "_dispatch_by_mode", _fake_dispatch)
 
@@ -179,11 +181,13 @@ async def test_fail_safe_on_call_service_exception(
 
     def _fake_dispatch(
         self: Controller, mode: Mode, dev: DeviceRecord, sensor_value_w: float | None
-    ) -> PolicyDecision | None:
+    ) -> list[PolicyDecision]:
         del self, mode, sensor_value_w
-        return PolicyDecision(
-            device=dev, target_value_w=50, mode="drossel", command_kind="set_limit"
-        )
+        return [
+            PolicyDecision(
+                device=dev, target_value_w=50, mode="drossel", command_kind="set_limit"
+            )
+        ]
 
     monkeypatch.setattr(Controller, "_dispatch_by_mode", _fake_dispatch)
 

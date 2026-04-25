@@ -21,6 +21,7 @@ from solalex.adapters.base import (
     HaState,
     RateLimitPolicy,
     ReadbackTiming,
+    SpeicherParams,
 )
 
 _CHARGE_PATTERN = re.compile(r"^number\..+_charge_power$")
@@ -77,10 +78,39 @@ class MarstekVenusAdapter(AdapterBase):
         return ReadbackTiming(timeout_s=30.0, mode="sync")
 
     def get_limit_range(self, device: DeviceRecord) -> tuple[int, int]:
-        # Marstek Venus 3E charge window per datasheet. TODO(3.4): pull the
-        # actual cap from device.config once the Speicher story exposes it.
+        # Negative watts = discharge, positive = charge — Marstek Venus
+        # charge-power entity accepts both signs via ``number.set_value``.
+        # Range from datasheet (3E variant: 2500 W charge / 2500 W discharge).
+        # Per-install override via ``device.config_json.charge_power_cap_w``
+        # is v1.5-Scope (Wizard not yet exposed).
         del device
-        return (0, 2500)
+        return (-2500, 2500)
+
+    def get_speicher_params(self, device: DeviceRecord) -> SpeicherParams:
+        del device
+        return SpeicherParams(
+            # PRD line 392 + beta-gate: Marstek Venus ±30 W tolerance (local
+            # API latency dependent).
+            deadband_w=30,
+            # Empirical: sub-20 W deltas are charge-power write noise / BMS
+            # micro-adjustments — not worth a write that consumes EEPROM
+            # cycles.
+            min_step_w=20,
+            # 5 × ~1 s HA grid-meter events ≈ 5 s smoothing — same window as
+            # Hoymiles because the smart-meter stream is shared.
+            smoothing_window=5,
+            # 500 W/Zyklus — prevents shock-charge transitions on load steps;
+            # hardware can technically jump to 2500 W but datasheet-conservative
+            # ramping protects the cell pack.
+            limit_step_clamp_w=500,
+        )
+
+    def get_default_capacity_wh(self, device: DeviceRecord) -> int:
+        # Marstek Venus 3E datasheet — nominal usable capacity 5120 Wh.
+        # Override per-install via ``device.config_json.capacity_wh`` for
+        # 3E variants or custom cell-pack mods.
+        del device
+        return 5120
 
 
 ADAPTER = MarstekVenusAdapter()

@@ -35,6 +35,7 @@ from solalex.api.routes import health
 from solalex.api.routes.control import router as control_router
 from solalex.api.routes.devices import router as devices_router
 from solalex.api.routes.setup import router as setup_router
+from solalex.battery_pool import BatteryPool
 from solalex.common.logging import get_logger
 from solalex.config import get_settings
 from solalex.controller import Controller, Mode
@@ -204,6 +205,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_conn_factory = _db_conn_factory
     app.state.adapter_registry = ADAPTERS
 
+    # Build the battery pool from the freshly-loaded devices list (Story 3.3).
+    # Pool is dormant in 3.3 — the Controller does not yet consume it; Story
+    # 3.4 threads the pool through the speicher policy.
+    battery_pool = BatteryPool.from_devices(devices, ADAPTERS)
+    app.state.battery_pool = battery_pool
+    _logger.info(
+        "battery_pool_built",
+        extra={"member_count": len(battery_pool.members) if battery_pool else 0},
+    )
+
     controller = Controller(
         ha_client=app.state.ha_client.client,
         state_cache=_app_state_cache,
@@ -211,6 +222,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         adapter_registry=ADAPTERS,
         ha_ws_connected_fn=lambda: app.state.ha_client.ha_ws_connected,
         devices_by_role=devices_by_role,
+        battery_pool=battery_pool,
         mode=Mode.DROSSEL,
     )
     _app_controller = controller

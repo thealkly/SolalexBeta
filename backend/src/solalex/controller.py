@@ -20,11 +20,17 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any, Literal, assert_never
+from typing import TYPE_CHECKING, Any, Literal, assert_never
 
 import aiosqlite
 
-from solalex.adapters.base import AdapterBase, DeviceRecord, DrosselParams, HaState
+from solalex.adapters.base import (
+    AdapterBase,
+    DeviceRecord,
+    DrosselParams,
+    HaState,
+    SpeicherParams,
+)
 from solalex.common.logging import get_logger
 from solalex.executor import dispatcher as executor_dispatcher
 from solalex.executor.dispatcher import (
@@ -37,6 +43,11 @@ from solalex.kpi import record as kpi_record
 from solalex.persistence.repositories import control_cycles
 from solalex.persistence.repositories.control_cycles import ControlCycleRow
 from solalex.state_cache import StateCache
+
+if TYPE_CHECKING:  # pragma: no cover — typing-only to avoid a circular import
+    # battery_pool imports Mode from this module, so we cannot import the
+    # class at runtime without a cycle. Story 3.4.
+    from solalex.battery_pool import BatteryPool
 
 _logger = get_logger(__name__)
 
@@ -110,6 +121,7 @@ class Controller:
         *,
         ha_ws_connected_fn: Callable[[], bool],
         devices_by_role: dict[str, DeviceRecord] | None = None,
+        battery_pool: BatteryPool | None = None,
         mode: Mode = Mode.DROSSEL,
         setpoint_provider: SetpointProvider | None = None,
         now_fn: Callable[[], datetime] = _utc_now,
@@ -135,6 +147,21 @@ class Controller:
         )
         self._wr_limit_device: DeviceRecord | None = self._devices_by_role.get("wr_limit")
         self._drossel_buffers: dict[int, deque[float]] = {}
+        # Story 3.4 — Speicher mode pool consumption + per-grid_meter
+        # moving-average buffer + last-setpoint memory + Hard-Cap log flags.
+        # battery_pool defaults to None so Story 3.1/3.2 unit tests that do
+        # not exercise the Speicher policy keep working unchanged.
+        self._battery_pool: BatteryPool | None = battery_pool
+        self._speicher_buffers: dict[int, deque[float]] = {}
+        # Per-pool last dispatched setpoint (key: id(pool)). v1 has at most
+        # one pool; the dict reserves room for v1.5 multi-pool without a
+        # signature refactor.
+        self._speicher_last_setpoint_w: dict[int, int] = {}
+        # Boolean flags drive the once-per-band log line so the diagnostics
+        # log does not spam an entry on every sensor event while the pool is
+        # parked at the Hard-Cap (analogous to test_in_progress flag pattern).
+        self._speicher_max_soc_capped: bool = False
+        self._speicher_min_soc_capped: bool = False
 
     @property
     def current_mode(self) -> Mode:
@@ -170,7 +197,7 @@ class Controller:
         source = self._classify_source(event_msg, device, now)
         sensor_value = _extract_sensor_w(event_msg)
 
-        decision = self._dispatch_by_mode(self._current_mode, device, sensor_value)
+        decisions = self._dispatch_by_mode(self._current_mode, device, sensor_value)
 
         # cycle_duration_ms reflects the *synchronous* pipeline only
         # (event-in → dispatch task spawn). The adapter readback wait runs
@@ -179,8 +206,10 @@ class Controller:
         # this synchronous segment.
         pipeline_ms = int((time.monotonic() - t0) * 1000)
 
-        if decision is None:
+        if not decisions:
             if source != "solalex":
+                # Exactly one noop cycle per sensor event — never per virtual
+                # pool member (Story 3.4 AC 8).
                 await self._record_noop_cycle(
                     device=device,
                     source=source,
@@ -190,17 +219,20 @@ class Controller:
                 )
             return
 
-        # Drive the dispatch in a background task so the HA event loop is
-        # never blocked by the adapter-specific readback wait. Exceptions
-        # caught by the fail-safe wrapper surface through the completed
-        # task; unhandled ones are logged via the task's default handler.
-        task = asyncio.create_task(
-            self._safe_dispatch(decision, pipeline_ms),
-            name=f"controller_dispatch_{device.id}",
-        )
-        # Prevent "Task was destroyed but it is pending" at shutdown by keeping
-        # a reference. Tasks self-remove via their done callback.
-        self._track_task(task)
+        # Drive each dispatch in its own background task so the HA event loop
+        # is never blocked by the adapter-specific readback wait. The per-
+        # device asyncio.Lock provides mutual exclusion for the same device
+        # while different pool members run in parallel. Exceptions caught by
+        # the fail-safe wrapper surface through the completed task; unhandled
+        # ones are logged via the task's default handler.
+        for decision in decisions:
+            task = asyncio.create_task(
+                self._safe_dispatch(decision, pipeline_ms),
+                name=f"controller_dispatch_{decision.device.id}",
+            )
+            # Prevent "Task was destroyed but it is pending" at shutdown by
+            # keeping a reference. Tasks self-remove via their done callback.
+            self._track_task(task)
 
     async def aclose(self) -> None:
         """Cancel and await pending dispatch tasks — called by FastAPI lifespan shutdown.
@@ -250,18 +282,21 @@ class Controller:
         mode: Mode,
         device: DeviceRecord,
         sensor_value_w: float | None,
-    ) -> PolicyDecision | None:
+    ) -> list[PolicyDecision]:
         """Enum-Dispatch — policies land here in 3.2 / 3.3 / 3.4 / 3.5.
 
-        Story 3.2 wires ``Mode.DROSSEL`` to the productive :meth:`_policy_drossel`;
-        speicher/multi remain noop stubs (Stories 3.4 / 3.5). Amendment
-        2026-04-22 forbids splitting this into per-mode modules.
+        Drossel produces at most one decision (wrapped in a single-element
+        list). Speicher consumes the battery pool and produces N decisions
+        — one per online pool member. Multi remains a stub returning ``[]``
+        (Story 3.5). Amendment 2026-04-22 forbids splitting this into
+        per-mode modules.
         """
         match mode:
             case Mode.DROSSEL:
-                return self._policy_drossel(device, sensor_value_w)
+                decision = self._policy_drossel(device, sensor_value_w)
+                return [decision] if decision is not None else []
             case Mode.SPEICHER:
-                return _policy_speicher_stub(device, sensor_value_w)
+                return self._policy_speicher(device, sensor_value_w)
             case Mode.MULTI:
                 return _policy_multi_stub(device, sensor_value_w)
             case _:  # pragma: no cover — exhaustiveness guard
@@ -353,6 +388,136 @@ class Controller:
             command_kind="set_limit",
             sensor_value_w=smoothed,
         )
+
+    # ------------------------------------------------------------------
+    # Story 3.4 — Speicher policy: reactive battery charge/discharge to
+    # cancel grid feed-in / cover grundlast within Min/Max-SoC bounds.
+    # Consumes the BatteryPool from Story 3.3 and produces N decisions
+    # (one per online pool member). Mode switching at Max-SoC is Story
+    # 3.5; this policy only enforces the Hard-Cap (no command emitted).
+    # ------------------------------------------------------------------
+    def _policy_speicher(
+        self,
+        device: DeviceRecord,
+        sensor_value_w: float | None,
+    ) -> list[PolicyDecision]:
+        """Compute Speicher ``PolicyDecision``s or ``[]`` to skip.
+
+        Sign convention (Story 3.4 AC 20):
+          * Smart-meter (Shelly 3EM) — positive = grid import (Bezug),
+            negative = grid export (Einspeisung).
+          * Marstek charge entity — positive = charge, negative = discharge.
+          * Setpoint = ``-smoothed`` (sign-flip): feed-in (negative) drives
+            a positive charge setpoint that absorbs the surplus; import
+            (positive) drives a negative discharge setpoint that covers
+            the load.
+        """
+        if device.role != "grid_meter":
+            return []
+        if sensor_value_w is None or not math.isfinite(sensor_value_w):
+            return []
+
+        pool = self._battery_pool
+        if pool is None or not pool.members:
+            return []
+
+        grid_meter_id = device.id
+        if grid_meter_id is None:
+            return []
+
+        # v1: all pool members share the same vendor; the first member's
+        # adapter is the single source of truth for SpeicherParams and the
+        # SoC bounds (AC 15). v1.5 will conservatively aggregate across
+        # heterogeneous pools (max_soc = min(member_max), and so on).
+        first_charge = pool.members[0].charge_device
+        adapter = self._adapter_registry.get(first_charge.adapter_key)
+        if adapter is None:
+            return []
+        params: SpeicherParams = adapter.get_speicher_params(first_charge)
+
+        buf = self._speicher_buffers.get(grid_meter_id)
+        if buf is None or buf.maxlen != params.smoothing_window:
+            # maxlen mismatch only occurs when params change in-process —
+            # rebuild defensively (mirrors the Drossel pattern).
+            buf = deque(maxlen=params.smoothing_window)
+            self._speicher_buffers[grid_meter_id] = buf
+        buf.append(sensor_value_w)
+        smoothed = sum(buf) / len(buf)
+
+        if abs(smoothed) <= params.deadband_w:
+            return []
+
+        # Refuse to charge / discharge blindly without a SoC reading.
+        soc_breakdown = pool.get_soc(self._state_cache)
+        if soc_breakdown is None:
+            return []
+        aggregated = soc_breakdown.aggregated_pct
+
+        max_soc, min_soc = _read_soc_bounds(first_charge)
+
+        if smoothed < 0:
+            # Feed-in: would charge the pool — gate on Max-SoC.
+            if aggregated >= max_soc:
+                if not self._speicher_max_soc_capped:
+                    _logger.info(
+                        "speicher_mode_at_max_soc",
+                        extra={
+                            "aggregated_pct": aggregated,
+                            "max_soc": max_soc,
+                        },
+                    )
+                    self._speicher_max_soc_capped = True
+                return []
+            self._speicher_max_soc_capped = False
+
+        if smoothed > 0:
+            # Import: would discharge the pool — gate on Min-SoC.
+            if aggregated <= min_soc:
+                if not self._speicher_min_soc_capped:
+                    _logger.info(
+                        "speicher_mode_at_min_soc",
+                        extra={
+                            "aggregated_pct": aggregated,
+                            "min_soc": min_soc,
+                        },
+                    )
+                    self._speicher_min_soc_capped = True
+                return []
+            self._speicher_min_soc_capped = False
+
+        # Sign-flip: feed-in (negative smoothed) → positive charge setpoint;
+        # import (positive smoothed) → negative discharge setpoint. ``round``
+        # gives symmetric nearest-integer steps (Story 3.2 Review P5).
+        proposed = -int(round(smoothed))
+        proposed = _clamp_step(0, proposed, params.limit_step_clamp_w)
+
+        pool_key = id(pool)
+        last = self._speicher_last_setpoint_w.get(pool_key, 0)
+        if abs(proposed - last) < params.min_step_w:
+            return []
+
+        decisions = pool.set_setpoint(proposed, self._state_cache)
+        if not decisions:
+            # All members offline — pool already filtered them. Skip the
+            # last-setpoint memo so the next online cycle is not gated by
+            # a value that never reached hardware.
+            return []
+
+        self._speicher_last_setpoint_w[pool_key] = proposed
+        # Inject the smoothed grid reading per-decision so the cycle row
+        # carries it (NFR-consistent with Drossel). Pool ``set_setpoint``
+        # leaves sensor_value_w=None by default; this rebuild keeps the
+        # pool path immutable rather than mutating dataclass instances.
+        return [
+            PolicyDecision(
+                device=d.device,
+                target_value_w=d.target_value_w,
+                mode=d.mode,
+                command_kind=d.command_kind,
+                sensor_value_w=smoothed,
+            )
+            for d in decisions
+        ]
 
     def _read_current_wr_limit_w(self, wr_device: DeviceRecord) -> int | None:
         """Return the last cached WR-limit value in watts, or ``None``."""
@@ -572,24 +737,47 @@ class Controller:
 
 
 # ---------------------------------------------------------------------------
-# Per-mode policy stubs — 3.4 / 3.5 will replace the bodies.
+# Per-mode policy stubs — 3.5 will replace the body.
 # Kept inline per Amendment 2026-04-22 (no drossel.py / speicher.py split).
-# Story 3.2 promoted the former _policy_drossel_stub to a method on Controller.
+# Story 3.2 promoted the former _policy_drossel_stub to a method on Controller;
+# Story 3.4 promoted the former _policy_speicher_stub to a method as well.
 # ---------------------------------------------------------------------------
-
-
-def _policy_speicher_stub(
-    device: DeviceRecord, sensor_value_w: float | None
-) -> PolicyDecision | None:
-    del device, sensor_value_w
-    return None
 
 
 def _policy_multi_stub(
     device: DeviceRecord, sensor_value_w: float | None
-) -> PolicyDecision | None:
+) -> list[PolicyDecision]:
     del device, sensor_value_w
-    return None
+    return []
+
+
+def _read_soc_bounds(charge_device: DeviceRecord) -> tuple[int, int]:
+    """Return ``(max_soc, min_soc)`` from ``charge_device.config_json``.
+
+    Wizard 2.1 persists ``min_soc`` and ``max_soc`` as part of the wr_charge
+    config (Pydantic-validated, ``min_soc < max_soc``). Defaults match the
+    Wizard defaults (15 % / 95 %). Non-numeric / malformed payloads collapse
+    to defaults rather than crashing the dispatch task.
+    """
+    try:
+        cfg = charge_device.config()
+    except Exception:
+        _logger.exception(
+            "speicher_config_parse_failed",
+            extra={"entity_id": charge_device.entity_id},
+        )
+        return (95, 15)
+    raw_max = cfg.get("max_soc", 95)
+    raw_min = cfg.get("min_soc", 15)
+    try:
+        max_soc = int(raw_max)
+    except (ValueError, TypeError):
+        max_soc = 95
+    try:
+        min_soc = int(raw_min)
+    except (ValueError, TypeError):
+        min_soc = 15
+    return (max_soc, min_soc)
 
 
 def _clamp_step(current: int, proposed: int, max_step: int) -> int:

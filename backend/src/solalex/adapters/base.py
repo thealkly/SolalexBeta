@@ -100,6 +100,38 @@ class DrosselParams:
             )
 
 
+@dataclass(frozen=True)
+class SpeicherParams:
+    """Policy parameters consumed by the Speicher mode (controller.py).
+
+    Mirrors :class:`DrosselParams` — the Speicher policy is hardware-agnostic;
+    vendor-specific tuning lives in the adapter module (CLAUDE.md Rule 2,
+    Amendment 2026-04-22). Defaults are conservative — battery adapters
+    override with hardware-specific values (see Marstek Venus).
+    """
+
+    deadband_w: int = 30
+    min_step_w: int = 20
+    smoothing_window: int = 5
+    limit_step_clamp_w: int = 500
+
+    def __post_init__(self) -> None:
+        # Same fail-loud invariants as DrosselParams (Story 3.2 Review P6/P7):
+        # zero/negative values would silently disable the safety gate.
+        if self.deadband_w < 0:
+            raise ValueError(f"deadband_w must be >= 0, got {self.deadband_w}")
+        if self.min_step_w < 1:
+            raise ValueError(f"min_step_w must be >= 1, got {self.min_step_w}")
+        if self.smoothing_window < 1:
+            raise ValueError(
+                f"smoothing_window must be >= 1, got {self.smoothing_window}"
+            )
+        if self.limit_step_clamp_w < 1:
+            raise ValueError(
+                f"limit_step_clamp_w must be >= 1, got {self.limit_step_clamp_w}"
+            )
+
+
 @dataclass
 class DeviceRecord:
     """Row from the ``devices`` table — shared domain object."""
@@ -172,3 +204,27 @@ class AdapterBase(ABC):
         """
         del device
         return DrosselParams()
+
+    def get_speicher_params(self, device: DeviceRecord) -> SpeicherParams:
+        """Return the speicher-policy parameter bundle for this device.
+
+        Default is conservative. Battery adapters override with hardware
+        specifics (see Marstek Venus, Story 3.4). Non-battery adapters keep
+        the default — the Speicher policy only queries the wr_charge adapter,
+        and a NotImplementedError default would be a silent landmine for
+        adapters that are never asked as wr_charge (Hoymiles, Shelly).
+        """
+        del device
+        return SpeicherParams()
+
+    def get_default_capacity_wh(self, device: DeviceRecord) -> int:
+        """Return the nominal battery capacity in Wh for pool aggregation.
+
+        Conservative default (Marstek Venus 3E datasheet, 5120 Wh) rather
+        than ``NotImplementedError``: non-battery adapters (Hoymiles, Shelly)
+        are never asked as ``wr_charge`` and a raise would be a hidden
+        landmine. Overrides in vendor modules remain the single source of
+        truth — CLAUDE.md Rule 2.
+        """
+        del device
+        return 5120
