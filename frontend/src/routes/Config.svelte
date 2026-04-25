@@ -1,8 +1,14 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import * as client from '../lib/api/client.js';
   import { isApiError } from '../lib/api/errors.js';
-  import type { EntityOption, ForcedMode, ForcedModeChoice } from '../lib/api/types.js';
+  import { usePolling } from '../lib/polling/usePolling.js';
+  import type {
+    EntityOption,
+    EntityState,
+    ForcedMode,
+    ForcedModeChoice,
+  } from '../lib/api/types.js';
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
@@ -21,6 +27,15 @@
   let nightEnd = $state('06:00');
   let useSmartMeter = $state(false);
   let gridMeterEntityId = $state('');
+  // Story 2.5 — sign-convention override + live preview.
+  // The toggle value is buffered in component state and only persisted
+  // alongside the rest of the config when the user hits "Speichern".
+  let invertSign = $state(false);
+  let livePreviewValueW = $state<number | null>(null);
+  let livePreviewError = $state<string | null>(null);
+  let livePreviewPolling: ReturnType<typeof usePolling<EntityState>> | null =
+    null;
+  let livePreviewEntityId = '';
   // Generic-inverter limit-range override (Story 2.4 Review D3).
   // Empty string = use adapter default (2 / 3000 W).
   let minLimitW = $state<string>('');
@@ -38,6 +53,22 @@
   let modeBaseline = $state<ForcedMode | null>(null);
   let modeOverrideError = $state<string | null>(null);
   let modeOverridePending = $state(false);
+
+  // Live-Preview effective value derives from the raw cached watt reading
+  // and the current toggle state — invert client-side so toggling does not
+  // require a backend round-trip.
+  const ZERO_HINT_THRESHOLD_W = 50;
+  let effectivePreviewValueW = $derived(
+    livePreviewValueW === null
+      ? null
+      : invertSign
+        ? -livePreviewValueW
+        : livePreviewValueW,
+  );
+  let livePreviewBelowThreshold = $derived(
+    effectivePreviewValueW !== null &&
+      Math.abs(effectivePreviewValueW) < ZERO_HINT_THRESHOLD_W,
+  );
 
   let canSave = $derived(
     hardwareType !== null &&
@@ -124,6 +155,58 @@
     batterySocEntityId = '';
   }
 
+  function startLivePreviewPolling(entityId: string): void {
+    stopLivePreviewPolling();
+    livePreviewEntityId = entityId;
+    livePreviewValueW = null;
+    livePreviewError = null;
+    const polling = usePolling<EntityState>(
+      () => client.getEntityState(entityId),
+      1000,
+    );
+    polling.data.subscribe((snapshot) => {
+      if (snapshot === null) return;
+      livePreviewValueW = snapshot.value_w;
+    });
+    polling.error.subscribe((err) => {
+      if (err === null) {
+        livePreviewError = null;
+        return;
+      }
+      livePreviewError = isApiError(err)
+        ? err.detail
+        : 'Live-Wert konnte nicht geladen werden.';
+    });
+    polling.start();
+    livePreviewPolling = polling;
+  }
+
+  function stopLivePreviewPolling(): void {
+    if (livePreviewPolling !== null) {
+      livePreviewPolling.stop();
+      livePreviewPolling = null;
+    }
+    livePreviewEntityId = '';
+  }
+
+  // Drive the polling lifecycle from the entity selection: start when the
+  // user picks an entity, stop on clear / smart-meter-disable / route exit.
+  $effect(() => {
+    if (useSmartMeter && gridMeterEntityId !== '') {
+      if (livePreviewEntityId !== gridMeterEntityId) {
+        startLivePreviewPolling(gridMeterEntityId);
+      }
+    } else if (livePreviewPolling !== null) {
+      stopLivePreviewPolling();
+      livePreviewValueW = null;
+      livePreviewError = null;
+    }
+  });
+
+  onDestroy(() => {
+    stopLivePreviewPolling();
+  });
+
   async function handleSave(): Promise<void> {
     if (!hardwareType || !canSave) return;
     saving = true;
@@ -136,6 +219,7 @@
         wr_limit_entity_id: wrLimitEntityId,
         battery_soc_entity_id: hardwareType === 'marstek_venus' ? batterySocEntityId : undefined,
         grid_meter_entity_id: useSmartMeter && gridMeterEntityId ? gridMeterEntityId : undefined,
+        invert_sign: useSmartMeter && gridMeterEntityId ? invertSign : undefined,
         min_soc: hardwareType === 'marstek_venus' ? minSoc : undefined,
         max_soc: hardwareType === 'marstek_venus' ? maxSoc : undefined,
         night_discharge_enabled:
@@ -347,6 +431,45 @@
               {/each}
             </select>
           {/if}
+        {/if}
+
+        {#if useSmartMeter && gridMeterEntityId !== ''}
+          <label class="checkbox-row" style="margin-top: 16px;">
+            <input
+              type="checkbox"
+              bind:checked={invertSign}
+              data-testid="invert-sign-toggle"
+            />
+            <span class="checkbox-text">
+              <span>Vorzeichen invertieren</span>
+              <span class="checkbox-sub">
+                Aktivieren, wenn der gewählte Sensor Bezug als negative und Einspeisung als
+                positive Werte liefert (häufig bei ESPHome-SML).
+              </span>
+            </span>
+          </label>
+
+          <div class="live-preview" data-testid="live-preview-card">
+            {#if livePreviewError}
+              <p class="error-line">{livePreviewError}</p>
+            {:else if effectivePreviewValueW === null}
+              <div class="skeleton-pulse" style="height: 56px;"></div>
+            {:else}
+              <div class="live-preview-value" data-testid="live-preview-value">
+                {effectivePreviewValueW > 0 ? '+' : ''}{Math.round(effectivePreviewValueW)} W
+              </div>
+              {#if livePreviewBelowThreshold}
+                <p class="hint" data-testid="live-preview-zero-hint">
+                  Sensor zeigt nahezu 0 W — schalt eine große Last (Wasserkocher, Heizlüfter)
+                  ein und beobachte die Richtung.
+                </p>
+              {:else if effectivePreviewValueW > 0}
+                <p class="hint" data-testid="live-preview-direction">Bezug aus dem Netz</p>
+              {:else}
+                <p class="hint" data-testid="live-preview-direction">Einspeisung ins Netz</p>
+              {/if}
+            {/if}
+          </div>
         {/if}
       </section>
 
@@ -712,6 +835,24 @@
     margin: 0;
     font-size: 0.88rem;
     color: var(--color-accent-warning);
+  }
+
+  .live-preview {
+    margin-top: 16px;
+    padding: var(--space-2);
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .live-preview-value {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
   }
 
   @media (max-width: 480px) {

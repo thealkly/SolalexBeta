@@ -109,6 +109,104 @@ class TestPostDevices:
         assert devices[0]["entity_id"] == "number.new_opendtu_limit"
 
 
+class TestInvertSign:
+    """Story 2.5 — invert_sign field round-trips into grid_meter.config_json."""
+
+    def test_save_with_invert_sign_persists_to_grid_meter(
+        self, client_with_db: TestClient
+    ) -> None:
+        import json
+        import sqlite3
+
+        from solalex.config import get_settings
+
+        resp = client_with_db.post(
+            "/api/v1/devices/",
+            json={
+                "hardware_type": "generic",
+                "wr_limit_entity_id": "input_number.t2sgf72a29_set_target",
+                "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+                "invert_sign": True,
+            },
+        )
+        assert resp.status_code == 201
+
+        conn = sqlite3.connect(str(get_settings().db_path))
+        try:
+            cur = conn.execute(
+                "SELECT config_json FROM devices WHERE role = 'grid_meter'"
+            )
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        assert row is not None
+        cfg = json.loads(row[0])
+        assert cfg.get("invert_sign") is True
+
+    def test_save_without_invert_sign_omits_key(
+        self, client_with_db: TestClient
+    ) -> None:
+        import json
+        import sqlite3
+
+        from solalex.config import get_settings
+
+        resp = client_with_db.post(
+            "/api/v1/devices/",
+            json={
+                "hardware_type": "generic",
+                "wr_limit_entity_id": "input_number.t2sgf72a29_set_target",
+                "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+            },
+        )
+        assert resp.status_code == 201
+
+        conn = sqlite3.connect(str(get_settings().db_path))
+        try:
+            cur = conn.execute(
+                "SELECT config_json FROM devices WHERE role = 'grid_meter'"
+            )
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        assert row is not None
+        cfg = json.loads(row[0])
+        # Default omitted — keeps existing rows minimal and avoids touching
+        # `device.config()` defaults at all.
+        assert "invert_sign" not in cfg
+
+    def test_save_with_invert_sign_false_omits_key(
+        self, client_with_db: TestClient
+    ) -> None:
+        import json
+        import sqlite3
+
+        from solalex.config import get_settings
+
+        resp = client_with_db.post(
+            "/api/v1/devices/",
+            json={
+                "hardware_type": "generic",
+                "wr_limit_entity_id": "input_number.t2sgf72a29_set_target",
+                "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+                "invert_sign": False,
+            },
+        )
+        assert resp.status_code == 201
+
+        conn = sqlite3.connect(str(get_settings().db_path))
+        try:
+            cur = conn.execute(
+                "SELECT config_json FROM devices WHERE role = 'grid_meter'"
+            )
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        assert row is not None
+        cfg = json.loads(row[0])
+        assert "invert_sign" not in cfg
+
+
 class TestGetDevices:
     def test_empty_list_initially(self, client_with_db: TestClient) -> None:
         resp = client_with_db.get("/api/v1/devices/")

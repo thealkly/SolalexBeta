@@ -1,6 +1,6 @@
 # Story 3.6: User-Config — Min/Max-SoC & Nacht-Entlade-Zeitfenster
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -835,13 +835,13 @@ so that ich die Leitplanken für meinen Akku an meine Akku-Spec und meinen Tages
 
 ### Review Findings
 
-- [ ] [Review][Patch] Night-Gate muss beim Eintritt aktiv `0 W` stoppen — Entscheidung Alex 2026-04-25: Nacht-Gate als aktiver Stop, nicht nur `return []`. Beim Eintritt außerhalb des Nacht-Fensters einen `0 W`-Setpoint mit normalem Readback dispatchen, damit ein vorher gelatchter Marstek-Entlade-Setpoint nicht weiterläuft.
-- [ ] [Review][Patch] `/settings` pre-commissioning erreichbar lassen, aber mit eigenem Noch-nicht-aktiviert-Zustand — Entscheidung Alex 2026-04-25: versteckte Settings-Seite darf vor Commissioning offen bleiben. Die UI darf uncommissioned Devices aber nicht als "Kein Akku konfiguriert" missdeuten.
-- [ ] [Review][Patch] AC3 Story/Test auf PATCH-Field-Bounds korrigieren — Entscheidung Alex 2026-04-25: Story und Test korrigieren; unter `min_soc <= 40` und `max_soc >= 51` ist die Gap-Validation im PATCH-Pfad redundant und nicht erreichbar.
-- [ ] [Review][Patch] Persistierter Low-Min-SoC kann ohne sichtbaren Confirm in 422 laufen [frontend/src/routes/Settings.svelte:57]
-- [ ] [Review][Patch] Night-Gate-Flag wird bei Deadband/SoC-Cap-Early-Returns nicht zurueckgesetzt [backend/src/solalex/controller.py:982]
-- [ ] [Review][Patch] PATCH-Route kann nach erfolgreichem Persistieren den Pflicht-Reload still ueberspringen [backend/src/solalex/api/routes/devices.py:203]
-- [ ] [Review][Patch] `config_json`-Merge ist nicht atomar und kann parallele Key-Updates verlieren [backend/src/solalex/api/routes/devices.py:159]
+- [x] [Review][Patch] Night-Gate muss beim Eintritt aktiv `0 W` stoppen — Entscheidung Alex 2026-04-25: Nacht-Gate als aktiver Stop, nicht nur `return []`. Beim Eintritt außerhalb des Nacht-Fensters einen `0 W`-Setpoint mit normalem Readback dispatchen, damit ein vorher gelatchter Marstek-Entlade-Setpoint nicht weiterläuft.
+- [x] [Review][Patch] `/settings` pre-commissioning erreichbar lassen, aber mit eigenem Noch-nicht-aktiviert-Zustand — Entscheidung Alex 2026-04-25: versteckte Settings-Seite darf vor Commissioning offen bleiben. Die UI darf uncommissioned Devices aber nicht als "Kein Akku konfiguriert" missdeuten.
+- [x] [Review][Patch] AC3 Story/Test auf PATCH-Field-Bounds korrigieren — Entscheidung Alex 2026-04-25: Story und Test korrigieren; unter `min_soc <= 40` und `max_soc >= 51` ist die Gap-Validation im PATCH-Pfad redundant und nicht erreichbar.
+- [x] [Review][Patch] Persistierter Low-Min-SoC kann ohne sichtbaren Confirm in 422 laufen [frontend/src/routes/Settings.svelte:57]
+- [x] [Review][Patch] Night-Gate-Flag wird bei Deadband/SoC-Cap-Early-Returns nicht zurueckgesetzt [backend/src/solalex/controller.py:982]
+- [x] [Review][Patch] PATCH-Route kann nach erfolgreichem Persistieren den Pflicht-Reload still ueberspringen [backend/src/solalex/api/routes/devices.py:203]
+- [x] [Review][Patch] `config_json`-Merge ist nicht atomar und kann parallele Key-Updates verlieren [backend/src/solalex/api/routes/devices.py:159]
 - [x] [Review][Defer] MULTI-Max-SoC-Fallback nutzt Speicher-Deadband als Drossel-Gate [backend/src/solalex/controller.py:857] — deferred, pre-existing
 
 ## Dev Agent Record

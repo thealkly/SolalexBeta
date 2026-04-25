@@ -21,6 +21,15 @@ export interface HardwareConfigRequest {
   night_end?: string;
   min_limit_w?: number;
   max_limit_w?: number;
+  // Story 2.5 — Smart-Meter sign-convention override.
+  invert_sign?: boolean;
+}
+
+// Story 2.5 — single-entity live preview for the smart-meter sign toggle.
+export interface EntityState {
+  entity_id: string;
+  value_w: number | null;
+  ts: string | null;
 }
 
 export interface SaveDevicesResponse {

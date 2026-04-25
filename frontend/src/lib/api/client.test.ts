@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isApiError } from './errors.js';
-import { getEntities, saveDevices } from './client.js';
-import type { EntitiesResponse } from './types.js';
+import { getEntities, getEntityState, saveDevices } from './client.js';
+import type { EntitiesResponse, EntityState } from './types.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -123,6 +123,49 @@ describe('saveDevices', () => {
       if (isApiError(err)) {
         expect(err.status).toBe(422);
         expect(err.detail).toBe('wr_limit_entity_id ist erforderlich.');
+      }
+    }
+  });
+});
+
+describe('getEntityState', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('returns parsed EntityState on 200', async () => {
+    const data: EntityState = {
+      entity_id: 'sensor.esphome_smart_meter_current_load',
+      value_w: 2120,
+      ts: '2026-04-25T12:00:00+00:00',
+    };
+    mockFetch.mockResolvedValue(okResponse(data));
+
+    const result = await getEntityState(
+      'sensor.esphome_smart_meter_current_load',
+    );
+    expect(result.value_w).toBe(2120);
+    const [url] = mockFetch.mock.calls[0] as [string];
+    expect(url).toContain(
+      'entity_id=sensor.esphome_smart_meter_current_load',
+    );
+  });
+
+  it('throws ApiError on 403 for non-whitelisted entity', async () => {
+    mockFetch.mockResolvedValue(
+      errResponse(403, {
+        type: 'urn:solalex:forbidden',
+        title: 'Forbidden',
+        detail: "Entity 'sensor.foo' nicht im Whitelist-Set",
+      }),
+    );
+
+    try {
+      await getEntityState('sensor.foo');
+    } catch (err) {
+      expect(isApiError(err)).toBe(true);
+      if (isApiError(err)) {
+        expect(err.status).toBe(403);
       }
     }
   });

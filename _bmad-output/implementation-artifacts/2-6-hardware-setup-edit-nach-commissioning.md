@@ -1,6 +1,6 @@
 # Story 2.6: Hardware-Setup nachträglich ändern (Edit nach Commissioning)
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Erstellt 2026-04-25 als Reaktion auf Smoke-Test Alex' lokales HA-Setup. Beta-Launch-blocking — der aktuelle Gate-Mechanismus aus Story 2.3a (`gate.ts:39-44`) sperrt den Config-Flow strikt für commissioned User. Wer aus Versehen ohne WR commissioned hat (nur Smart-Meter), wer den Smart-Meter falsch zugewiesen hat oder wer einen Hardware-Wechsel macht, hat heute KEINE Möglichkeit, das im UI zu korrigieren — nur per SQL-Reset. Diese Story behebt das. -->
 

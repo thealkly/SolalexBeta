@@ -16,10 +16,7 @@ function makeSeries(label: string, color: string, count: number): ChartSeries {
 
 describe('LineChart', () => {
   it('renders one <path> per series that has enough data', () => {
-    const series: ChartSeries[] = [
-      makeSeries('A', 'teal', 5),
-      makeSeries('B', 'red', 5),
-    ];
+    const series: ChartSeries[] = [makeSeries('A', 'teal', 5), makeSeries('B', 'red', 5)];
     const { html } = render(LineChart, { props: { series, windowMs, now } });
     const pathCount = (html.match(/<path/g) ?? []).length;
     expect(pathCount).toBe(2);
@@ -52,5 +49,24 @@ describe('LineChart', () => {
     // Only the series with sufficient data should have a rendered path with coordinates
     const pathsWithCoords = (html.match(/<path[^>]+d="[ML][^"]+"/g) ?? []).length;
     expect(pathsWithCoords).toBe(1);
+  });
+
+  // Story 5.1c (scope-erweitert 2026-04-25): X-Achsen-Beschriftung
+  it('renders the relative-time x-axis labels', () => {
+    const series: ChartSeries[] = [makeSeries('A', 'teal', 5)];
+    const { html } = render(LineChart, { props: { series, windowMs, now } });
+    // Three ticks: oldest = "−5 s", middle = "−2.5 s", right = "jetzt".
+    // Uses U+2212 (mathematical minus), not an ASCII hyphen.
+    expect(html).toContain('−5 s');
+    expect(html).toContain('−2.5 s');
+    expect(html).toContain('jetzt');
+  });
+
+  it('formats integer time offsets without a decimal point', () => {
+    const series: ChartSeries[] = [makeSeries('A', 'teal', 5)];
+    const { html } = render(LineChart, { props: { series, windowMs: 10_000, now } });
+    expect(html).toContain('−10 s');
+    expect(html).toContain('−5 s');
+    expect(html).not.toContain('−10.0 s');
   });
 });

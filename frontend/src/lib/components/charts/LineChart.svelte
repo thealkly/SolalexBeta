@@ -20,7 +20,17 @@
 
   const W = 400;
   const H = 160;
+  const AXIS_H = 20;
+  const TOTAL_H = H + AXIS_H;
   const PAD = 4;
+
+  // Render the relative-time x-axis label. Uses U+2212 (mathematical minus)
+  // for typographic consistency with the German UI strings.
+  function formatTimeOffset(secondsAgo: number): string {
+    if (secondsAgo <= 0) return 'jetzt';
+    const rendered = Number.isInteger(secondsAgo) ? `${secondsAgo}` : secondsAgo.toFixed(1);
+    return `−${rendered} s`;
+  }
 
   function hasSufficientData(s: ChartSeries[]): boolean {
     return s.some((serie) => serie.data.length >= 2);
@@ -41,12 +51,7 @@
     return { min, max };
   }
 
-  function buildPath(
-    points: DataPoint[],
-    cutoff: number,
-    yMin: number,
-    yMax: number,
-  ): string {
+  function buildPath(points: DataPoint[], cutoff: number, yMin: number, yMax: number): string {
     const visible = points.filter((p) => p.t >= cutoff && p.t <= now);
     if (visible.length < 2) return '';
     const xRange = windowMs || 1;
@@ -70,13 +75,26 @@
       label: s.label,
     })),
   );
+
+  let axisTicks = $derived.by(() => {
+    const totalSec = windowMs / 1000;
+    return [
+      { x: PAD, label: formatTimeOffset(totalSec), anchor: 'start' as const },
+      {
+        x: PAD + (W - PAD * 2) / 2,
+        label: formatTimeOffset(totalSec / 2),
+        anchor: 'middle' as const,
+      },
+      { x: W - PAD, label: formatTimeOffset(0), anchor: 'end' as const },
+    ];
+  });
 </script>
 
 {#if showSkeleton}
-  <div class="chart-skeleton skeleton-pulse" style="height: {H}px; border-radius: 8px;"></div>
+  <div class="chart-skeleton skeleton-pulse" style="height: {TOTAL_H}px; border-radius: 8px;"></div>
 {:else}
   <svg
-    viewBox="0 0 {W} {H}"
+    viewBox="0 0 {W} {TOTAL_H}"
     class="line-chart"
     role="img"
     aria-label="Funktionstest Live-Daten"
@@ -90,9 +108,18 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
-        />
+        ></path>
       {/if}
     {/each}
+    <g class="x-axis" aria-hidden="true">
+      <line x1={PAD} y1={H} x2={W - PAD} y2={H} class="axis-baseline"></line>
+      {#each axisTicks as tick (tick.label)}
+        <line x1={tick.x} y1={H} x2={tick.x} y2={H + 3} class="axis-tick"></line>
+        <text x={tick.x} y={H + 13} text-anchor={tick.anchor} class="axis-label">
+          {tick.label}
+        </text>
+      {/each}
+    </g>
   </svg>
 {/if}
 
@@ -101,6 +128,22 @@
     width: 100%;
     height: auto;
     display: block;
+  }
+
+  .axis-baseline {
+    stroke: color-mix(in srgb, var(--color-text) 12%, transparent);
+    stroke-width: 1;
+  }
+
+  .axis-tick {
+    stroke: color-mix(in srgb, var(--color-text) 22%, transparent);
+    stroke-width: 1;
+  }
+
+  .axis-label {
+    font-size: 9px;
+    fill: var(--color-text-secondary);
+    font-family: inherit;
   }
 
   .chart-skeleton {

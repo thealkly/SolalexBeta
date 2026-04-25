@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -107,14 +108,15 @@ def test_patch_battery_config_persists_and_reloads(
 ) -> None:
     _seed_marstek(client_with_db)
     reload_calls = 0
-    original_reload = client_with_db.app.state.controller.reload_devices_from_db
+    app = cast(Any, client_with_db.app)
+    original_reload = app.state.controller.reload_devices_from_db
 
     async def spy_reload() -> None:
         nonlocal reload_calls
         reload_calls += 1
         await original_reload()
 
-    client_with_db.app.state.controller.reload_devices_from_db = spy_reload
+    app.state.controller.reload_devices_from_db = spy_reload
     resp = client_with_db.patch(
         "/api/v1/devices/battery-config",
         json={

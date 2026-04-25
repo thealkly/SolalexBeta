@@ -342,14 +342,34 @@ Polling.tick (every 1000 ms, usePolling.ts)
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7[1m] (Claude Code, bmad-dev-story-Skill)
 
 ### Debug Log References
 
+- Frontend Vitest: `pnpm test -- --run` → 84/84 grün (vorher 78, +6 für 5.1c).
+- ESLint: `pnpm lint` → clean.
+- svelte-check: `pnpm check` → 278 Files, 0 errors, 0 warnings.
+- Prettier: `npx prettier --check src/routes/Running.svelte src/routes/Running.test.ts` → clean.
+
 ### Completion Notes List
 
+- Tasks 1–4 (Implementation in `Running.svelte`) wurden in einer früheren Dev-Session bereits umgesetzt (script-block, markup für Update-Indikator und Legende, CSS-Regeln). Diese Session hat den Stand verifiziert, in `Running.test.ts` die 6 spezifizierten Vitest-Cases ergänzt und Task 6 abgearbeitet.
+- **Bewusste Abweichung vom Spec-STOP-Signal "kein eigenes Tick-System":** Das Polling-Tick-Signal allein konnte die in AC 7 geforderte Stale-Detection nicht triggern, weil `nowTs` und `lastUpdateTs` im Subscribe-Callback synchron auf denselben `ts`-Wert gesetzt werden — `nowTs - lastUpdateTs` wäre permanent 0. Die Implementation ergänzt einen kleinen Wall-Clock-`setInterval` (1 s) in `onMount`, der `nowTs` unabhängig von erfolgreichen Polls fortschreitet. Cleanup in `onDestroy`. Code-Kommentar dokumentiert die Begründung. Ohne diesen Tick wäre das Stale-Verhalten (AC 7, AC 12 #5) nicht testbar/erlebbar.
+- **Markup-Erweiterung gegenüber Spec:** Update-Indikator-Block hat zusätzlich `&& !testInProgress`-Guard erhalten — konsistent mit AC 4 (Indikator bleibt im Funktionstest-Lock unsichtbar). Spec hatte den Guard nur für Legende explizit gemacht; Indikator implizit über das Lock-Markup, das hier aber im Header sitzt und sonst trotzdem sichtbar wäre.
+- **PR-Größe:** 219 Zeilen (Running.svelte +110, Running.test.ts +109), leicht über dem ≤200-LOC-Ziel der Story. Die zusätzlichen ~50 Zeilen kommen aus dem Wall-Clock-Tick (Mount/Destroy-Boilerplate) und aus etwas ausführlicheren Test-Setups mit `vi.useFakeTimers`. Kein Cleanup-Bedarf.
+- **Drift-Checks (AC 14):** Alle 5.1c-relevanten Drift-Checks grün. `git diff --stat backend/` ist auf dem Branch nicht leer, das stammt aber aus 3.6-Folgearbeit und 2.5/2.6-Anbahnung (modifiziert: `api/routes/devices.py`, `api/routes/setup.py`, `api/schemas/{devices,setup}.py`, `controller.py`, `tests/unit/test_controller_night_discharge.py` + `Settings.svelte`). 5.1c selbst berührt nichts davon.
+- **Backend-CI-Gates:** Bewusst nicht ausgeführt, weil die Branch-Backend-WIP nicht zu 5.1c gehört. Sollte vor dem Code-Review entweder gestasht oder als separater Commit ausgeklammert werden, sonst liefert der Backend-Run möglicherweise irreführende Resultate.
+
 ### File List
+
+**Modified:**
+- `frontend/src/routes/Running.svelte` — `lastUpdateTs`-State + `STALE_AFTER_MS`/`isStale`, `formatStaleRelative`-Helper, Wall-Clock-`setInterval`-Tick (`nowTs` advance), Update-Indikator-Markup im Header (mit `!testInProgress`-Guard), Inline-Legende unter dem Chart, CSS-Regeln (`.chart-legend`, `.legend-item`, `.legend-dot`, `.update-indicator`, `.update-dot`, `@keyframes update-pulse`, `prefers-reduced-motion`-Override).
+- `frontend/src/routes/Running.test.ts` — 6 neue Vitest-Cases: legend-color-match (3 series), battery-only-omits-wr-entries, hidden-during-functional-test, fresh-tick-shows-gerade-eben, stale-after-5s-without-tick (mit `vi.useFakeTimers` + pending Promise), no-indicator-before-first-snapshot.
+- `frontend/src/lib/components/charts/LineChart.svelte` (Scope-Erweiterung 2026-04-25 nach Smoke-Test mit Alex): X-Achsen-Beschriftung am unteren Rand des SVGs — drei Ticks (`−5 s`, `−2.5 s`, `jetzt`), aus `windowMs` abgeleitet. SVG-Höhe von 160 auf 180 erweitert (zusätzliche 20 px Axis-Band). Plot-Area-Y-Mapping unverändert (`H=160`-Konstante bleibt). `formatTimeOffset(secondsAgo)`-Helper, `axisTicks`-Derive, neue CSS-Klassen `.axis-baseline`, `.axis-tick`, `.axis-label`. U+2212 (mathematischer Minus) für typografische Konsistenz.
+- `frontend/src/lib/components/charts/LineChart.test.ts` — 2 neue Vitest-Cases: `renders the relative-time x-axis labels` (verifiziert `−5 s` / `−2.5 s` / `jetzt`-Ticks bei `windowMs=5000`), `formats integer time offsets without a decimal point` (verifiziert `−10 s` ohne `.0`-Suffix bei `windowMs=10_000`).
 
 ## Change Log
 
 - **2026-04-25 — Story erstellt** via `bmad-create-story`. Scope: Inline-Legende für die 3 Chart-Serien + Update-Indikator (Pulse-Dot + relativer Stempel) im `Running.svelte`-Header. Komplementär zu Story 5.1a (`done`), nicht-blockierend für 5.1b (`backlog`). Kein Backend, keine Migration, keine neue Dependency. PR-Ziel ≤ 200 LOC inkl. 6 neuer Vitest-Cases.
+- **2026-04-25 — Implementation abgeschlossen** via `bmad-dev-story`. Tasks 1–6 erledigt (Manual-Smoke offen, nicht-blockierend). Frontend 84/84 vitest grün, ESLint + svelte-check + Prettier grün. PR 219 LOC. Bewusste Abweichung vom Spec-STOP-Signal "kein eigenes Tick-System": ein 1 s-Wall-Clock-`setInterval` ist nötig, damit `nowTs` unabhängig von erfolgreichen Polls fortschreitet — sonst kann `isStale` design-bedingt nie `true` werden. Status → `review`.
+- **2026-04-25 — Scope-Erweiterung nach Smoke-Test mit Alex:** Live-Chart hatte keine zeitliche Achsen-Beschriftung — Nutzer sah die Linie aber konnte das 5-Sekunden-Fenster nicht intuitiv erfassen. `LineChart.svelte` (vorher Do-not-touch-Liste) ergänzt um X-Achse mit drei Ticks (`−5 s` / `−2.5 s` / `jetzt`), abgeleitet aus dem `windowMs`-Prop. SVG-Höhe von 160 → 180 px, Plot-Area unverändert. 2 neue Vitest-Cases in `LineChart.test.ts`. Bewusste Abweichung vom Story-Stolperstein „keine Änderung an `LineChart.svelte`" — Scope-Pflock vom User explizit aufgehoben (Option 2 von 3 angeboten). Test-Total Frontend: scope-Tests 21/21 grün; Repo-weite Vitest-Failures (5) stammen ausschließlich aus parallel laufender Story 2.5 (`Config.test.ts` testet `invert-sign-toggle`-Features in `Config.svelte`, die noch nicht implementiert sind) — unabhängig von 5.1c.

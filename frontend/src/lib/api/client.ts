@@ -6,6 +6,7 @@ import type {
   ControlModeResponse,
   DeviceResponse,
   EntitiesResponse,
+  EntityState,
   ForcedMode,
   FunctionalTestResponse,
   HardwareConfigRequest,
@@ -50,6 +51,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getEntities(): Promise<EntitiesResponse> {
   return request<EntitiesResponse>('/api/v1/setup/entities');
+}
+
+export async function getEntityState(entityId: string): Promise<EntityState> {
+  return request<EntityState>(
+    `/api/v1/setup/entity-state?entity_id=${encodeURIComponent(entityId)}`,
+  );
 }
 
 export async function saveDevices(config: HardwareConfigRequest): Promise<SaveDevicesResponse> {
