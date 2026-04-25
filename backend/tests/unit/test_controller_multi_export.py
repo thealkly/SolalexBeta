@@ -146,8 +146,8 @@ def _build_controller(
 
 def _drive_until_decision(
     controller: Controller, device: DeviceRecord, sample: float, repeats: int = 6
-) -> list:
-    last: list = []
+) -> list[Any]:
+    last: list[Any] = []
     for _ in range(repeats):
         last = controller._policy_multi(device, sensor_value_w=sample)
         if last:
@@ -197,22 +197,39 @@ async def test_multi_cap_branch_calls_drossel_when_toggle_off(
     assert decisions[0].command_kind == "set_limit"
 
 
-# ----- AC 10: Cap-Branch + Bezug → [] ------------------------------------
+# ----- AC 10: Cap-Branch + kein Feed-in → kein Export-Aufruf -------------
 
 
 @pytest.mark.asyncio
 async def test_multi_cap_branch_no_decision_on_load_when_pool_full(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Bezug bei vollem Akku ist kein Surplus-Export-Szenario — Pool entlädt
-    sich auf der nächsten Tick-Runde, Cap-Branch erzeugt kein Drossel UND
-    kein Export.
+    """Bezug-Symmetrie: Cap-Branch ruft weder Drossel noch Export, wenn kein
+    Feed-in vorliegt.
+
+    Spiegelt das Stale-Cap-Flag-Pattern aus dem 3.5-Test
+    ``test_multi_max_soc_small_feed_in_inside_deadband_skips_drossel``: Cap-
+    Flag steht aus einem früheren Tick, die aktuelle geglättete Stichprobe
+    liegt im Deadband. Speicher liefert deshalb [], der Cap-Branch sieht
+    kein Feed-in → MULTI returns []. Der Export-Spy pinnt die zentrale
+    AC-10-Forderung: EXPORT wird nicht aufgerufen, auch nicht bei aktivem
+    Toggle.
     """
     db = tmp_path / "test.db"
     seeds = await _seed_multi_setup(db)
     cache = StateCache()
     controller = _build_controller(db, seeds, cache, soc_pct=98.0)
-    decisions = _drive_until_decision(
-        controller, seeds["grid_meter"], sample=200.0
-    )
+    controller._speicher_max_soc_capped = True
+
+    export_calls = [0]
+    real_export = controller._policy_export
+
+    def _export_spy(device: DeviceRecord, sensor_value_w: float | None) -> Any:
+        export_calls[0] += 1
+        return real_export(device, sensor_value_w)
+
+    monkeypatch.setattr(controller, "_policy_export", _export_spy)
+
+    decisions = controller._policy_multi(seeds["grid_meter"], sensor_value_w=10.0)
     assert decisions == []
+    assert export_calls[0] == 0

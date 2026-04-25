@@ -172,7 +172,7 @@ async def get_control_mode(request: Request) -> ControlModeResponse:
     controller = _require_controller(request)
     return ControlModeResponse(
         forced_mode=cast("ForcedMode | None", _mode_or_none(controller.forced_mode)),
-        active_mode=cast("ForcedMode", controller.current_mode.value),
+        active_mode=controller.current_mode.value,
         baseline_mode=cast(
             "Literal['drossel','speicher','multi']", controller.mode_baseline.value
         ),
@@ -213,7 +213,9 @@ async def put_control_mode(
     return ControlModeResponse(
         forced_mode=cast("ForcedMode | None", _mode_or_none(controller.forced_mode)),
         active_mode=controller.current_mode.value,
-        baseline_mode=controller.mode_baseline.value,
+        baseline_mode=cast(
+            "Literal['drossel','speicher','multi']", controller.mode_baseline.value
+        ),
     )
 
 

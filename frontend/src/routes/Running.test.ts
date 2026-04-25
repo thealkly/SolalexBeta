@@ -638,6 +638,18 @@ describe('Running — Live-Betriebs-View', () => {
     expect(expl.textContent ?? '').toContain('Idle — wartet auf erstes Sensor-Event');
   });
 
+  // Story 3.8 — mode-label mapping for the new EXPORT mode (AC 25).
+  it('displays the Einspeisung label when the current mode is export', async () => {
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'export' }));
+
+    render(Running);
+    await flushPolling();
+
+    const expl = await screen.findByTestId('mode-explanation');
+    expect(expl.textContent ?? '').toContain('Einspeisung');
+  });
+
   // AC 12 — Status-Tile-Reihe oberhalb des Charts.
   it('renders the status-tile row with grid + WR + connection tiles', async () => {
     getDevicesMock.mockResolvedValue([

@@ -69,7 +69,9 @@ def _read_config(device_id: int) -> dict[str, object]:
     finally:
         conn.close()
     assert row is not None
-    return json.loads(row[0])
+    parsed = json.loads(row[0])
+    assert isinstance(parsed, dict)
+    return parsed
 
 
 # ----- AC 19: Surplus ohne Max-Limit → 422 --------------------------------

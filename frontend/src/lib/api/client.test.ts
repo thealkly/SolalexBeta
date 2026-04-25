@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isApiError } from './errors.js';
-import { getEntities, getEntityState, saveDevices, updateDevices } from './client.js';
-import type { EntitiesResponse, EntityState } from './types.js';
+import {
+  getEntities,
+  getEntityState,
+  saveDevices,
+  setSurplusExport,
+  updateDevices,
+} from './client.js';
+import type { DeviceResponse, EntitiesResponse, EntityState } from './types.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -188,6 +194,79 @@ describe('updateDevices', () => {
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body['min_limit_w']).toBeNull();
     expect(body['max_limit_w']).toBe(1500);
+  });
+});
+
+describe('setSurplusExport (Story 3.8)', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('sends PATCH /api/v1/devices/{id}/config with allow_surplus_export', async () => {
+    const updated: DeviceResponse = {
+      id: 7,
+      type: 'generic',
+      role: 'wr_limit',
+      entity_id: 'number.opendtu_limit',
+      adapter_key: 'generic',
+      config_json: '{"allow_surplus_export": true, "max_limit_w": 600}',
+      last_write_at: null,
+      commissioned_at: '2026-04-25T12:00:00Z',
+      created_at: '2026-04-25T11:00:00Z',
+      updated_at: '2026-04-25T12:30:00Z',
+    };
+    mockFetch.mockResolvedValue(okResponse(updated));
+
+    const result = await setSurplusExport(7, true);
+
+    expect(result.id).toBe(7);
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/devices/7/config');
+    expect(init.method).toBe('PATCH');
+    expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body).toEqual({ allow_surplus_export: true });
+  });
+
+  it('returns the parsed DeviceResponse on 200', async () => {
+    const updated: DeviceResponse = {
+      id: 9,
+      type: 'generic',
+      role: 'wr_limit',
+      entity_id: 'number.opendtu_limit',
+      adapter_key: 'generic',
+      config_json: '{"allow_surplus_export": false}',
+      last_write_at: null,
+      commissioned_at: null,
+      created_at: '2026-04-25T11:00:00Z',
+      updated_at: '2026-04-25T12:30:00Z',
+    };
+    mockFetch.mockResolvedValue(okResponse(updated));
+
+    const result = await setSurplusExport(9, false);
+    expect(result.config_json).toContain('allow_surplus_export');
+    expect(JSON.parse(result.config_json)).toEqual({ allow_surplus_export: false });
+  });
+
+  it('throws ApiError with German detail on 422 missing max_limit_w', async () => {
+    mockFetch.mockResolvedValue(
+      errResponse(422, {
+        type: 'urn:solalex:validation-error',
+        title: 'Validierungsfehler',
+        detail:
+          'Surplus-Einspeisung erfordert ein konfiguriertes Hardware-Max-Limit (max_limit_w).',
+      }),
+    );
+
+    try {
+      await setSurplusExport(3, true);
+    } catch (err) {
+      expect(isApiError(err)).toBe(true);
+      if (isApiError(err)) {
+        expect(err.status).toBe(422);
+        expect(err.detail).toContain('max_limit_w');
+      }
+    }
   });
 });
 

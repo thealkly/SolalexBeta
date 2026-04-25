@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -29,7 +29,7 @@ async def _seed_export_setup(
     *,
     wr_limit_config: str = '{"max_limit_w": 600, "allow_surplus_export": true}',
     with_wr_limit: bool = True,
-) -> dict[str, DeviceRecord | list[DeviceRecord]]:
+) -> dict[str, Any]:
     await run_migration(db)
     async with connection_context(db) as conn:
         await upsert_device(
@@ -71,17 +71,16 @@ async def _seed_export_setup(
 
 def _build_controller(
     db: Path,
-    seeds: dict[str, DeviceRecord | list[DeviceRecord]],
+    seeds: dict[str, Any],
     cache: StateCache,
     *,
     current_wr_limit_w: int | None = 200,
 ) -> Controller:
     devices_by_role: dict[str, DeviceRecord] = {
-        "grid_meter": cast(DeviceRecord, seeds["grid_meter"]),
+        "grid_meter": seeds["grid_meter"],
     }
     wr_limit = seeds["wr_limit"]
     if wr_limit is not None:
-        wr_limit = cast(DeviceRecord, wr_limit)
         devices_by_role["wr_limit"] = wr_limit
         if current_wr_limit_w is not None:
             cache.last_states[wr_limit.entity_id] = HaStateEntry(

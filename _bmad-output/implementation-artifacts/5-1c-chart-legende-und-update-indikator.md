@@ -379,7 +379,7 @@ claude-opus-4-7[1m] (Claude Code, bmad-dev-story-Skill)
 
 ### Decision-Needed
 
-- [ ] [Review][Decision] **Wall-clock `setInterval` STOP-Signal-Verletzung formal abnicken oder härten** — `Running.svelte:254-265` setzt einen 1 s-`setInterval`, was die in der Story unter „Anti-Pattern" gelistete Regel „kein eigenes Tick-System" verletzt. Dev-Note in den Completion-Notes erkennt das an („sonst ist `isStale` design-bedingt nie testbar"). Optionen: (a) als bewusste Spec-Abweichung dokumentieren und Anti-Pattern-Liste in der Story korrigieren; (b) `visibilitychange`-Pause + cleanup-discipline zusätzlich härten (siehe defer W6); (c) auf reine `polling.error`-basierte Stale-Detection umstellen (kein Wall-Clock nötig, aber ohne Polling-Hang-Detection).
+- [ ] [Review][Decision-OFFEN] **Wall-clock `setInterval` STOP-Signal-Verletzung formal abnicken oder härten** (cosmetic; nicht beta-blocking, kann in v1.5-Polish-Story entschieden werden) — `Running.svelte:254-265` setzt einen 1 s-`setInterval`, was die in der Story unter „Anti-Pattern" gelistete Regel „kein eigenes Tick-System" verletzt. Dev-Note in den Completion-Notes erkennt das an („sonst ist `isStale` design-bedingt nie testbar"). Optionen: (a) als bewusste Spec-Abweichung dokumentieren und Anti-Pattern-Liste in der Story korrigieren; (b) `visibilitychange`-Pause + cleanup-discipline zusätzlich härten (siehe defer W6); (c) auf reine `polling.error`-basierte Stale-Detection umstellen (kein Wall-Clock nötig, aber ohne Polling-Hang-Detection).
 
 ### Patches
 

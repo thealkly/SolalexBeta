@@ -235,7 +235,11 @@ Keine weiteren Files.
 
 ### Decision-Needed
 
-- [ ] [Review][Decision] **`--color-text-primary` Token existiert nicht in `app.css` — Hover/Focus-Visible auf `.settings-link` ist sichtbar broken** — Spec AC 3 schreibt: „Hover-Zustand wechselt nur die Farbe auf `var(--color-text-primary)`". Der Token ist aber nirgends definiert (`grep --color-text-primary frontend/src/app.css` → leer). `app.css` definiert nur `--color-text` (Hauptfarbe = `var(--color-brand-ink)`) und `--color-text-secondary`. Resultat: `.settings-link:hover { color: var(--color-text-primary); }` resolved zur CSS-Default „kein Color-Override" — also kein sichtbarer Effekt im Hover. Die Spec selbst schrieb den falschen Token-Namen, der Dev folgte ihr 1:1. Optionen: (a) `var(--color-text)` verwenden (existierende Hauptfarbe — semantisch korrekt für „dunkler werden bei Hover"); (b) neuen Token `--color-text-primary` in `app.css` ergänzen (gleicher Wert wie `--color-text`, aber als Synonym); (c) `var(--color-accent-primary)` (Teal-Akzent — schöner Hover, aber lauter als die UX-Anweisung „dezent" erlaubt). Empfehlung: (a) — Single-Source bleibt `--color-text`, Spec auf den existierenden Token korrigieren.
+- [x] [Review][Decision] **`--color-text-primary` Token existiert nicht in `app.css`** — Resolved (2026-04-25): Option (b) — neuen Token `--color-text-primary` in `app.css` als Synonym für `--color-text` ergänzen. Wird zu Patch P-D1 (siehe unten).
+
+### Patches (resolved Decisions)
+
+- [ ] [Review][Patch] **`--color-text-primary` Token in `app.css` ergänzen** [frontend/src/app.css:46-47] — Im `:root`-Block direkt nach `--color-text:` neue Zeile `--color-text-primary: var(--color-text);` einfügen. Dadurch wird `.settings-link:hover` (und alle künftigen Konsumenten desselben Tokens) sichtbar. Spec-AC 3 dieser Story bleibt unverändert (Token ist jetzt definiert).
 
 ### Patches
 
