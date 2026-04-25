@@ -103,5 +103,7 @@ jobs:
           fi
 
           BETA_REMOTE="https://x-access-token:${BETA_PUSH_TOKEN}@github.com/thealkly/SolalexBeta.git"
-          git push "${BETA_REMOTE}" HEAD:main
-          git push "${BETA_REMOTE}" "refs/tags/${{ steps.version.outputs.tag }}"
+          # SolalexBeta is intentionally a mirrored public repo. We force-with-lease
+          # to keep it in lockstep with dev main even after history rewrites.
+          git push --force-with-lease "${BETA_REMOTE}" HEAD:main
+          git push --force "${BETA_REMOTE}" "refs/tags/${{ steps.version.outputs.tag }}"
