@@ -36,7 +36,7 @@ def _ctx(
 @pytest.mark.asyncio
 async def test_range_check_vetoes_out_of_bounds(tmp_path: Path) -> None:
     db = tmp_path / "test.db"
-    device = await seeded_device(db)  # generic → (2, 1500)
+    device = await seeded_device(db)  # generic → (2, 3000)
     now = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
 
     ha = FakeHaClient()

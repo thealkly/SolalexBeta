@@ -10,6 +10,8 @@ entity must conform; the adapter does not flip signs.
 
 from __future__ import annotations
 
+import math
+
 from solalex.adapters.base import (
     AdapterBase,
     DetectedDevice,
@@ -20,7 +22,11 @@ from solalex.adapters.base import (
     ReadbackTiming,
 )
 
-_POWER_UOMS = ("W", "kW")
+_POWER_UOMS = ("w", "kw")  # compared case-insensitively after .strip().casefold()
+
+
+def _normalize_uom(raw: object) -> str:
+    return str(raw or "").strip().casefold()
 
 
 class GenericMeterAdapter(AdapterBase):
@@ -31,7 +37,7 @@ class GenericMeterAdapter(AdapterBase):
         for state in ha_states:
             if not state.entity_id.startswith("sensor."):
                 continue
-            uom = state.attributes.get("unit_of_measurement", "")
+            uom = _normalize_uom(state.attributes.get("unit_of_measurement"))
             if uom not in _POWER_UOMS:
                 continue
             devices.append(
@@ -53,11 +59,16 @@ class GenericMeterAdapter(AdapterBase):
     def parse_readback(self, state: HaState) -> int | None:
         try:
             raw = float(state.state)
-            if state.attributes.get("unit_of_measurement", "W") == "kW":
-                raw *= 1000.0
-            return int(raw)
         except (ValueError, TypeError):
             return None
+        if not math.isfinite(raw):
+            return None
+        if _normalize_uom(state.attributes.get("unit_of_measurement", "W")) == "kw":
+            raw *= 1000.0
+        # Use round (not int) for symmetry with GenericInverterAdapter — int()
+        # truncates toward zero, which diverges on negative export readings
+        # (Story 2.4 Review D4 / P14).
+        return round(raw)
 
     def get_rate_limit_policy(self) -> RateLimitPolicy:
         return RateLimitPolicy(min_interval_s=60.0)

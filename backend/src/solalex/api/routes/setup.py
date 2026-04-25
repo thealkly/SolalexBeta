@@ -83,21 +83,22 @@ async def get_entities(request: Request) -> EntitiesResponse:
         fname = str(attrs.get("friendly_name", eid))
         # attrs.get returns None when the attribute is missing — str(None) is
         # the literal "None", not "", so coerce defensively here.
-        uom = str(attrs.get("unit_of_measurement") or "")
+        uom_raw = str(attrs.get("unit_of_measurement") or "")
+        uom_norm = uom_raw.strip().casefold()
         device_class = str(attrs.get("device_class") or "")
         opt = EntityOption(entity_id=eid, friendly_name=fname)
 
-        # Only accept Watt-unit entities for wr_limit control paths. The
-        # Drossel policy (Story 3.2) computes ``new_limit = current +
-        # smoothed_grid_power`` strictly in watts, so a % or kW entity
-        # would mix units and send nonsensical limits. % entities are
-        # considered for a dedicated wr_limit_pct role in a later story;
-        # for v1 the wr_limit role is Watt-only (Story 3.2 Review D4).
-        if eid.startswith("number.") and uom == "W":
+        # Mirror GenericInverterAdapter.detect() / GenericMeterAdapter.detect():
+        # accept both number.* and input_number.* domains for write targets,
+        # and accept both "W" and "kW" units (case-insensitive) — Trucki
+        # ESPHome and OpenDTU-with-kW would otherwise be silently filtered
+        # out here even though the adapter handles them (Story 2.4 Review P1).
+        is_power_unit = uom_norm in ("w", "kw")
+        if eid.startswith(("number.", "input_number.")) and is_power_unit:
             wr_limit.append(opt)
-        elif eid.startswith("sensor.") and uom == "W":
+        elif eid.startswith("sensor.") and is_power_unit:
             power.append(opt)
-        elif eid.startswith("sensor.") and uom == "%" and (
+        elif eid.startswith("sensor.") and uom_norm == "%" and (
             device_class == "battery" or "soc" in eid or "battery" in eid
         ):
             soc.append(opt)

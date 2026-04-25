@@ -180,12 +180,12 @@ async def test_min_step_suppresses_sub_threshold_delta(
 ) -> None:
     """AC 2 — smoothed > deadband but |delta| < min_step is dropped.
 
-    Generic inverter defaults have ``min_step_w=3`` and ``deadband_w=5``, so the
-    deadband always gates first and the min_step branch is unreachable via
-    the default adapter. Override with ``min_step_w=20`` so a smoothed
-    value like ``-10 W`` passes the deadband (10 > 5) but fails the
-    min-step check (|delta|=10 < 20), exercising the actual suppression
-    path (Story 3.2 Review P11).
+    Generic inverter defaults have ``min_step_w=5`` and ``deadband_w=10``, so
+    deadband=10 still gates before min_step=5 in the default config and the
+    min_step branch is unreachable via the adapter defaults. Override with
+    ``deadband_w=5, min_step_w=20`` so a smoothed value like ``-10 W`` passes
+    the deadband (10 > 5) but fails the min-step check (|delta|=10 < 20),
+    exercising the actual suppression path (Story 3.2 Review P11).
     """
     db = tmp_path / "test.db"
     devices_by_role = await _seed_drossel_devices(db)

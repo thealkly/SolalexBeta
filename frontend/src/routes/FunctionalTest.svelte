@@ -104,6 +104,7 @@
   function hardwareLabel(devices: DeviceResponse[]): string {
     if (devices.some((d) => d.adapter_key === 'generic')) return 'Wechselrichter';
     if (devices.some((d) => d.adapter_key === 'marstek_venus')) return 'Marstek Venus';
+    if (devices.some((d) => d.adapter_key === 'generic_meter')) return 'Smart Meter';
     return 'Unbekannte Hardware';
   }
 </script>

@@ -21,6 +21,10 @@
   let nightEnd = $state('06:00');
   let useSmartMeter = $state(false);
   let gridMeterEntityId = $state('');
+  // Generic-inverter limit-range override (Story 2.4 Review D3).
+  // Empty string = use adapter default (2 / 3000 W).
+  let minLimitW = $state<string>('');
+  let maxLimitW = $state<string>('');
 
   let saving = $state(false);
   let saveError = $state<string | null>(null);
@@ -32,13 +36,27 @@
       (!useSmartMeter || gridMeterEntityId !== ''),
   );
 
+  // Show the global empty-state banner when the user is missing the
+  // entity list they actually need — not only when *all three* lists are
+  // empty (Story 2.4 Review P11). Without a hardware-type pick yet, both
+  // wr_limit and meter are relevant; once the user picked, soc is only
+  // relevant for marstek_venus.
   let allEntitiesEmpty = $derived(
     !loading &&
       !loadError &&
       wrLimitEntities.length === 0 &&
       powerEntities.length === 0 &&
-      socEntities.length === 0,
+      (hardwareType !== 'marstek_venus' || socEntities.length === 0),
   );
+
+  function entityLabel(opt: EntityOption): string {
+    // Avoid "number.x (number.x)" duplication when HA didn't expose a
+    // friendly_name and the backend fell back to the entity_id (Story 2.4
+    // Review P12).
+    return opt.friendly_name === opt.entity_id
+      ? opt.entity_id
+      : `${opt.friendly_name} (${opt.entity_id})`;
+  }
 
   onMount(async () => {
     const startTs = Date.now();
@@ -69,6 +87,8 @@
     saving = true;
     saveError = null;
     try {
+      const minLimitParsed = minLimitW.trim() === '' ? undefined : Number(minLimitW);
+      const maxLimitParsed = maxLimitW.trim() === '' ? undefined : Number(maxLimitW);
       await client.saveDevices({
         hardware_type: hardwareType,
         wr_limit_entity_id: wrLimitEntityId,
@@ -80,6 +100,14 @@
           hardwareType === 'marstek_venus' ? nightDischargeEnabled : undefined,
         night_start: hardwareType === 'marstek_venus' ? nightStart : undefined,
         night_end: hardwareType === 'marstek_venus' ? nightEnd : undefined,
+        min_limit_w:
+          hardwareType === 'generic' && minLimitParsed !== undefined && Number.isFinite(minLimitParsed)
+            ? minLimitParsed
+            : undefined,
+        max_limit_w:
+          hardwareType === 'generic' && maxLimitParsed !== undefined && Number.isFinite(maxLimitParsed)
+            ? maxLimitParsed
+            : undefined,
       });
       window.location.hash = '#/functional-test';
     } catch (err) {
@@ -156,11 +184,52 @@
           <select bind:value={wrLimitEntityId} class="entity-select">
             <option value="">— Entity wählen —</option>
             {#each wrLimitEntities as opt (opt.entity_id)}
-              <option value={opt.entity_id}>{opt.friendly_name} ({opt.entity_id})</option>
+              <option value={opt.entity_id}>{entityLabel(opt)}</option>
             {/each}
           </select>
         {/if}
       </section>
+
+      {#if hardwareType === 'generic'}
+        <section class="config-section">
+          <h2>WR-Limit-Bereich (optional)</h2>
+          <p class="hint" style="margin-bottom: 12px;">
+            Lass die Felder leer, wenn dein Wechselrichter zwischen 2 W und 3000 W steuerbar ist.
+            Bei größeren Inverter-Stacks (z. B. Hoymiles HMT-2250, OpenDTU-Multi) oder wenn du
+            0 W als „aus" senden willst, hier den Hardware-Bereich überschreiben.
+          </p>
+          <div class="field-row">
+            <label class="field-label">
+              Min-Limit
+              <div class="input-unit-row">
+                <input
+                  type="number"
+                  bind:value={minLimitW}
+                  min="0"
+                  max="10000"
+                  placeholder="2"
+                  class="number-input"
+                />
+                <span class="field-unit">W</span>
+              </div>
+            </label>
+            <label class="field-label">
+              Max-Limit
+              <div class="input-unit-row">
+                <input
+                  type="number"
+                  bind:value={maxLimitW}
+                  min="1"
+                  max="10000"
+                  placeholder="3000"
+                  class="number-input"
+                />
+                <span class="field-unit">W</span>
+              </div>
+            </label>
+          </div>
+        </section>
+      {/if}
 
       {#if hardwareType === 'marstek_venus'}
         <section class="config-section">
@@ -171,7 +240,7 @@
             <select bind:value={batterySocEntityId} class="entity-select">
               <option value="">— SoC-Entity wählen —</option>
               {#each socEntities as opt (opt.entity_id)}
-                <option value={opt.entity_id}>{opt.friendly_name} ({opt.entity_id})</option>
+                <option value={opt.entity_id}>{entityLabel(opt)}</option>
               {/each}
             </select>
           {/if}
@@ -232,7 +301,7 @@
             <select bind:value={gridMeterEntityId} class="entity-select" style="margin-top: 12px;">
               <option value="">— Netz-Leistungs-Entity wählen —</option>
               {#each powerEntities as opt (opt.entity_id)}
-                <option value={opt.entity_id}>{opt.friendly_name} ({opt.entity_id})</option>
+                <option value={opt.entity_id}>{entityLabel(opt)}</option>
               {/each}
             </select>
           {/if}

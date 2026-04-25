@@ -1,6 +1,6 @@
 # Story 2.4: Generic-Adapter-Refit (Hoymiles -> Generic, Shelly -> Generic-Meter)
 
-Status: review
+Status: done
 
 <!-- Erstellt nach Sprint Change Proposal 2026-04-25. Grund: sprint-status.yaml markierte Story 2.4 bereits ready-for-dev, aber die Story-Datei fehlte. -->
 
@@ -244,6 +244,35 @@ GPT-5 Codex
 - `frontend/src/routes/FunctionalTest.svelte`
 - `frontend/src/routes/Running.svelte`
 - `frontend/src/routes/Running.test.ts`
+
+### Review Findings
+
+Aus Code-Review 2026-04-25 (3-Layer adversarial: Blind Hunter / Edge Case Hunter / Acceptance Auditor).
+
+- [x] [Review][Patch] Setup-Endpoint Entity-Listing diverged von Adapter-Capability — `generic.detect()` akzeptiert `kW` und `input_number.*`, aber `setup.py` Endpoint filtert nur `eid.startswith("number.")` und `uom == "W"`. Trucki-/kW-User sehen leere WR-Liste obwohl Adapter funktioniert. **High** [`backend/src/solalex/api/routes/setup.py:96`]
+- [x] [Review][Patch] `Running.svelte` und `FunctionalTest.svelte` ohne Mapping für `generic_meter` → fällt auf "Unbekannte Hardware" zurück. **Medium** [`frontend/src/routes/Running.svelte`, `frontend/src/routes/FunctionalTest.svelte`]
+- [x] [Review][Patch] `config_json`-Overrides ungeprüft — `int(None)`, `int("abc")`, negative Werte, `min_limit_w > max_limit_w` crashen Executor oder vetoen alle Writes silent. Validierung in `get_limit_range`/`get_drossel_params` mit klarer Fehlermeldung. **Medium** [`backend/src/solalex/adapters/generic.py:75-90`]
+- [x] [Review][Patch] Migration 003 nicht in Transaktion — bei Crash zwischen den 4 UPDATEs Mismatch `type='generic'` aber `adapter_key='hoymiles'` möglich. `BEGIN/COMMIT` ergänzen. **Medium** [`backend/src/solalex/persistence/sql/003_adapter_key_rename.sql`]
+- [x] [Review][Patch] `test_battery_pool.py` Vendor-Leak-Guard sucht Substring `"generic"` — false-positive- und false-negative-Risiko. Set auf strikte Vendor-Namen reduzieren. **Medium** [`backend/tests/unit/test_battery_pool.py:467`]
+- [x] [Review][Patch] UI Config-Step für `min_limit_w` / `max_limit_w` Override — Default-Range `(2, 3000)` vetoed >3 kW Inverter und blockiert `0 W`-Aus. Frontend-Felder ergänzen, die ins `device.config_json` schreiben. **High** (D3-Decision) [`frontend/src/routes/Config.svelte`]
+- [x] [Review][Patch] `generic_meter.parse_readback` von `int(raw)` auf `round(raw)` umstellen — Konsistenz mit `generic.py`. **Low** (D4-Decision) [`backend/src/solalex/adapters/generic_meter.py:56`]
+- [x] [Review][Patch] `parse_readback` UoM case-/whitespace-sensitive (`"kw"`, `"W "` werden falsch interpretiert). `.strip().casefold()` vor Vergleich. **Low** [`backend/src/solalex/adapters/generic.py:62`, `generic_meter.py:53`]
+- [x] [Review][Patch] `parse_readback` NaN/Inf — `round(inf)` raises `OverflowError`, escapt aktuellen `(ValueError, TypeError)` catch. `math.isfinite`-Guard. **Low** [`backend/src/solalex/adapters/generic.py:64`]
+- [x] [Review][Patch] `test_controller_drossel_policy.py:184` Docstring sagt „min_step_w=3 und deadband_w=5" — neue Defaults sind `min_step_w=5, deadband_w=10`. **Low** [`backend/tests/unit/test_controller_drossel_policy.py:184`]
+- [x] [Review][Patch] Stale Kommentar `# generic → (2, 1500)` — Range ist `(2, 3000)`. **Nit** [`backend/tests/unit/test_executor_dispatcher.py:36`]
+- [x] [Review][Patch] Negativ-Test fehlt: `HardwareConfigRequest` mit `hardware_type="hoymiles"` muss 422 returnen. 1-Liner-Test. **Low** [`backend/tests/unit/test_middleware.py`]
+- [x] [Review][Patch] `Config.svelte` `allEntitiesEmpty` zeigt Globalbanner nur wenn alle drei Listen leer — WR-Liste leer + Meter-Liste voll = Dead-End-UX nicht signalisiert. **Low** [`frontend/src/routes/Config.svelte:35-41`]
+- [x] [Review][Patch] `friendly_name`-Fallback zeigt Entity-ID doppelt („`number.x (number.x)`"). Fallback nur Label oder leeren String. **Nit** [`frontend/src/routes/Config.svelte`]
+- [x] [Review][Defer] Generic-Inverter `detect()` zu permissiv — akzeptiert jedes `number`/`input_number` mit W/kW als `wr_limit` ohne `device_class`-Filter. **High** — deferred, Beta-Scope, User wählt Entity bewusst.
+- [x] [Review][Defer] Generic-Meter `detect()` ohne Sign-Convention-Check — invertierte Vorzeichen-Konventionen führen zu positivem Feedback in der Speicher-Policy. **High** — deferred, Beta-Scope.
+- [x] [Review][Defer] AC15 Manual-QA gegen Alex' echte Hardware (Trucki ESPHome + ESPHome SML) noch offen — kein Code-Issue, Alex testet manuell.
+- [x] [Review][Defer] AC14 Smoke-Test-Doku nur oberflächlich verifiziert — User-Cross-Check empfohlen.
+- [x] [Review][Defer] Duplicate `entity_id` Detection nicht dedupliziert — pre-existing, UNIQUE-Constraint im Save-Layer fängt es.
+- [x] [Review][Defer] `HardwareConfigRequest` akzeptiert Marstek-Felder mit `hardware_type='generic'` und droppt sie silent — pre-existing.
+- [x] [Review][Defer] 422-Fehlertext bei legacy `"hoymiles"`-Request ohne Cache-Clear-Hint — UX-Polish, nicht blockierend.
+- [x] [Review][Defer] Marstek-Tile nicht disabled wenn `socEntities.length === 0` — UX-Polish.
+- [x] [Review][Defer] Functional-Test Target-Priorität generic > marstek (hybrid-Setup edge case).
+- [x] [Review][Defer] `parse_readback` "unavailable"/"unknown" nicht distinkt von Junk-Werten — pre-existing, beide → `None`.
 
 ## Change Log
 

@@ -20,12 +20,28 @@ class HardwareConfigRequest(BaseModel):
     night_start: str = Field("20:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     night_end: str = Field("06:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     grid_meter_entity_id: str | None = None
+    # Generic-inverter hardware-range overrides (Story 2.4 Review D3).
+    # Persisted into device.config_json and consumed by
+    # GenericInverterAdapter.get_limit_range. Defaults match the adapter's
+    # built-in fallback (2..3000 W), which fits Hoymiles HM-* series; users
+    # with HMT-2250, OpenDTU multi-inverter stacks or 0-W-off semantics
+    # need to widen the range.
+    min_limit_w: int | None = Field(None, ge=0, le=10000)
+    max_limit_w: int | None = Field(None, ge=1, le=10000)
 
     @model_validator(mode="after")
     def validate_soc_range(self) -> HardwareConfigRequest:
         if self.max_soc <= self.min_soc + 10:
             raise ValueError(
                 f"max_soc ({self.max_soc}) muss mehr als 10 % über min_soc ({self.min_soc}) liegen"
+            )
+        if (
+            self.min_limit_w is not None
+            and self.max_limit_w is not None
+            and self.min_limit_w >= self.max_limit_w
+        ):
+            raise ValueError(
+                f"max_limit_w ({self.max_limit_w}) muss größer als min_limit_w ({self.min_limit_w}) sein"
             )
         if self.hardware_type == "marstek_venus":
             if not self.battery_soc_entity_id:

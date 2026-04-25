@@ -65,6 +65,14 @@ async def save_devices(
 
     # Build the rows to insert from the validated request.
     if body.hardware_type == "generic":
+        # Persist optional limit-range overrides in the device's
+        # config_json blob so GenericInverterAdapter.get_limit_range
+        # can pick them up at runtime (Story 2.4 Review D3 / P13).
+        generic_config: dict[str, int] = {}
+        if body.min_limit_w is not None:
+            generic_config["min_limit_w"] = body.min_limit_w
+        if body.max_limit_w is not None:
+            generic_config["max_limit_w"] = body.max_limit_w
         rows.append(
             DeviceRecord(
                 id=None,
@@ -72,7 +80,7 @@ async def save_devices(
                 role="wr_limit",
                 entity_id=body.wr_limit_entity_id,
                 adapter_key="generic",
-                config_json="{}",
+                config_json=json.dumps(generic_config) if generic_config else "{}",
             )
         )
     else:  # marstek_venus

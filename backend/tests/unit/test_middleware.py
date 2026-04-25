@@ -30,3 +30,18 @@ def test_validation_error_has_german_detail(client: TestClient) -> None:
     data = resp.json()
     # The detail should contain German text / field info
     assert len(data["detail"]) > 0
+
+
+def test_legacy_hoymiles_hardware_type_rejected(client: TestClient) -> None:
+    """Story 2.4 AC 9 — old `hoymiles` literal must be rejected with 422.
+
+    Locks in the Generic-First Adapter-Refit (2026-04-25): an outdated
+    frontend or curl-script sending the legacy key should fail loud at the
+    schema layer, not silently fall through to a missing-adapter error
+    deep in the dispatcher (Story 2.4 Review P10).
+    """
+    resp = client.post(
+        "/api/v1/devices/",
+        json={"hardware_type": "hoymiles", "wr_limit_entity_id": "number.foo"},
+    )
+    assert resp.status_code == 422

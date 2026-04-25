@@ -68,7 +68,7 @@ development_status:
   # Neu: gespawnt aus 2.3-Code-Review Decision D1 (2026-04-24) — Disclaimer muss vor Setup kommen, nicht am Ende
   2-3a-pre-setup-disclaimer-gate: done
   # Neu: Sprint Change Proposal 2026-04-25 — Generic-First Adapter-Layer (Hoymiles → Generic, Shelly → Generic-Meter); Beta-Launch-blocking; Architecture-Amendment 2026-04-25
-  2-4-generic-adapter-refit: review
+  2-4-generic-adapter-refit: done
   epic-2-retrospective: optional
 
   # Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung

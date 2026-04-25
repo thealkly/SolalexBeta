@@ -19,6 +19,8 @@ export interface HardwareConfigRequest {
   night_discharge_enabled?: boolean;
   night_start?: string;
   night_end?: string;
+  min_limit_w?: number;
+  max_limit_w?: number;
 }
 
 export interface SaveDevicesResponse {

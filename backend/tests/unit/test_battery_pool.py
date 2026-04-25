@@ -464,7 +464,11 @@ def test_pool_does_not_import_vendor_specific_constants() -> None:
         / "battery_pool.py"
     )
     text = src.read_text(encoding="utf-8")
-    for vendor in ("marstek_venus", "generic", "shelly"):
+    # Strict vendor names only — "generic" was removed because it's a real
+    # English word and would either false-positive against legitimate prose
+    # ("generically", "GenericException") or, since it's now a registered
+    # adapter key, mask real vendor leaks (Story 2.4 Review P5).
+    for vendor in ("marstek_venus", "marstek", "hoymiles", "shelly_3em", "shelly"):
         assert vendor not in text, f"battery_pool.py leaks vendor name: {vendor}"
 
 
