@@ -288,7 +288,13 @@
   {/if}
 
   {#if !loading && !loadError}
-    {#if setupNotActivated}
+    {#if setupNotActivated && allDevices.length === 0}
+    <!-- Story 2.6 review P9: only the empty-DB case warrants the
+         "Setup-Wizard abschließen"-hint. When devices already exist (e.g.
+         after a hardware-edit set ``commissioned_at = NULL``), the
+         hardware-card above already surfaces the recovery path
+         ("Funktionstest erforderlich"-tag + edit button); a generic
+         "noch nicht aktiviert" message would contradict it. -->
     <section class="settings-section" data-testid="not-activated-hint">
       <h2>Noch nicht aktiviert</h2>
       <p class="hint">
@@ -297,6 +303,10 @@
         bearbeiten.
       </p>
     </section>
+  {:else if setupNotActivated}
+    <!-- Devices present but at least one is uncommissioned. The
+         hardware-card above carries the "Funktionstest erforderlich"
+         tag and the edit button — no separate hint needed (review P9). -->
   {:else if !hasBattery}
     <section class="settings-section" data-testid="no-battery-hint">
       <h2>Kein Akku konfiguriert</h2>

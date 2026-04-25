@@ -19,8 +19,11 @@ export interface HardwareConfigRequest {
   night_discharge_enabled?: boolean;
   night_start?: string;
   night_end?: string;
-  min_limit_w?: number;
-  max_limit_w?: number;
+  // Story 2.6 Decision (Wizard-Subset replace): explicit ``null`` clears
+  // the override on the backend (``_merge_config`` drops None-valued
+  // incoming keys); ``undefined`` keeps the existing value untouched.
+  min_limit_w?: number | null;
+  max_limit_w?: number | null;
   // Story 2.5 — Smart-Meter sign-convention override.
   invert_sign?: boolean;
 }

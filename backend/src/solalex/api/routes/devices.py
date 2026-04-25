@@ -189,6 +189,13 @@ async def save_devices(
 def _merge_config(existing_raw: str, incoming_raw: str) -> str:
     """Merge ``incoming`` keys into ``existing`` config_json, preserving extras.
 
+    Story 2.6 Decision (Wizard-Subset replace): an incoming key whose value
+    is ``None`` is interpreted as "clear this key" — it is removed from the
+    merged dict rather than overwriting with ``None``. This lets the PUT
+    route blank a wizard-managed override (``min_limit_w``, ``max_limit_w``)
+    without persisting ``null`` on disk, which would crash adapters that
+    read overrides via ``_override_int``.
+
     Used by PUT to keep foreign keys (e.g. ``allow_surplus_export`` from
     Story 3.8, ``min_soc`` from Story 3.6 PATCH) when the user re-saves
     only the wizard-managed subset. Falls back to the incoming blob when
@@ -205,7 +212,11 @@ def _merge_config(existing_raw: str, incoming_raw: str) -> str:
     if not isinstance(existing, dict) or not isinstance(incoming, dict):
         return incoming_raw
     merged: dict[str, Any] = dict(existing)
-    merged.update(incoming)
+    for key, value in incoming.items():
+        if value is None:
+            merged.pop(key, None)
+        else:
+            merged[key] = value
     return json.dumps(merged)
 
 
@@ -306,46 +317,52 @@ async def update_devices(
     the new device set.
     """
     db_path = get_settings().db_path
-    target_rows = _build_rows_from_request(body)
+    target_rows = _build_rows_from_request(body, with_wizard_clears=True)
 
-    async with connection_context(db_path) as conn:
-        existing = await list_devices(conn)
-
-    diff_kind = _row_diff_kind(existing, target_rows)
-
-    if diff_kind == "identical":
-        # No-op fast path — return the unchanged device list and skip the
-        # audit cycle + reload. Avoids phantom inserts when the user opens
-        # the edit page and clicks "Speichern" without changing anything.
-        async with connection_context(db_path) as conn:
-            current = await list_devices(conn)
-        return [_to_response(d) for d in current]
-
-    existing_by_pair = {(d.entity_id, d.role): d for d in existing}
-    target_by_pair = {(d.entity_id, d.role): d for d in target_rows}
-
-    keep_pairs = set(target_by_pair.keys())
-    delete_pairs = [p for p in existing_by_pair if p not in keep_pairs]
-    insert_rows: list[DeviceRecord] = []
-    update_rows: list[tuple[int, str]] = []  # (device_id, merged_config_json)
-
-    for pair, target in target_by_pair.items():
-        existing_row = existing_by_pair.get(pair)
-        if existing_row is None or existing_row.id is None:
-            # Same (entity_id, role) absent → INSERT
-            insert_rows.append(target)
-        else:
-            merged = _merge_config(existing_row.config_json, target.config_json)
-            # Compare the parsed dicts so JSON-serialisation noise (key
-            # order, whitespace from sqlite-stored TEXT) does not trigger
-            # phantom UPDATEs that bump ``updated_at`` without changing
-            # any user-visible state (Story-2.5 review P7).
-            if _config_dict(merged) != _config_dict(existing_row.config_json):
-                update_rows.append((existing_row.id, merged))
-
+    # Single connection from classify-to-commit so the read-modify-write
+    # cycle cannot be straddled by a concurrent PUT (Story 2.6 review P1).
+    # ``BEGIN IMMEDIATE`` acquires the RESERVED lock up-front, which means
+    # the second concurrent PUT waits at BEGIN rather than running its
+    # plan against a stale ``existing`` snapshot. SQLite serialises the
+    # second request behind the first; if it times out it surfaces a
+    # ``database is locked`` error which the caller can retry.
     async with connection_context(db_path) as conn:
         await conn.execute("BEGIN IMMEDIATE")
         try:
+            existing = await list_devices(conn)
+
+            diff_kind = _row_diff_kind(existing, target_rows)
+
+            if diff_kind == "identical":
+                # No-op fast path — release the lock and return without
+                # write/audit/reload. Avoids phantom inserts when the user
+                # clicks "Speichern" without changing anything.
+                await conn.rollback()
+                return [_to_response(d) for d in existing]
+
+            existing_by_pair = {(d.entity_id, d.role): d for d in existing}
+            target_by_pair = {(d.entity_id, d.role): d for d in target_rows}
+
+            keep_pairs = set(target_by_pair.keys())
+            delete_pairs = [p for p in existing_by_pair if p not in keep_pairs]
+            insert_rows: list[DeviceRecord] = []
+            update_rows: list[tuple[int, str]] = []  # (device_id, merged_config_json)
+
+            for pair, target in target_by_pair.items():
+                existing_row = existing_by_pair.get(pair)
+                if existing_row is None or existing_row.id is None:
+                    # Same (entity_id, role) absent → INSERT
+                    insert_rows.append(target)
+                else:
+                    merged = _merge_config(existing_row.config_json, target.config_json)
+                    # Compare the parsed dicts so JSON-serialisation noise
+                    # (key order, whitespace from sqlite-stored TEXT) does
+                    # not trigger phantom UPDATEs that bump ``updated_at``
+                    # without changing any user-visible state (Story-2.5
+                    # review P7).
+                    if _config_dict(merged) != _config_dict(existing_row.config_json):
+                        update_rows.append((existing_row.id, merged))
+
             # Delete rows whose (entity_id, role) is no longer present.
             for entity_id, role in delete_pairs:
                 await conn.execute(
@@ -395,24 +412,24 @@ async def update_devices(
             await conn.rollback()
             raise
 
-    # Reload the live controller so the next sensor event sees the new
-    # device registry (Story 3.6 hook). Synchronous so the response only
-    # returns once the controller is consistent with the DB.
-    controller = getattr(request.app.state, "controller", None)
-    if controller is not None:
-        await controller.reload_devices_from_db()
-
-    # Audit cycle — placed AFTER the reload so the controller has its new
-    # mode/baseline already, but the cycle row reflects the same active
-    # mode as concurrent regulation (no surprise mode flip in the audit
-    # trail). Best-effort: failure is logged but does not fail the route
-    # (configuration was saved successfully).
+    # Audit cycle BEFORE the controller reload (Story 2.6 review P2): if
+    # ``reload_devices_from_db`` raises, the diff still lands in the
+    # diagnostics ring buffer. The cycle's ``mode`` reflects the active
+    # mode at the moment of the edit; the reload may flip the mode but
+    # that flip belongs to its own ``mode_switch:`` audit row.
     await _write_hardware_edit_audit_cycle(
         request,
         diff_kind=diff_kind,
         existing=existing,
         target_rows=target_rows,
     )
+
+    # Reload the live controller so the next sensor event sees the new
+    # device registry (Story 3.6 hook). Synchronous so the response only
+    # returns once the controller is consistent with the DB.
+    controller = getattr(request.app.state, "controller", None)
+    if controller is not None:
+        await controller.reload_devices_from_db()
 
     _logger.info(
         "devices_updated",
@@ -470,12 +487,24 @@ async def _write_hardware_edit_audit_cycle(
     # tests). Otherwise pick the active mode through the allow-list so a
     # future ``Mode.EXPORT`` (Story 3.8 surplus-export) lands in the audit
     # row verbatim instead of being silently relabelled as ``drossel`` —
-    # CLAUDE.md flags audit-trail clarity as non-negotiable.
+    # CLAUDE.md flags audit-trail clarity as non-negotiable. When a future
+    # mode is added without expanding the allow-list, the fallback logs a
+    # WARNING so the next 3.8-style merge surfaces the gap in CI logs
+    # rather than silently lying about state at the moment of the edit.
     mode_value: Mode = "drossel"
     if controller is not None:
         raw_mode = controller.current_mode.value
         if raw_mode in _ALLOWED_AUDIT_MODES:
             mode_value = cast(Mode, raw_mode)
+        else:
+            _logger.warning(
+                "hardware_edit_audit_mode_fallback",
+                extra={
+                    "controller_mode": raw_mode,
+                    "fallback_mode": mode_value,
+                    "diff_kind": diff_kind,
+                },
+            )
 
     existing_summary = sorted(
         f"{d.role}={d.entity_id}" for d in existing if d.role
@@ -507,9 +536,19 @@ async def _write_hardware_edit_audit_cycle(
             await control_cycles.insert(conn, row)
             await conn.commit()
     except Exception:
+        # Story 2.6 review P4: surface the failure with the audit-cycle
+        # specific event-type ``audit_cycle_failed`` so a future metric or
+        # log-derived alarm can detect silent loss of audit rows. The
+        # route still returns 200 — the configuration was saved, only the
+        # diagnostics breadcrumb was lost.
         _logger.exception(
-            "hardware_edit_audit_cycle_persist_failed",
-            extra={"diff_kind": diff_kind, "anchor_device_id": anchor.id},
+            "audit_cycle_failed",
+            extra={
+                "audit_kind": "hardware_edit",
+                "diff_kind": diff_kind,
+                "anchor_device_id": anchor.id,
+                "mode": mode_value,
+            },
         )
 
 

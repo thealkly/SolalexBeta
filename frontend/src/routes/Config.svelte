@@ -19,9 +19,22 @@
   interface Props {
     editMode?: boolean;
     initialDevices?: DeviceResponse[];
+    /**
+     * Story 2.6 review P5: callback fired after a successful PUT in
+     * editMode so the App-level devices cache can be refreshed before
+     * the user navigates back. Without this hook the cache stays at the
+     * pre-edit snapshot until the next full-page mount, and a quick
+     * round-trip Settings → Hardware ändern → Hardware ändern would
+     * show stale data.
+     */
+    onSaved?: (devices: DeviceResponse[]) => void;
   }
 
-  let { editMode = false, initialDevices = [] }: Props = $props();
+  let {
+    editMode = false,
+    initialDevices = [],
+    onSaved,
+  }: Props = $props();
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
@@ -141,12 +154,15 @@
 
   // Story 2.6 — warn-banner trigger: WR-entity swap OR hardware-type
   // swap force a new functional test, so the user gets a heads-up
-  // before clicking save.
+  // before clicking save. The guard intentionally fires while the user
+  // is mid-clear (``wrLimitEntityId === ''``) — the banner reflects
+  // "save will null commissioned_at", which is true the moment the
+  // initial value is no longer the current value, regardless of whether
+  // the user has finished picking the replacement (review P10).
   let needsRefunctionalTest = $derived(
     editMode &&
       hardwareType !== null &&
-      ((initialWrEntityId !== '' && wrLimitEntityId !== '' &&
-        wrLimitEntityId !== initialWrEntityId) ||
+      ((initialWrEntityId !== '' && wrLimitEntityId !== initialWrEntityId) ||
         (initialHardwareType !== null &&
           hardwareType !== initialHardwareType)),
   );
@@ -160,10 +176,27 @@
       : `${opt.friendly_name} (${opt.entity_id})`;
   }
 
+  // Story 2.6 review P5: when the user opens /hardware-edit via a
+  // direct URL hit, App.svelte may still be loading the devices cache
+  // and pass us ``initialDevices=[]``. Without this effect the form
+  // would render Defaults and a Save would replace the real config.
+  // Latch a one-shot apply so subsequent prop updates (e.g. after a
+  // successful PUT writes back to the cache) do not stomp on user
+  // edits in a still-mounted Config component.
+  let initialDevicesApplied = $state(false);
+  $effect(() => {
+    if (!editMode) return;
+    if (initialDevicesApplied) return;
+    if (initialDevices.length === 0) return;
+    loadStateFromInitialDevices(initialDevices);
+    initialDevicesApplied = true;
+  });
+
   onMount(async () => {
     const startTs = Date.now();
-    if (editMode && initialDevices.length > 0) {
+    if (editMode && initialDevices.length > 0 && !initialDevicesApplied) {
       loadStateFromInitialDevices(initialDevices);
+      initialDevicesApplied = true;
     }
     try {
       const entities = await client.getEntities();
@@ -255,7 +288,11 @@
             : undefined,
       };
       if (editMode) {
-        await client.updateDevices(payload);
+        // Pass the response back to the App-level cache so a follow-up
+        // navigation to Settings or another /hardware-edit visit reads
+        // the post-PUT state instead of a stale snapshot (review P5).
+        const updated = await client.updateDevices(payload);
+        onSaved?.(updated);
         window.location.hash = '#/running';
       } else {
         await client.saveDevices(payload);

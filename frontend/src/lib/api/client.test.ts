@@ -158,9 +158,36 @@ describe('updateDevices', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]!.role).toBe('wr_limit');
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/devices/');
     expect(init.method).toBe('PUT');
     expect(init.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    // Story 2.6 review P10: pin the wire-format so a typo
+    // (hardware_type → hardwareType) cannot slip through.
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body).toEqual({
+      hardware_type: 'generic',
+      wr_limit_entity_id: 'input_number.x',
+    });
+  });
+
+  it('round-trips an explicit null override so the merge can clear it', async () => {
+    // Story 2.6 Decision (Wizard-Subset replace) — clearing min_limit_w
+    // sends null on the wire. JSON.stringify keeps null values, so the
+    // backend sees the clear-intent verbatim.
+    mockFetch.mockResolvedValue(okResponse([]));
+
+    await updateDevices({
+      hardware_type: 'generic',
+      wr_limit_entity_id: 'input_number.x',
+      min_limit_w: null,
+      max_limit_w: 1500,
+    });
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body['min_limit_w']).toBeNull();
+    expect(body['max_limit_w']).toBe(1500);
   });
 });
 

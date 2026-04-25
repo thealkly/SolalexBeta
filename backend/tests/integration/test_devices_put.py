@@ -116,6 +116,10 @@ def test_put_override_only_keeps_commissioned_at(
     before = _read_device("wr_limit")
     assert before is not None
     commissioned_before = before["commissioned_at"]
+    # Story 2.6 review P11: the override-only branch must do an in-place
+    # UPDATE, not DELETE+INSERT. Pin the row identity so a future regression
+    # that swaps the implementation cannot pass under a clever timestamp copy.
+    id_before = before["id"]
 
     resp = client_with_db.put(
         "/api/v1/devices/",
@@ -131,9 +135,56 @@ def test_put_override_only_keeps_commissioned_at(
 
     after = _read_device("wr_limit")
     assert after is not None
+    assert after["id"] == id_before
     assert after["commissioned_at"] == commissioned_before
     cfg = json.loads(after["config_json"])
     assert cfg["min_limit_w"] == 50
+    assert cfg["max_limit_w"] == 1500
+
+
+def test_put_override_clear_removes_min_limit_w(
+    client_with_db: TestClient,
+) -> None:
+    """Story 2.6 Decision (Wizard-Subset replace): blanking the min_limit_w
+    field in the UI sends ``null`` and the override is removed from
+    device.config_json — the previous left-biased merge would have left it
+    set forever."""
+    _seed_generic_with_meter(client_with_db)
+    # Seed an existing override.
+    resp = client_with_db.put(
+        "/api/v1/devices/",
+        json={
+            "hardware_type": "generic",
+            "wr_limit_entity_id": "input_number.t2sgf72a29_set_target",
+            "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+            "min_limit_w": 50,
+            "max_limit_w": 1500,
+        },
+    )
+    assert resp.status_code == 200
+    seeded = _read_device("wr_limit")
+    assert seeded is not None
+    assert json.loads(seeded["config_json"])["min_limit_w"] == 50
+
+    # Blanking the field sends min_limit_w=null; max_limit_w stays set.
+    resp = client_with_db.put(
+        "/api/v1/devices/",
+        json={
+            "hardware_type": "generic",
+            "wr_limit_entity_id": "input_number.t2sgf72a29_set_target",
+            "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+            "min_limit_w": None,
+            "max_limit_w": 1500,
+        },
+    )
+    assert resp.status_code == 200
+
+    after = _read_device("wr_limit")
+    assert after is not None
+    cfg = json.loads(after["config_json"])
+    assert "min_limit_w" not in cfg, (
+        f"min_limit_w should have been cleared but config is {cfg}"
+    )
     assert cfg["max_limit_w"] == 1500
 
 
@@ -432,3 +483,47 @@ def test_put_preserves_foreign_keys_in_wr_charge_config(
     assert cfg["min_soc"] == 20
     assert cfg["night_start"] == "21:00"
     assert cfg["allow_surplus_export"] is True
+
+
+def test_put_audit_cycle_writes_drossel_when_controller_absent(
+    client_with_db: TestClient,
+) -> None:
+    """Story 2.6 review P12: the early-lifespan / no-controller branch in
+    ``_write_hardware_edit_audit_cycle`` (mode_value defaults to 'drossel')
+    has to keep writing a valid audit row even when ``app.state.controller``
+    is missing."""
+    _seed_generic_with_meter(client_with_db)
+    # Drop the controller from app state BEFORE the PUT — simulates the
+    # early-lifespan / partial-init code path the comment alludes to.
+    saved_controller = client_with_db.app.state.controller  # type: ignore[attr-defined]
+    del client_with_db.app.state.controller  # type: ignore[attr-defined]
+    try:
+        resp = client_with_db.put(
+            "/api/v1/devices/",
+            json={
+                "hardware_type": "generic",
+                "wr_limit_entity_id": "input_number.different_inverter",
+                "grid_meter_entity_id": "sensor.esphome_smart_meter_current_load",
+            },
+        )
+        assert resp.status_code == 200
+    finally:
+        client_with_db.app.state.controller = saved_controller  # type: ignore[attr-defined]
+
+    from solalex.config import get_settings
+
+    conn = sqlite3.connect(str(get_settings().db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.execute(
+            "SELECT mode, source, readback_status, reason FROM control_cycles "
+            "WHERE reason LIKE 'hardware_edit:%'"
+        )
+        rows = list(cur.fetchall())
+    finally:
+        conn.close()
+    assert len(rows) == 1
+    audit = rows[0]
+    assert audit["mode"] == "drossel"
+    assert audit["source"] == "solalex"
+    assert audit["readback_status"] == "noop"

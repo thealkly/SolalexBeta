@@ -160,7 +160,13 @@
   {:else if currentRoute === '/settings'}
     <Settings />
   {:else if currentRoute === '/hardware-edit'}
-    <Config editMode initialDevices={devicesCache ?? []} />
+    <Config
+      editMode
+      initialDevices={devicesCache ?? []}
+      onSaved={(updated) => {
+        devicesCache = updated;
+      }}
+    />
   {:else}
     <section class="empty-state-card">
       <header class="empty-state-header">

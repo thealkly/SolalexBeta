@@ -79,15 +79,30 @@ describe('Settings — initial render', () => {
     expect(screen.queryByTestId('settings-save')).toBeNull();
   });
 
-  it('renders a not-activated hint for pre-commissioning devices', async () => {
+  it('surfaces re-commissioning via the hardware-card tag for pre-commissioning devices', async () => {
+    // Story 2.6 review P9: pre-Story-2.6 the Settings page rendered a
+    // generic "Noch nicht aktiviert — schließe den Setup-Wizard ab"
+    // hint here. Now the hardware-card carries that responsibility (it
+    // shows a "Funktionstest erforderlich"-tag plus the existing
+    // "Hardware ändern"-button), so the standalone hint is reserved for
+    // the empty-DB case to avoid contradictory recovery instructions.
     vi.spyOn(client, 'getDevices').mockResolvedValue([
       { ...makeWrCharge(), commissioned_at: null },
     ]);
     render(Settings);
-    const hint = await screen.findByTestId('not-activated-hint');
-    expect(hint.textContent ?? '').toContain('Noch nicht aktiviert');
+    await screen.findByTestId('hardware-card');
+    expect(screen.queryByTestId('not-commissioned-tag')).not.toBeNull();
+    expect(screen.queryByTestId('not-activated-hint')).toBeNull();
     expect(screen.queryByTestId('no-battery-hint')).toBeNull();
     expect(screen.queryByTestId('settings-save')).toBeNull();
+  });
+
+  it('renders the empty-DB not-activated hint when no devices exist', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([]);
+    render(Settings);
+    const hint = await screen.findByTestId('not-activated-hint');
+    expect(hint.textContent ?? '').toContain('Noch nicht aktiviert');
+    expect(screen.queryByTestId('hardware-card')).toBeNull();
   });
 });
 
