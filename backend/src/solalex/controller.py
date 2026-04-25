@@ -50,7 +50,7 @@ from solalex.state_cache import StateCache
 if TYPE_CHECKING:  # pragma: no cover — typing-only to avoid a circular import
     # battery_pool imports Mode from this module, so we cannot import the
     # class at runtime without a cycle. Story 3.4.
-    from solalex.battery_pool import BatteryPool
+    from solalex.battery_pool import BatteryPool, SocBreakdown
 
 _logger = get_logger(__name__)
 
@@ -288,6 +288,12 @@ class Controller:
 
         source = self._classify_source(event_msg, device, now)
         sensor_value = _extract_sensor_w(event_msg)
+        # Story 2.5 — flip the smart-meter sign BEFORE the value enters any
+        # smoothing buffer, mode dispatch, or feed-in band check. Adapter
+        # parse_readback contracts stay untouched (they are also used by the
+        # WR-Limit readback path); the flip is controller-local and gated on
+        # per-device opt-in via device.config_json.invert_sign.
+        sensor_value = self._maybe_invert_sensor_value(device, sensor_value)
 
         # Story 3.5 — evaluate the hysteresis switch BEFORE dispatching so
         # the first decision after a switch already runs under the new mode
@@ -357,6 +363,37 @@ class Controller:
             # Prevent "Task was destroyed but it is pending" at shutdown by
             # keeping a reference. Tasks self-remove via their done callback.
             self._track_task(task)
+
+    def _maybe_invert_sensor_value(
+        self, device: DeviceRecord, value_w: float | None
+    ) -> float | None:
+        """Apply the per-device sign-invert override (Story 2.5).
+
+        Only flips when the source is a ``grid_meter`` and its
+        ``device.config_json.invert_sign`` is ``True``. Adapter contracts
+        stay untouched: ``parse_readback`` is also used by the WR-Limit
+        readback path and must not be affected by smart-meter user prefs.
+        Downstream helpers (``_is_feed_in_after_smoothing`` etc.) read from
+        the smoothing buffer that was filled with the post-flip value, so
+        no second flip is needed there.
+        """
+        if value_w is None:
+            return None
+        if device.role != "grid_meter":
+            return value_w
+        try:
+            cfg = device.config()
+        except Exception:
+            _logger.exception(
+                "invert_sign_config_parse_failed",
+                extra={"entity_id": device.entity_id},
+            )
+            return value_w
+        if not isinstance(cfg, dict):
+            return value_w
+        if cfg.get("invert_sign", False) is True:
+            return -value_w
+        return value_w
 
     async def reload_devices_from_db(self) -> None:
         """Re-read the devices table and rebuild the role/pool registries.
@@ -980,10 +1017,12 @@ class Controller:
             self._speicher_min_soc_capped = False
 
         if abs(smoothed) <= params.deadband_w:
+            self._speicher_night_gate_active = False
             return []
 
         # Feed-in: would charge the pool — gate on Max-SoC.
         if smoothed < 0 and aggregated >= max_soc:
+            self._speicher_night_gate_active = False
             if not self._speicher_max_soc_capped:
                 _logger.info(
                     "speicher_mode_at_max_soc",
@@ -997,6 +1036,7 @@ class Controller:
 
         # Import: would discharge the pool — gate on Min-SoC.
         if smoothed > 0 and aggregated <= min_soc:
+            self._speicher_night_gate_active = False
             if not self._speicher_min_soc_capped:
                 _logger.info(
                     "speicher_mode_at_min_soc",
@@ -1010,12 +1050,10 @@ class Controller:
 
         # Story 3.6 — Nacht-Entlade-Zeitfenster gate. Only the discharge
         # intent (smoothed > 0, would discharge) is gated; charge
-        # (smoothed < 0, surplus PV) flows freely 24/7. Outside-window
-        # discharge falls through to []; ``_speicher_night_gate_active``
-        # carries the once-per-band log discipline (Story 3.4 cap-flag
-        # pattern). The flag resets as soon as we leave the gated branch
-        # (charge / deadband / disabled toggle / inside window), so a
-        # later re-entry logs again.
+        # (smoothed < 0, surplus PV) flows freely 24/7. On gate entry we send
+        # one explicit 0 W setpoint so a previously latched Marstek discharge
+        # command does not keep running. Subsequent outside-window events stay
+        # silent until the gate is left and re-entered.
         if smoothed > 0:
             night_enabled, night_start, night_end = _read_night_discharge_window(
                 first_charge
@@ -1036,6 +1074,12 @@ class Controller:
                             },
                         )
                         self._speicher_night_gate_active = True
+                        return self._speicher_decisions_for_setpoint(
+                            pool=pool,
+                            soc_breakdown=soc_breakdown,
+                            proposed=0,
+                            smoothed=smoothed,
+                        )
                     return []
                 else:
                     self._speicher_night_gate_active = False
@@ -1054,6 +1098,22 @@ class Controller:
         if abs(proposed - last) < params.min_step_w:
             return []
 
+        return self._speicher_decisions_for_setpoint(
+            pool=pool,
+            soc_breakdown=soc_breakdown,
+            proposed=proposed,
+            smoothed=smoothed,
+        )
+
+    def _speicher_decisions_for_setpoint(
+        self,
+        *,
+        pool: BatteryPool,
+        soc_breakdown: SocBreakdown,
+        proposed: int,
+        smoothed: float,
+    ) -> list[PolicyDecision]:
+        """Build Speicher decisions for a pool setpoint and track pending state."""
         decisions = pool.set_setpoint(proposed, self._state_cache)
         if not decisions:
             # All members offline — pool already filtered them. Skip the
@@ -1074,7 +1134,7 @@ class Controller:
         for decision in decisions:
             if decision.device.id is not None:
                 self._speicher_pending_setpoints[decision.device.id] = (
-                    pool_key,
+                    id(pool),
                     proposed,
                 )
 

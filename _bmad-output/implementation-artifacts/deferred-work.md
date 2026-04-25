@@ -2,6 +2,10 @@
 
 Gesammelte Findings aus Reviews, die pre-existing sind oder außerhalb des Story-Scopes liegen. Aus dieser Liste speisen sich Kandidaten für Folge-Stories (Refactors, Tech-Debt-Epics, Security-Hardening).
 
+## Deferred from: code review of 3-6-user-config-min-max-soc-nacht-entlade-zeitfenster (2026-04-25)
+
+- **MULTI-Max-SoC-Fallback nutzt Speicher-Deadband als Drossel-Gate** — `_is_feed_in_after_smoothing()` liest den Speicher-Deadband (`30 W`) als Vorfilter, bevor `_policy_drossel()` ueberhaupt entscheiden darf. Dadurch bleibt Einspeisung zwischen Drossel-Deadband (`10 W`) und Speicher-Deadband ungedrosselt. Deferred, weil dies aus dem gebuendelten Story-3.5-Control-Patch stammt und Story 3.6 laut Scope `_policy_multi` nicht anfassen sollte. Kandidat fuer Story-3.5/3.8-Follow-up.
+
 ## Deferred from: code review of story-4-0a-diagnose-schnellexport-db-dump-logs-zip (2026-04-25)
 
 - **Streaming partial ZIP nicht von vollständigem unterscheidbar** — Wenn der Worker mid-stream raised (z. B. Logrotation-TOCTOU oder Disk-Full nach erstem Chunk), sieht der Browser einen erfolgreich abgeschlossenen Download mit korrupter ZIP. Mitigation wäre HTTP-Trailer mit Checksum, vollständige Vor-Bufferung, oder Pre-Flight-`HEAD`-Request mit `Content-Length` aus Pre-Computation — alle außerhalb des Schnellexport-Scopes. (Backend `routes/diagnostics.py` + `diagnostics/export.py`.)

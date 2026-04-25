@@ -43,7 +43,7 @@ Alle Adapter erfüllen das `adapters/base.py` Abstract-Interface:
 
 Static-Registry: `ADAPTERS = {"generic": generic, "marstek_venus": marstek_venus, "generic_meter": generic_meter}`.
 
-Pro-Device-Override-Schema in `device.config_json` (alle Keys optional, Generic-Adapter): `deadband_w`, `min_step_w`, `smoothing_window`, `limit_step_clamp_w`, `min_limit_w`, `max_limit_w`. UI-Exposure ist v1.5-Scope.
+Pro-Device-Override-Schema in `device.config_json` (alle Keys optional, Generic-Adapter): `deadband_w`, `min_step_w`, `smoothing_window`, `limit_step_clamp_w`, `min_limit_w`, `max_limit_w`, `invert_sign` (Boolean, nur für `grid_meter`-Devices, Story 2.5). UI-Exposure für `min_limit_w`/`max_limit_w` ist seit Story 2.4 Review D3 im Config-Flow; UI für `invert_sign` ist Story 2.5; restliche Tuning-Overrides sind v1.5-Scope.
 
 ### 3. Closed-Loop-Readback für jeden Write-Command (Safety, non-verhandelbar)
 
@@ -227,6 +227,9 @@ solalex/
 - Wenn Du `lib/tokens/colors.ts` (o. ä.) im Frontend anlegst — **STOP**. CSS Custom Properties in `app.css`.
 - Wenn Du `[data-theme='dark']`-Overrides oder einen HA-Theme-Observer/Subscriber baust — **STOP**. Dark-Mode gestrichen (Amendment 2026-04-23), Light-only in v1.
 - Wenn Du einen `theme`-Store (`lib/stores/theme.ts`) oder `applyTheme`/`resolveThemeMode`-Funktion schreibst — **STOP**. Kein Theme-Switching in v1.
+- Wenn Du den Vorzeichen-Flip für invertierte Smart-Meter im Adapter `parse_readback` einbaust statt im Controller — **STOP**. Story 2.5: `_maybe_invert_sensor_value`-Helper im Controller, vor dem Smoothing-Buffer. Adapter-Konvention bleibt unverändert (Vertrag mit Hardware, auch von WR-Readback genutzt).
+- Wenn Du eine zweite Config-Komponente (`HardwareEdit.svelte` o. ä.) neben `Config.svelte` baust statt `editMode`-Prop — **STOP**. Story 2.6: Initial-Setup und Edit teilen sich eine Komponente. Doppelte Komponenten driften auseinander.
+- Wenn Du den Gate für `/hardware-edit` ins `WIZARD_ROUTES`-Set aufnimmst — **STOP**. Wizard-Set würde commissioned User wieder rauswerfen. `/hardware-edit` braucht einen eigenen Branch in `gate.ts` analog zu `/settings`.
 
 ---
 

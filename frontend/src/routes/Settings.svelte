@@ -14,6 +14,7 @@
   // True when the commissioned device set has a wr_charge — the form
   // renders only then. Drossel-only setups land on the no-battery hint.
   let hasBattery = $state(false);
+  let setupNotActivated = $state(false);
 
   let minSoc = $state(15);
   let maxSoc = $state(95);
@@ -29,7 +30,7 @@
   let saveError = $state<string | null>(null);
   let savedNotice = $state<string | null>(null);
 
-  // True while the user dwells on a Min-SoC value < 10 % — gates the
+  // True after Save is clicked for a Min-SoC value < 10 % — gates the
   // regular Save button until they pick "Trotzdem speichern" or revert.
   let lowMinSocPending = $state(false);
   // Sticks once the user explicitly accepted the low-Min-SoC warning;
@@ -63,15 +64,20 @@
     if (typeof cfg.night_start === 'string') nightStart = cfg.night_start;
     if (typeof cfg.night_end === 'string') nightEnd = cfg.night_end;
     lastSafeMinSoc = minSoc >= 10 ? minSoc : 15;
+    lowMinSocAcknowledged = minSoc >= 5 && minSoc < 10;
+    lowMinSocPending = false;
   }
 
   onMount(async () => {
     const startTs = Date.now();
     try {
       const devices = await client.getDevices();
+      setupNotActivated =
+        devices.length === 0 || devices.some((d) => d.commissioned_at === null);
       const wrCharge = devices.find((d) => d.role === 'wr_charge' && d.commissioned_at !== null);
       if (wrCharge) {
         hasBattery = true;
+        setupNotActivated = false;
         loadFromDevice(wrCharge);
       }
     } catch (err) {
@@ -92,12 +98,12 @@
       lowMinSocAcknowledged = false;
       lastSafeMinSoc = minSoc;
     } else if (minSoc >= 5) {
-      lowMinSocPending = true;
+      lowMinSocPending = false;
       lowMinSocAcknowledged = false;
     } else {
-      // Field constraint < 5 — backend will reject; keep the confirm
-      // visible so the user notices, but leave the regular save disabled.
-      lowMinSocPending = true;
+      // Field constraint < 5 — backend would reject; handleSave surfaces
+      // the error inline before making a PATCH request.
+      lowMinSocPending = false;
       lowMinSocAcknowledged = false;
     }
   }
@@ -116,9 +122,17 @@
 
   async function handleSave(): Promise<void> {
     if (!hasBattery || gapInvalid || nightWindowEmpty) return;
-    saving = true;
     saveError = null;
     savedNotice = null;
+    if (minSoc < 5) {
+      saveError = 'Min-SoC muss mindestens 5 % betragen.';
+      return;
+    }
+    if (minSoc < 10 && !lowMinSocAcknowledged) {
+      lowMinSocPending = true;
+      return;
+    }
+    saving = true;
     try {
       const response = await client.patchBatteryConfig({
         min_soc: minSoc,
@@ -134,6 +148,8 @@
       nightStart = response.night_start;
       nightEnd = response.night_end;
       lastSafeMinSoc = minSoc >= 10 ? minSoc : lastSafeMinSoc;
+      lowMinSocAcknowledged = minSoc >= 5 && minSoc < 10;
+      lowMinSocPending = false;
       savedNotice = 'Einstellungen gespeichert.';
     } catch (err) {
       saveError = isApiError(err)
@@ -195,6 +211,15 @@
     <div class="error-block">
       <p>{loadError}</p>
     </div>
+  {:else if setupNotActivated}
+    <section class="settings-section" data-testid="not-activated-hint">
+      <h2>Noch nicht aktiviert</h2>
+      <p class="hint">
+        Diese versteckte Seite ist erst nach der Inbetriebnahme vollständig nutzbar.
+        Schließe den Setup-Wizard ab, danach kannst du hier Akku-Grenzen und Nacht-Entladung
+        bearbeiten.
+      </p>
+    </section>
   {:else if !hasBattery}
     <section class="settings-section" data-testid="no-battery-hint">
       <h2>Kein Akku konfiguriert</h2>

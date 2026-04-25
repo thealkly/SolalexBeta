@@ -78,6 +78,17 @@ describe('Settings — initial render', () => {
     expect(hint.textContent ?? '').toContain('Kein Akku');
     expect(screen.queryByTestId('settings-save')).toBeNull();
   });
+
+  it('renders a not-activated hint for pre-commissioning devices', async () => {
+    vi.spyOn(client, 'getDevices').mockResolvedValue([
+      { ...makeWrCharge(), commissioned_at: null },
+    ]);
+    render(Settings);
+    const hint = await screen.findByTestId('not-activated-hint');
+    expect(hint.textContent ?? '').toContain('Noch nicht aktiviert');
+    expect(screen.queryByTestId('no-battery-hint')).toBeNull();
+    expect(screen.queryByTestId('settings-save')).toBeNull();
+  });
 });
 
 describe('Settings — validation gates', () => {
@@ -102,10 +113,12 @@ describe('Settings — validation gates', () => {
     expect(screen.getByTestId('gap-error')).toBeTruthy();
   });
 
-  it('shows the plausibility confirm and blocks the regular save when min_soc < 10', async () => {
+  it('shows the plausibility confirm on save and then blocks the regular save', async () => {
     render(Settings);
     const min = (await screen.findByLabelText('Min-SoC')) as HTMLInputElement;
     await fireEvent.input(min, { target: { value: '7' } });
+    expect(screen.queryByTestId('low-min-soc-confirm')).toBeNull();
+    await fireEvent.click(screen.getByTestId('settings-save'));
     const confirm = await screen.findByTestId('low-min-soc-confirm');
     expect(confirm.textContent ?? '').toContain('Herstellerspezifikation');
     const save = screen.getByTestId('settings-save') as HTMLButtonElement;
@@ -116,6 +129,7 @@ describe('Settings — validation gates', () => {
     render(Settings);
     const min = (await screen.findByLabelText('Min-SoC')) as HTMLInputElement;
     await fireEvent.input(min, { target: { value: '7' } });
+    await fireEvent.click(screen.getByTestId('settings-save'));
     await screen.findByTestId('low-min-soc-confirm');
     await fireEvent.click(screen.getByTestId('low-min-soc-cancel'));
     await waitFor(() => {
@@ -179,6 +193,7 @@ describe('Settings — save flow', () => {
     render(Settings);
     const min = (await screen.findByLabelText('Min-SoC')) as HTMLInputElement;
     await fireEvent.input(min, { target: { value: '7' } });
+    await fireEvent.click(screen.getByTestId('settings-save'));
     await fireEvent.click(screen.getByTestId('low-min-soc-confirm-save'));
     await waitFor(() => {
       expect(patch).toHaveBeenCalledTimes(1);
@@ -186,6 +201,25 @@ describe('Settings — save flow', () => {
     const call = patch.mock.calls[0]?.[0];
     expect(call?.min_soc).toBe(7);
     expect(call?.acknowledged_low_min_soc).toBe(true);
+  });
+
+  it('treats an already persisted low min_soc as acknowledged for later saves', async () => {
+    vi.mocked(client.getDevices).mockResolvedValue([makeWrCharge({ min_soc: 7 })]);
+    const patch = vi
+      .spyOn(client, 'patchBatteryConfig')
+      .mockResolvedValue(patchResponse({ min_soc: 7, night_discharge_enabled: false }));
+    render(Settings);
+    await screen.findByLabelText('Min-SoC');
+    const checkbox = screen.getByLabelText('Nacht-Entladung aktivieren') as HTMLInputElement;
+    await fireEvent.click(checkbox);
+    await fireEvent.click(screen.getByTestId('settings-save'));
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledTimes(1);
+    });
+    const call = patch.mock.calls[0]?.[0];
+    expect(call?.min_soc).toBe(7);
+    expect(call?.acknowledged_low_min_soc).toBe(true);
+    expect(screen.queryByTestId('low-min-soc-confirm')).toBeNull();
   });
 
   it('renders the inline error line on PATCH failure', async () => {

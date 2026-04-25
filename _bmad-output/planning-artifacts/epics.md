@@ -820,6 +820,82 @@ So that ich nicht für jeden Hersteller einen eigenen Adapter im Image brauche u
 
 ---
 
+### Story 2.5: Smart-Meter-Vorzeichen-Toggle mit Live-Preview im Config-Flow
+
+**Status:** `ready-for-dev` (gespawnt 2026-04-25 nach Smoke-Test Alex' lokales HA-Setup; schließt Story-2.4-Code-Review-Defer „Generic-Meter ohne Sign-Convention-Check" auf)
+
+**Trigger:** ESPHome-SML / DLMS-Reader / MQTT-Bridges liefern je nach OBIS-Konfig die umgekehrte Vorzeichen-Konvention (positiv = Einspeisung statt Bezug). Solalex hat heute hartkodiert „positiv = Bezug" (`generic_meter.py:7-8`, `controller.py:494-498`, `controller.py:928-935`); ohne Toggle regelt Drossel/Speicher bei diesen Smart-Metern systematisch in die FALSCHE Richtung. Beta-Launch-blocking.
+
+As a Beta-Tester mit Smart-Meter, dessen Vorzeichen-Konvention von Solalex' Standard abweicht,
+I want einen Toggle „Vorzeichen invertieren" mit Live-Preview im Config-Flow, der mir vor dem Speichern zeigt, was Solalex aus meinem Sensor liest und welche Konvention das laut Auswertung bedeutet,
+So that ich verifizieren kann, dass Drossel/Speicher in die richtige Richtung regeln werden, bevor das System produktiv geht.
+
+**Acceptance Criteria (Auszug — Story-Datei `2-5-smart-meter-sign-invert-mit-live-preview.md` ist autoritativ):**
+
+**Given** ein User auf dem Config-Flow mit gewähltem Smart-Meter
+**When** die Live-Preview-Card pollt
+**Then** zeigt sie die aktuelle Watt-Zahl plus Konvention-Hinweis („Bezug aus dem Netz" / „Einspeisung ins Netz" / „nahezu 0 W"-Hint bei `|wert| < 50 W`)
+
+**Given** der User togglet „Vorzeichen invertieren"
+**When** der nächste Polling-Tick durchläuft
+**Then** wechselt die angezeigte Watt-Zahl + der Konvention-Hinweis sofort, ohne Speicher-Roundtrip
+
+**Given** der User speichert mit Toggle aktiviert
+**When** ein Sensor-Event eintrifft
+**Then** flippt `Controller.on_sensor_update` das Vorzeichen über `_maybe_invert_sensor_value` BEVOR der Wert in den Drossel-/Speicher-Buffer geht; Adapter-`parse_readback` bleibt unverändert
+
+**Given** ein bestehendes Setup ohne `invert_sign` in `device.config_json`
+**When** das Add-on lädt
+**Then** verhält sich der Controller exakt wie heute (Default „positiv = Bezug"); kein Backfill, keine Migration
+
+**Given** der `entity-state`-Endpoint mit nicht-whitelisteter Entity
+**When** ein Request kommt
+**Then** antwortet der Endpoint mit 403 Forbidden (`application/problem+json`)
+
+**Notiz:** Story-Datei `2-5-smart-meter-sign-invert-mit-live-preview.md` enthält die vollständigen 13 ACs, Tasks, Dev Notes und Validation Commands. Diese Story durchbricht **nicht** den Gate-Schutz für commissioned User (Story 2.3a) — das ist Scope von Story 2.6.
+
+---
+
+### Story 2.6: Hardware-Setup nachträglich ändern (Edit nach Commissioning)
+
+**Status:** `ready-for-dev` (gespawnt 2026-04-25 nach Smoke-Test Alex' Setup; durchbricht Gate-Sperre für commissioned User)
+
+**Trigger:** Story 2.3a `gate.ts:39-44` redirected commissioned User strikt zu `#/running` und sperrt den Config-Flow. Wer ohne WR commissioned hat (nur Smart-Meter), wer Smart-Meter falsch zugewiesen hat oder wer Hardware wechselt, hat heute KEINE UI-Möglichkeit, das zu korrigieren — nur per SQL-Reset auf der DB. Beta-Launch-blocking, weil zu viele Setup-Fehler-Pfade in einer Sackgasse enden.
+
+As a Beta-Tester, der seine Hardware-Konfiguration nachträglich ändern möchte (WR ergänzen, Smart-Meter wechseln, Vorzeichen-Invertierung korrigieren, falsch zugewiesene Entity tauschen),
+I want eine sichtbare Möglichkeit nach dem Commissioning, in die Hardware-Konfiguration zurück zu navigieren und sie zu ändern, ohne meine Datenbank manuell zu löschen,
+So that ich Setup-Fehler ohne Support-Eingriff beheben kann und im laufenden Betrieb Hardware ergänzen oder tauschen kann.
+
+**Acceptance Criteria (Auszug — Story-Datei `2-6-hardware-setup-edit-nach-commissioning.md` ist autoritativ):**
+
+**Given** ein commissioned User öffnet `/settings`
+**When** die Page rendert
+**Then** zeigt sie eine Hardware-Card mit aktueller Konfiguration plus „Hardware ändern"-Button, der zu `#/hardware-edit` führt
+
+**Given** ein commissioned User auf `/hardware-edit`
+**When** die Page rendert
+**Then** lädt sie `Config.svelte` mit `editMode={true}` und vorbefüllten Werten aus der DB (Header „Hardware ändern"; Save-Button „Änderungen übernehmen")
+
+**Given** der User ändert die WR-Entity-ID und speichert
+**When** der Backend-PUT `/api/v1/devices` läuft
+**Then** wird die alte WR-Row durch eine neue mit `commissioned_at = NULL` ersetzt; Controller.reload_devices_from_db wird aufgerufen; ein Audit-Cycle mit `mode='audit', readback_status='noop', reason='hardware_edit: ...'` wird geschrieben
+
+**Given** der User ändert nur `min_limit_w` / `max_limit_w` / `invert_sign` / `min_soc` / `max_soc` / `night_*`
+**When** der PUT läuft
+**Then** wird die bestehende Row in-place geupdated; `commissioned_at` bleibt erhalten
+
+**Given** der User auf `/running` mit einem WR, der `commissioned_at == NULL` hat
+**When** die Page rendert
+**Then** zeigt sie einen prominenten Banner „Funktionstest erforderlich für neuen Wechselrichter — [Funktionstest starten]"; kein Auto-Redirect
+
+**Given** ein pre-disclaimer User ruft direkt `#/hardware-edit` auf
+**When** der Gate evaluiert
+**Then** wird er zu `#/disclaimer` redirected (analog `/settings`-Branch)
+
+**Notiz:** Story-Datei enthält 13 ACs, 9 Tasks, Dev Notes und einen Manual-Smoke-Test SH-01 (Hardware-Wechsel im laufenden Betrieb). Implementierung parallel zu Story 2.5 möglich; bei Merge-Konflikten in `Config.svelte` und `HardwareConfigRequest` rebased die zweite gemergte Story.
+
+---
+
 ## Epic 3: Aktive Nulleinspeisung & Akku-Pool-Steuerung
 
 Solalex regelt produktiv mit adaptiver Strategie (Drossel / Speicher / Multi-Modus), Akku-Pool-Abstraktion mit Gleichverteilung, Hysterese-basierten Modus-Wechseln, Closed-Loop-Readback und Fail-Safe. Zustand danach: „Solalex arbeitet — der Strom bleibt im Haus."

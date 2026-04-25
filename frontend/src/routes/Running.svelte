@@ -23,6 +23,9 @@
   let readbackBuffer = $state<{ t: number; v: number }[]>([]);
   let targetBuffer = $state<{ t: number; v: number }[]>([]);
   let nowTs = $state(Date.now());
+  let lastUpdateTs = $state<number | null>(null);
+  const STALE_AFTER_MS = 5000;
+  const isStale = $derived(lastUpdateTs !== null && nowTs - lastUpdateTs > STALE_AFTER_MS);
 
   const polling = usePolling(client.getStateSnapshot, 1000);
 
@@ -76,6 +79,7 @@
       snapshot = snap;
       const ts = Date.now();
       nowTs = ts;
+      lastUpdateTs = ts;
       const cutoff = ts - WINDOW_MS - 500;
       if (gridMeter) {
         const entry = snap.entities.find((e) => e.entity_id === gridMeter.entity_id);
@@ -106,6 +110,12 @@
     });
   });
 
+  // Wall-clock ticker for nowTs. Required so the update-indicator can flip to
+  // stale even when polling hangs (no subscribe callback fires in that case).
+  // Polling-tick alone would only advance nowTs on successful snapshots — see
+  // AC 7 (stale after >5 s of silence) and Running.test.ts stale-dot case.
+  let clockTimerId: ReturnType<typeof setInterval> | null = null;
+
   onMount(async () => {
     try {
       devices = await client.getDevices();
@@ -114,16 +124,37 @@
       return;
     }
     polling.start();
+    clockTimerId = setInterval(() => {
+      nowTs = Date.now();
+    }, 1000);
   });
 
   onDestroy(() => {
     polling.stop();
+    if (clockTimerId !== null) {
+      clearInterval(clockTimerId);
+      clockTimerId = null;
+    }
   });
 
   function formatRelative(iso: string): string {
     const then = new Date(iso).getTime();
     if (!Number.isFinite(then)) return '—';
     const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
+    if (secs < 60) return `vor ${secs} s`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `vor ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    return `vor ${hours} h`;
+  }
+
+  // Relative-time stamp for the live update heartbeat. Fed by ageMs (number),
+  // not an ISO string, so the polling tick can drive re-renders cheaply via
+  // nowTs without building Date instances every frame.
+  function formatStaleRelative(ageMs: number): string {
+    const ms = Math.max(0, ageMs);
+    if (ms < 2000) return 'gerade eben';
+    const secs = Math.floor(ms / 1000);
     if (secs < 60) return `vor ${secs} s`;
     const mins = Math.floor(secs / 60);
     if (mins < 60) return `vor ${mins} min`;
@@ -151,6 +182,12 @@
       >
         {MODE_LABEL[currentMode]}
       </span>
+      {#if lastUpdateTs !== null && !testInProgress}
+        <span class="update-indicator" data-stale={isStale} aria-live="polite">
+          <span class="update-dot"></span>
+          <span class="update-text">Aktualisiert: {formatStaleRelative(nowTs - lastUpdateTs)}</span>
+        </span>
+      {/if}
     </div>
     <h1>Live-Betrieb</h1>
   </header>
@@ -171,6 +208,16 @@
       <div class="chart-wrap">
         <LineChart series={chartSeries} windowMs={WINDOW_MS} now={nowTs} />
       </div>
+      {#if chartSeries.length > 0}
+        <ul class="chart-legend" aria-label="Diagramm-Legende">
+          {#each chartSeries as series (series.label)}
+            <li class="legend-item">
+              <span class="legend-dot" style="background: {series.color};"></span>
+              <span class="legend-label">{series.label}</span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       {#if recentCycles.length === 0}
         <p class="chart-hint">Regler wartet auf erstes Sensor-Event.</p>
       {/if}
@@ -401,6 +448,69 @@
   .cycle-target,
   .cycle-latency {
     color: var(--color-text);
+  }
+
+  .chart-legend {
+    list-style: none;
+    margin: var(--space-2) 0 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .update-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: var(--space-2);
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .update-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-accent-primary);
+    animation: update-pulse 1.4s ease-in-out infinite;
+  }
+
+  .update-indicator[data-stale='true'] .update-dot {
+    background: var(--color-text-secondary);
+    animation-play-state: paused;
+  }
+
+  @keyframes update-pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .update-dot {
+      animation: none;
+    }
   }
 
   .error-block {

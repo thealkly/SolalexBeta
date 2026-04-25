@@ -123,6 +123,14 @@ async def save_devices(
             )
 
     if body.grid_meter_entity_id:
+        # Story 2.5 — persist the sign-invert toggle into the grid_meter
+        # device.config_json so the controller's _maybe_invert_sensor_value
+        # helper picks it up. Omit the key when False so existing rows
+        # (which never had the key) keep their config_json minimal and
+        # round-trip stably through repeated saves.
+        meter_config: dict[str, Any] = {}
+        if body.invert_sign:
+            meter_config["invert_sign"] = True
         rows.append(
             DeviceRecord(
                 id=None,
@@ -130,7 +138,7 @@ async def save_devices(
                 role="grid_meter",
                 entity_id=body.grid_meter_entity_id,
                 adapter_key="generic_meter",
-                config_json="{}",
+                config_json=json.dumps(meter_config) if meter_config else "{}",
             )
         )
 
@@ -159,54 +167,63 @@ async def patch_battery_config(
     targeted single-row repository helper, then triggers a synchronous
     Controller reload so the next sensor event reads the new bounds.
     """
-    db_path = get_settings().db_path
-    async with connection_context(db_path) as conn:
-        devices = await list_devices(conn)
-    wr_charge = next(
-        (
-            d
-            for d in devices
-            if d.role == "wr_charge" and d.commissioned_at is not None
-        ),
-        None,
-    )
-    if wr_charge is None or wr_charge.id is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Kein wr_charge-Device commissioned — Akku-Setup nicht vorhanden",
-        )
-
-    try:
-        existing_config_raw: Any = json.loads(wr_charge.config_json or "{}")
-    except json.JSONDecodeError:
-        existing_config_raw = {}
-    if isinstance(existing_config_raw, dict):
-        existing_config: dict[str, Any] = dict(existing_config_raw)
-    else:
-        existing_config = {}
-    existing_config.update(
-        {
-            "min_soc": body.min_soc,
-            "max_soc": body.max_soc,
-            "night_discharge_enabled": body.night_discharge_enabled,
-            "night_start": body.night_start,
-            "night_end": body.night_end,
-        }
-    )
-
-    async with connection_context(db_path) as conn:
-        rows = await update_device_config_json(
-            conn, wr_charge.id, json.dumps(existing_config)
-        )
-    if rows == 0:
-        raise HTTPException(
-            status_code=404,
-            detail="wr_charge-Device verschwand zwischen GET und UPDATE",
-        )
-
     controller = getattr(request.app.state, "controller", None)
-    if controller is not None:
-        await controller.reload_devices_from_db()
+    if controller is None:
+        raise RuntimeError("controller not initialised")
+
+    db_path = get_settings().db_path
+    wr_charge: DeviceRecord | None = None
+    async with connection_context(db_path) as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            devices = await list_devices(conn)
+            wr_charge = next(
+                (
+                    d
+                    for d in devices
+                    if d.role == "wr_charge" and d.commissioned_at is not None
+                ),
+                None,
+            )
+            if wr_charge is None or wr_charge.id is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Kein wr_charge-Device commissioned — Akku-Setup nicht vorhanden",
+                )
+
+            try:
+                existing_config_raw: Any = json.loads(wr_charge.config_json or "{}")
+            except json.JSONDecodeError:
+                existing_config_raw = {}
+            if isinstance(existing_config_raw, dict):
+                existing_config: dict[str, Any] = dict(existing_config_raw)
+            else:
+                existing_config = {}
+            existing_config.update(
+                {
+                    "min_soc": body.min_soc,
+                    "max_soc": body.max_soc,
+                    "night_discharge_enabled": body.night_discharge_enabled,
+                    "night_start": body.night_start,
+                    "night_end": body.night_end,
+                }
+            )
+
+            rows = await update_device_config_json(
+                conn, wr_charge.id, json.dumps(existing_config), commit=False
+            )
+            if rows == 0:
+                raise HTTPException(
+                    status_code=404,
+                    detail="wr_charge-Device verschwand zwischen GET und UPDATE",
+                )
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+
+    assert wr_charge is not None and wr_charge.id is not None
+    await controller.reload_devices_from_db()
 
     _logger.info(
         "battery_config_patched",

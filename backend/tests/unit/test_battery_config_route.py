@@ -106,6 +106,15 @@ def test_patch_battery_config_persists_and_reloads(
     client_with_db: TestClient,
 ) -> None:
     _seed_marstek(client_with_db)
+    reload_calls = 0
+    original_reload = client_with_db.app.state.controller.reload_devices_from_db
+
+    async def spy_reload() -> None:
+        nonlocal reload_calls
+        reload_calls += 1
+        await original_reload()
+
+    client_with_db.app.state.controller.reload_devices_from_db = spy_reload
     resp = client_with_db.patch(
         "/api/v1/devices/battery-config",
         json={
@@ -117,6 +126,7 @@ def test_patch_battery_config_persists_and_reloads(
         },
     )
     assert resp.status_code == 200
+    assert reload_calls == 1
     body = resp.json()
     assert body == {
         "min_soc": 20,
@@ -148,20 +158,19 @@ def test_patch_battery_config_persists_and_reloads(
     assert cfg["night_discharge_enabled"] is True
 
 
-# ----- AC 3: Min < Max gap ------------------------------------------------
+# ----- AC 3: PATCH field bounds make the gap rule redundant ----------------
 
 
-def test_patch_validates_min_max_gap(client_with_db: TestClient) -> None:
-    """min_soc + 10 >= max_soc must reject — pin the input to values that
-    still pass each Field constraint individually so the model_validator
-    fires (Pydantic runs Field checks first)."""
+def test_patch_rejects_min_soc_above_patch_field_bound(
+    client_with_db: TestClient,
+) -> None:
+    """PATCH bounds keep max_soc at least 11 points above min_soc.
+
+    The shared gap helper remains in the schema, but for this route the
+    field constraints (min<=40, max>=51) make a field-valid gap violation
+    impossible. Pin the actual PATCH contract instead.
+    """
     _seed_marstek(client_with_db)
-    # min_soc=40 (ok ≤40) + max_soc=85 → gap is 45 → passes; we need a
-    # gap failure under valid Field bounds. Field bounds (5≤min≤40,
-    # 51≤max≤100) leave at most a 10-point overlap impossible: max≥51,
-    # min≤40 → max - min ≥ 11. Test with min_soc above its Field bound
-    # to confirm the route's 422 surface still maps cleanly (matches
-    # existing HardwareConfigRequest test pattern).
     resp = client_with_db.patch(
         "/api/v1/devices/battery-config",
         json={

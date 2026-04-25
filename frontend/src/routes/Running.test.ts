@@ -278,4 +278,113 @@ describe('Running — Live-Betriebs-View', () => {
     expect(screen.getByText(/Regler wartet auf erstes Sensor-Event/)).toBeTruthy();
     expect(screen.getByText(/Noch keine Zyklen erfasst/)).toBeTruthy();
   });
+
+  // Story 5.1c: Chart-Legende und Update-Indikator
+  it('renders a legend entry per chart series with the right label and color', async () => {
+    // AC 1+2: legend lists one entry per ChartSeries with the same color
+    // token the chart's stroke uses. Setup with both wr_limit + grid_meter
+    // → 3 series (Netz-Leistung, Target-Limit, Readback).
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit', entity_id: 'number.wr_limit' }),
+      device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'drossel' }));
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    const dots = container.querySelectorAll('.chart-legend .legend-dot');
+    expect(dots.length).toBe(3);
+    expect((dots[0] as HTMLElement).style.background).toContain('--color-accent-warning');
+    expect((dots[1] as HTMLElement).style.background).toContain('--color-accent-primary');
+    expect((dots[2] as HTMLElement).style.background).toContain('--color-text-secondary');
+    expect(screen.getByText('Netz-Leistung')).toBeTruthy();
+    expect(screen.getByText('Target-Limit')).toBeTruthy();
+    expect(screen.getByText('Readback')).toBeTruthy();
+  });
+
+  it('omits the wr-related legend entries on a battery-only setup', async () => {
+    // AC 1: setup ohne wr_limit-device → legend zeigt nur Netz-Leistung.
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    render(Running);
+    await flushPolling();
+
+    expect(screen.getByText('Netz-Leistung')).toBeTruthy();
+    expect(screen.queryByText('Target-Limit')).toBeNull();
+    expect(screen.queryByText('Readback')).toBeNull();
+  });
+
+  it('hides the legend when the functional-test lock is active', async () => {
+    // AC 4: bei test_in_progress=true wird weder Chart noch Legende noch
+    // Update-Indikator angezeigt.
+    getDevicesMock.mockResolvedValue([
+      device({ id: 1, role: 'wr_limit' }),
+      device({ id: 2, role: 'grid_meter', entity_id: 'sensor.shelly_power' }),
+    ]);
+    getStateSnapshotMock.mockResolvedValue(
+      snapshot({ current_mode: 'drossel', test_in_progress: true }),
+    );
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    expect(container.querySelector('.chart-legend')).toBeNull();
+    expect(container.querySelector('.update-indicator')).toBeNull();
+  });
+
+  it('renders the update indicator with "gerade eben" right after a fresh tick', async () => {
+    // AC 6: nach erstem erfolgreichem Tick zeigt der Indikator "gerade eben".
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockResolvedValue(snapshot({ current_mode: 'idle' }));
+
+    render(Running);
+    await flushPolling();
+
+    expect(screen.getByText(/Aktualisiert: gerade eben/)).toBeTruthy();
+  });
+
+  it('switches to a stale dot after 5 s without a tick', async () => {
+    // AC 7: nach >5 s ohne neuen Snapshot wechselt der Indikator zu stale.
+    // Pattern: ersten Tick durchspielen, dann pending Promise → Wall-Clock
+    // setInterval (im Component) aktualisiert nowTs unabhängig von polling.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    try {
+      getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+      getStateSnapshotMock.mockResolvedValueOnce(snapshot({ current_mode: 'idle' }));
+      // After the first successful tick, every following tick hangs forever
+      // so lastUpdateTs stops being refreshed.
+      getStateSnapshotMock.mockReturnValue(new Promise<StateSnapshot>(() => {}));
+
+      const { container } = render(Running);
+      await flushPolling();
+
+      // First tick landed → indicator should be fresh.
+      expect(container.querySelector('.update-indicator[data-stale="true"]')).toBeNull();
+
+      // Advance the wall-clock 6 s — polling stays hung, but the component's
+      // independent 1 s ticker keeps nowTs moving so isStale flips to true.
+      await vi.advanceTimersByTimeAsync(6000);
+      await tick();
+
+      expect(container.querySelector('.update-indicator[data-stale="true"]')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('omits the update indicator before the first snapshot lands', async () => {
+    // AC 8: solange noch kein Snapshot eingetroffen ist, zeigt der Indikator
+    // weder Dot noch Text. Mock returns hanging promise from the start.
+    getDevicesMock.mockResolvedValue([device({ id: 1, role: 'wr_limit' })]);
+    getStateSnapshotMock.mockReturnValue(new Promise<StateSnapshot>(() => {}));
+
+    const { container } = render(Running);
+    await flushPolling();
+
+    expect(container.querySelector('.update-indicator')).toBeNull();
+  });
 });

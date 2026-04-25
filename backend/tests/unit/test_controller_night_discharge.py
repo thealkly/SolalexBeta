@@ -271,7 +271,7 @@ def _prime(
     return last
 
 
-# ----- AC 9: Outside window blocks discharge ------------------------------
+# ----- AC 9: Outside window stops latched discharge -----------------------
 
 
 @pytest.mark.asyncio
@@ -290,7 +290,9 @@ async def test_speicher_discharge_blocked_outside_night_window(
         local_now=datetime(2026, 4, 25, 12, 0),
     )
     decisions = _prime(controller, seeds["grid_meter"], sample_w=300.0)
-    assert decisions == []
+    assert len(decisions) == 1
+    assert decisions[0].target_value_w == 0
+    assert decisions[0].command_kind == "set_charge"
     assert controller._speicher_night_gate_active is True
 
 
@@ -349,7 +351,8 @@ async def test_speicher_discharge_window_wraparound_around_midnight(
         local_now=datetime(2026, 4, 25, 10, 0),
     )
     outside = _prime(controller_outside, seeds["grid_meter"], sample_w=300.0)
-    assert outside == []
+    assert len(outside) == 1
+    assert outside[0].target_value_w == 0
 
 
 # ----- AC 11: Boundary semantics (half-open interval) --------------------
@@ -384,7 +387,8 @@ async def test_speicher_discharge_window_wraparound_at_boundaries(
         local_now=datetime(2026, 4, 25, 6, 0),
     )
     outside = _prime(controller_b, seeds["grid_meter"], sample_w=300.0)
-    assert outside == []
+    assert len(outside) == 1
+    assert outside[0].target_value_w == 0
 
 
 # ----- AC 12: Disabled toggle bypasses the gate ---------------------------
@@ -454,8 +458,12 @@ async def test_speicher_night_gate_logs_once_on_entry(
         local_now=datetime(2026, 4, 25, 12, 0),
     )
     caplog.set_level(logging.INFO, logger="solalex.controller")
-    for _ in range(8):
+    decisions_by_call = [
         controller._policy_speicher(seeds["grid_meter"], sensor_value_w=300.0)
+        for _ in range(8)
+    ]
+    assert decisions_by_call[0][0].target_value_w == 0
+    assert all(call == [] for call in decisions_by_call[1:])
     matches = [
         r
         for r in caplog.records
@@ -463,6 +471,32 @@ async def test_speicher_night_gate_logs_once_on_entry(
     ]
     assert len(matches) == 1
     assert controller._speicher_night_gate_active is True
+
+
+# ----- Review patch: flag resets when leaving gate via deadband -------------
+
+
+@pytest.mark.asyncio
+async def test_speicher_night_gate_resets_on_deadband_exit(tmp_path: Path) -> None:
+    db = tmp_path / "test.db"
+    seeds = await _seed_pool(db)
+    state_cache = StateCache()
+    controller, _pool = _make_controller(
+        db,
+        seeds,
+        state_cache=state_cache,
+        aggregated_pct=50.0,
+        local_now=datetime(2026, 4, 25, 12, 0),
+    )
+    decisions = controller._policy_speicher(seeds["grid_meter"], sensor_value_w=300.0)
+    assert decisions
+    assert decisions[0].target_value_w == 0
+    assert controller._speicher_night_gate_active is True
+
+    for _ in range(5):
+        controller._policy_speicher(seeds["grid_meter"], sensor_value_w=0.0)
+
+    assert controller._speicher_night_gate_active is False
 
 
 # ----- AC 9 Flag-Pattern: flag resets when window re-entered --------------

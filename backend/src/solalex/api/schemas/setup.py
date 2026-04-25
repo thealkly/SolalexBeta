@@ -22,6 +22,20 @@ class EntitiesResponse(BaseModel):
     soc_entities: list[EntityOption]
 
 
+class EntityStateResponse(BaseModel):
+    """Response from GET /api/v1/setup/entity-state.
+
+    Story 2.5 — Smart-Meter sign-convention live preview. ``value_w`` is the
+    raw cached reading converted to watts (kW source units → multiplied by
+    1000). ``None`` when the entity is whitelisted but has not yet emitted
+    a state via the HA-WS subscription.
+    """
+
+    entity_id: str
+    value_w: float | None
+    ts: datetime | None
+
+
 class FunctionalTestResponse(BaseModel):
     """Response from POST /api/v1/setup/test."""
 

@@ -42,6 +42,12 @@ class HardwareConfigRequest(BaseModel):
     night_start: str = Field("20:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     night_end: str = Field("06:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     grid_meter_entity_id: str | None = None
+    # Smart-meter sign-convention override (Story 2.5). Persisted into the
+    # grid_meter device.config_json so the controller's
+    # ``_maybe_invert_sensor_value`` helper flips the sign before the value
+    # enters the smoothing buffer. Default ``False`` preserves the
+    # documented adapter contract (positive = grid import).
+    invert_sign: bool = False
     # Generic-inverter hardware-range overrides (Story 2.4 Review D3).
     # Persisted into device.config_json and consumed by
     # GenericInverterAdapter.get_limit_range. Defaults match the adapter's
