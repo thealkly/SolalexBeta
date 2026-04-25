@@ -118,6 +118,21 @@ export async function patchBatteryConfig(
   });
 }
 
+// Story 3.8 — toggle the per-WR surplus-export opt-in. Partial-merge on
+// the backend (`PATCH /api/v1/devices/{id}/config`) preserves all other
+// keys in `device.config_json`. Throws ApiError on 422 when the device
+// does not yet have `max_limit_w` configured.
+export async function setSurplusExport(
+  deviceId: number,
+  enabled: boolean,
+): Promise<DeviceResponse> {
+  return request<DeviceResponse>(`/api/v1/devices/${deviceId}/config`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ allow_surplus_export: enabled }),
+  });
+}
+
 export async function resetConfig(): Promise<ResetConfigResponse> {
   return request<ResetConfigResponse>('/api/v1/devices/reset', { method: 'POST' });
 }

@@ -149,6 +149,38 @@ class BatteryConfigResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Story 3.8 — PATCH /api/v1/devices/{id}/config (Surplus-Export-Toggle +
+# generic device.config_json overrides). Partial-merge body with
+# ``extra="forbid"`` so the frontend cannot accidentally inject keys
+# the backend does not understand.
+# ---------------------------------------------------------------------------
+
+
+class DeviceConfigPatchRequest(BaseModel):
+    """Body for PATCH /api/v1/devices/{device_id}/config (Story 3.8).
+
+    All fields optional → partial merge: ``None`` means "do not touch
+    this key in the existing config_json blob". Non-None values are
+    written into the merged blob; existing keys not listed here are
+    preserved untouched (forward-compat with future override keys).
+
+    ``extra="forbid"`` rejects unknown keys at validation time so a
+    drifting frontend cannot persist garbage that the controller would
+    silently ignore.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    allow_surplus_export: bool | None = None
+    max_limit_w: int | None = Field(default=None, ge=1)
+    min_limit_w: int | None = Field(default=None, ge=0)
+    deadband_w: int | None = Field(default=None, ge=0)
+    min_step_w: int | None = Field(default=None, ge=1)
+    smoothing_window: int | None = Field(default=None, ge=1)
+    limit_step_clamp_w: int | None = Field(default=None, ge=1)
+
+
+# ---------------------------------------------------------------------------
 # Konfig-Reset — POST /api/v1/devices/reset
 # ---------------------------------------------------------------------------
 

@@ -19,6 +19,7 @@ from solalex.adapters.base import DeviceRecord
 from solalex.api.schemas.devices import (
     BatteryConfigPatchRequest,
     BatteryConfigResponse,
+    DeviceConfigPatchRequest,
     DeviceResponse,
     HardwareConfigRequest,
     ResetConfigResponse,
@@ -31,6 +32,7 @@ from solalex.persistence.repositories import control_cycles
 from solalex.persistence.repositories.control_cycles import ControlCycleRow, Mode
 from solalex.persistence.repositories.devices import (
     delete_all,
+    get_by_id,
     list_devices,
     replace_all,
     update_device_config_json,
@@ -643,6 +645,112 @@ async def patch_battery_config(
         night_start=body.night_start,
         night_end=body.night_end,
     )
+
+
+@router.patch("/{device_id}/config", response_model=DeviceResponse)
+async def patch_device_config(
+    device_id: int,
+    body: DeviceConfigPatchRequest,
+    request: Request,  # noqa: ARG001 — kept for FastAPI middleware injection
+) -> DeviceResponse:
+    """Partial-merge update of a single device's ``config_json`` blob (Story 3.8).
+
+    Targeted at the surplus-export-toggle (per WR), but accepts any
+    optional override key from :class:`DeviceConfigPatchRequest`. Unknown
+    keys in the existing blob (e.g. future override keys, manually
+    seeded values) are preserved untouched — the merge is additive.
+
+    Validation: ``allow_surplus_export = true`` requires a
+    ``max_limit_w`` to be present in the merged blob (either supplied
+    in the patch or already stored). Without it, ``_policy_export``
+    cannot determine the open-up target and would silently no-op every
+    cycle.
+    """
+    db_path = get_settings().db_path
+
+    async with connection_context(db_path) as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            existing = await get_by_id(conn, device_id)
+            if existing is None or existing.id is None:
+                # Release the IMMEDIATE lock before the route raises so a
+                # follow-up retry on the same connection-pool slot is not
+                # blocked behind the failed transaction.
+                await conn.rollback()
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Kein Device mit id={device_id} gefunden",
+                )
+
+            try:
+                existing_raw: Any = json.loads(existing.config_json or "{}")
+            except json.JSONDecodeError:
+                existing_raw = {}
+            existing_config: dict[str, Any] = (
+                dict(existing_raw) if isinstance(existing_raw, dict) else {}
+            )
+            patch = body.model_dump(exclude_none=True)
+            merged: dict[str, Any] = {**existing_config, **patch}
+
+            if merged.get("allow_surplus_export") and "max_limit_w" not in merged:
+                await conn.rollback()
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "Surplus-Einspeisung erfordert ein konfiguriertes "
+                        "Hardware-Max-Limit (max_limit_w). Setze zuerst "
+                        "max_limit_w in den Hardware-Einstellungen."
+                    ),
+                )
+
+            rows = await update_device_config_json(
+                conn, existing.id, json.dumps(merged), commit=False
+            )
+            if rows == 0:
+                # The row vanished between SELECT and UPDATE (concurrent
+                # delete) — surface as 404 rather than returning a stale
+                # response built from the now-orphaned ``existing`` snapshot.
+                await conn.rollback()
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Device id={device_id} verschwand zwischen GET und UPDATE"
+                    ),
+                )
+            await conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            await conn.rollback()
+            raise
+
+        # Re-read the row inside the same connection so the response
+        # reflects the persisted state (incl. updated_at), not the
+        # locally merged dict.
+        refreshed = await get_by_id(conn, device_id)
+
+    if refreshed is None:
+        # Defensive — get_by_id returned a row above, so this branch
+        # should be unreachable. Surface as 500-ish via runtime error
+        # rather than building a phantom response.
+        raise HTTPException(
+            status_code=500,
+            detail="Device verschwand nach erfolgreichem UPDATE",
+        )
+
+    _logger.info(
+        "device_config_patched",
+        extra={
+            "device_id": device_id,
+            "patched_keys": sorted(patch.keys()),
+        },
+    )
+    # Story 3.8 — toggle activation is configuration, not a trigger.
+    # We intentionally do NOT call ``controller.evaluate_mode_switch_now()``
+    # or any controller-state mutation here: the next sensor event picks
+    # up the new toggle via the Pure helper ``_wr_allow_surplus_export``.
+    # Acceptable latency is one hysteresis period (AC 27).
+    return _to_response(refreshed)
 
 
 @router.post("/reset", response_model=ResetConfigResponse)

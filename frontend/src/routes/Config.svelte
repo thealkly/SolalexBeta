@@ -57,6 +57,17 @@
   // detect WR / hardware-type swaps that would force a re-functional-test.
   let initialWrEntityId = $state('');
   let initialHardwareType = $state<'generic' | 'marstek_venus' | null>(null);
+  // Story 3.8 — Surplus-Export toggle is per-WR (device.config_json.
+  // allow_surplus_export) and only available post-commissioning, when
+  // the wr_limit device row exists in the DB. ``wrLimitDevice`` mirrors
+  // the persisted DeviceResponse so the toggle reads the *saved* state
+  // (not the in-progress form state) for both the initial value and the
+  // ``hasSavedMaxLimit`` precondition check. PATCH fires immediately on
+  // toggle change (Auto-PUT-Pattern aus Story 2.1) — no Save button.
+  let wrLimitDevice = $state<DeviceResponse | null>(null);
+  let surplusExport = $state(false);
+  let surplusExportPending = $state(false);
+  let surplusExportError = $state<string | null>(null);
   // Story 2.5 — sign-convention override. The toggle value is buffered
   // here and only persisted alongside the rest of the config when the
   // user hits "Speichern". The polling + watt readout live in the
@@ -135,6 +146,10 @@
       const cfg = safeParseConfig(wrLimit.config_json);
       if (typeof cfg.min_limit_w === 'number') minLimitW = String(cfg.min_limit_w);
       if (typeof cfg.max_limit_w === 'number') maxLimitW = String(cfg.max_limit_w);
+      // Story 3.8 — capture the persisted device for the surplus-export
+      // toggle (PATCH target + saved-config source-of-truth).
+      wrLimitDevice = wrLimit;
+      surplusExport = cfg.allow_surplus_export === true;
     }
 
     if (batterySoc) {
@@ -165,6 +180,27 @@
       ((initialWrEntityId !== '' && wrLimitEntityId !== initialWrEntityId) ||
         (initialHardwareType !== null &&
           hardwareType !== initialHardwareType)),
+  );
+
+  // Story 3.8 — toggle is only meaningful for an existing wr_limit
+  // device with a real DB id. Initial setup (editMode=false) has no
+  // device id yet; the toggle becomes available once the user re-opens
+  // the page via /hardware-edit after the initial save.
+  let surplusToggleAvailable = $derived(
+    editMode &&
+      hardwareType === 'generic' &&
+      wrLimitDevice !== null &&
+      wrLimitDevice.id > 0,
+  );
+
+  // Reads from the *saved* config_json (not the in-progress form
+  // state): the backend rejects ``allow_surplus_export = true`` unless
+  // ``max_limit_w`` is present in the persisted blob, so the form's
+  // unsaved ``maxLimitW`` value cannot satisfy the precondition.
+  let hasSavedMaxLimit = $derived(
+    wrLimitDevice !== null
+      ? typeof safeParseConfig(wrLimitDevice.config_json).max_limit_w === 'number'
+      : false,
   );
 
   function entityLabel(opt: EntityOption): string {
@@ -224,6 +260,32 @@
       modeOverrideAvailable = false;
     }
   });
+
+  async function handleSurplusExportChange(next: boolean): Promise<void> {
+    // Optimistic UI update + revert-on-error so the checkbox state and
+    // backend state cannot diverge silently. The PATCH is fire-and-
+    // forget from the controller's perspective — no immediate mode
+    // switch is triggered (Story 3.8 AC 27 — the next sensor event
+    // re-evaluates the hysteresis with the fresh toggle value).
+    if (!wrLimitDevice || !wrLimitDevice.id) return;
+    const previous = surplusExport;
+    surplusExport = next;
+    surplusExportError = null;
+    surplusExportPending = true;
+    try {
+      const updated = await client.setSurplusExport(wrLimitDevice.id, next);
+      wrLimitDevice = updated;
+      const cfg = safeParseConfig(updated.config_json);
+      surplusExport = cfg.allow_surplus_export === true;
+    } catch (err) {
+      surplusExport = previous;
+      surplusExportError = isApiError(err)
+        ? err.detail
+        : 'Surplus-Einspeisung konnte nicht gespeichert werden. Bitte erneut versuchen.';
+    } finally {
+      surplusExportPending = false;
+    }
+  }
 
   async function handleModeChange(next: ForcedModeChoice): Promise<void> {
     const previousChoice = modeChoice;
@@ -426,6 +488,48 @@
             </label>
           </div>
         </section>
+
+        {#if surplusToggleAvailable}
+          <section class="config-section" data-testid="surplus-export-section">
+            <h2>Surplus-Einspeisung</h2>
+            <label class="checkbox-row">
+              <input
+                type="checkbox"
+                checked={surplusExport}
+                disabled={!hasSavedMaxLimit || surplusExportPending}
+                onchange={(e) =>
+                  handleSurplusExportChange((e.currentTarget as HTMLInputElement).checked)}
+                data-testid="surplus-export-toggle"
+              />
+              <span class="checkbox-text">
+                <span>Surplus-Einspeisung erlauben (statt PV-Abregelung) bei vollem Akku</span>
+                <span class="checkbox-sub">
+                  Bei vollem Akku öffnet Solalex das WR-Limit auf das Hardware-Maximum, statt die
+                  PV einzudrosseln. Geeignet für angemeldete Anlagen mit EEG-Vergütung. Nicht
+                  aktivieren bei Anlagen ohne Inbetriebnahme-Anmeldung beim Netzbetreiber.
+                </span>
+              </span>
+            </label>
+            {#if !hasSavedMaxLimit}
+              <p
+                class="hint"
+                style="margin-top: 12px;"
+                data-testid="surplus-export-prereq-hint"
+              >
+                Voraussetzung: Hardware-Max-Limit (W) muss zuerst gesetzt und gespeichert werden.
+              </p>
+            {/if}
+            {#if surplusExportError}
+              <p
+                class="error-line"
+                style="margin-top: 12px;"
+                data-testid="surplus-export-error"
+              >
+                {surplusExportError}
+              </p>
+            {/if}
+          </section>
+        {/if}
       {/if}
 
       {#if hardwareType === 'marstek_venus'}

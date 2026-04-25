@@ -13,7 +13,9 @@ from typing import Literal
 
 import aiosqlite
 
-Mode = Literal["drossel", "speicher", "multi"]
+# Story 3.8 added ``"export"`` together with migration 004 — the
+# CHECK constraint on latency_measurements.mode mirrors control_cycles.
+Mode = Literal["drossel", "speicher", "multi", "export"]
 
 
 @dataclass

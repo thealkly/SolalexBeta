@@ -120,15 +120,23 @@ export interface RateLimitEntry {
 export type ControlMode = 'drossel' | 'speicher' | 'multi' | 'export' | 'idle';
 
 // Story 3.5 — manual mode override.
-// Backend Literal["drossel","speicher","multi"] | null mirrors here:
+// Backend Literal["drossel","speicher","multi","export"] | null mirrors here:
 // `null` = auto-detection active; the radio UI maps null to "auto".
-export type ForcedMode = 'drossel' | 'speicher' | 'multi';
-export type ForcedModeChoice = ForcedMode | 'auto';
+// Story 3.8 added ``"export"`` so a Beta-tester can pin EXPORT for
+// diagnostics; the Settings radio UI keeps ``ForcedModeChoice`` narrow
+// (no EXPORT option) — surplus-export is meant to be reached via the
+// per-WR toggle, not a global force-pin.
+export type ForcedMode = 'drossel' | 'speicher' | 'multi' | 'export';
+export type ForcedModeChoice = 'drossel' | 'speicher' | 'multi' | 'auto';
+
+// Setup-baseline (auto-detected from topology) is never EXPORT — that
+// state only ever exists as an active hysteresis state or a manual pin.
+export type BaselineMode = 'drossel' | 'speicher' | 'multi';
 
 export interface ControlModeResponse {
   forced_mode: ForcedMode | null;
   active_mode: ForcedMode;
-  baseline_mode: ForcedMode;
+  baseline_mode: BaselineMode;
 }
 
 export interface StateSnapshot {

@@ -230,3 +230,22 @@ Keine weiteren Files.
 
 - 2026-04-25: Story angelegt nach Smoke-Test Alex' Setup — User merkte „kein Button für Hardware ändern erreichbar". Auflösung der dokumentierten v1.5-Defer aus Story 3.6 + 2.6.
 - 2026-04-25: Implementation komplett (dev-story). Footer + Inline-SVG-Zahnrad-Link `Einstellungen` in `Running.svelte`, 4 neue Vitest-Cases. Frontend ESLint/svelte-check/Prettier/Vitest 148/148/Build grün; Backend Ruff/MyPy/Pytest 432/432 grün, unangetastet. Drift-Checks sauber bis auf 1 Pre-existing Treffer (5.1d-Cycle-Tooltip) und Pre-existing Backend-Diff aus 2.5; Settings-Link selbst ist title-frei (eigener Vitest-Case). Status → review.
+
+## Review Findings (2026-04-25 — bmad-code-review, 3 Reviewer parallel)
+
+### Decision-Needed
+
+- [ ] [Review][Decision] **`--color-text-primary` Token existiert nicht in `app.css` — Hover/Focus-Visible auf `.settings-link` ist sichtbar broken** — Spec AC 3 schreibt: „Hover-Zustand wechselt nur die Farbe auf `var(--color-text-primary)`". Der Token ist aber nirgends definiert (`grep --color-text-primary frontend/src/app.css` → leer). `app.css` definiert nur `--color-text` (Hauptfarbe = `var(--color-brand-ink)`) und `--color-text-secondary`. Resultat: `.settings-link:hover { color: var(--color-text-primary); }` resolved zur CSS-Default „kein Color-Override" — also kein sichtbarer Effekt im Hover. Die Spec selbst schrieb den falschen Token-Namen, der Dev folgte ihr 1:1. Optionen: (a) `var(--color-text)` verwenden (existierende Hauptfarbe — semantisch korrekt für „dunkler werden bei Hover"); (b) neuen Token `--color-text-primary` in `app.css` ergänzen (gleicher Wert wie `--color-text`, aber als Synonym); (c) `var(--color-accent-primary)` (Teal-Akzent — schöner Hover, aber lauter als die UX-Anweisung „dezent" erlaubt). Empfehlung: (a) — Single-Source bleibt `--color-text`, Spec auf den existierenden Token korrigieren.
+
+### Patches
+
+(keiner Story-5.1e-spezifisch — siehe 5.1d-Review für `refunctional-test-banner`-Fix in `Running.svelte`, der den Footer-Cross-Path mit-betrifft.)
+
+### Deferred
+
+(keine — Story 5.1e ist scope-eng und einfach genug, dass alle Defers in 5.1c/d landen.)
+
+### Dismissed
+
+- Inline-SVG mit `</circle>` und `</path>` statt self-closing `/>` — funktional equivalent (HTML5-SVG-Parser akzeptiert beide).
+- PR-Größe 117 LOC > 80 LOC-Ziel — bereits in Completion-Notes dokumentiert (verbatim SVG + Test-Boilerplate).
