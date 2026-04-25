@@ -15,13 +15,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import re
 import time
 from collections import deque
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime, timedelta
+from datetime import time as dt_time
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Literal, assert_never
+from typing import TYPE_CHECKING, Any, Final, Literal, assert_never
 
 import aiosqlite
 
@@ -182,6 +184,7 @@ class Controller:
         forced_mode: Mode | None = None,
         setpoint_provider: SetpointProvider | None = None,
         now_fn: Callable[[], datetime] = _utc_now,
+        local_now_fn: Callable[[], datetime] = datetime.now,
     ) -> None:
         self._ha_client = ha_client
         self._state_cache = state_cache
@@ -203,6 +206,11 @@ class Controller:
             setpoint_provider if setpoint_provider is not None else _NoopSetpointProvider()
         )
         self._now_fn = now_fn
+        # Story 3.6 — separate hook for the night-discharge wall-clock
+        # comparison. Default ``datetime.now()`` returns the local container
+        # time (HA Supervisor TZ); kept distinct from ``now_fn`` (UTC for
+        # audit cycles / dwell-time) so the two clocks cannot collide.
+        self._local_now_fn = local_now_fn
         self._device_locks: dict[int, asyncio.Lock] = {}
         # Story 3.2 — role lookup + per-grid_meter moving-average buffer.
         # devices_by_role is optional so existing unit tests that do not
@@ -233,6 +241,11 @@ class Controller:
         # parked at the Hard-Cap (analogous to test_in_progress flag pattern).
         self._speicher_max_soc_capped: bool = False
         self._speicher_min_soc_capped: bool = False
+        # Story 3.6 — once-per-band log discipline for the night-discharge
+        # gate. Same Cap-Flag pattern as the SoC bounds; flag flips back to
+        # False as soon as the policy steps outside the gated branch (or
+        # the toggle gets disabled), so a re-entry logs again.
+        self._speicher_night_gate_active: bool = False
 
     @property
     def current_mode(self) -> Mode:
@@ -344,6 +357,49 @@ class Controller:
             # Prevent "Task was destroyed but it is pending" at shutdown by
             # keeping a reference. Tasks self-remove via their done callback.
             self._track_task(task)
+
+    async def reload_devices_from_db(self) -> None:
+        """Re-read the devices table and rebuild the role/pool registries.
+
+        Story 3.6 hook for the Settings PATCH route — applied synchronously
+        so the next sensor event already sees the new bounds. Does NOT:
+
+          * touch ``_speicher_buffers`` / ``_drossel_buffers`` /
+            ``_speicher_last_setpoint_w`` / ``_speicher_pending_setpoints``
+            / cap-flags (buffer state is sensor-bound, not device-bound).
+          * write a ``control_cycles`` audit row (config reload, not a
+            mode switch — Story 3.5 owns that audit trail).
+          * re-subscribe to HA-WS entity_ids (entity_id is locked
+            post-commissioning; ``lifespan`` already subscribed once).
+          * mutate ``_current_mode`` / ``_mode_baseline`` /
+            ``_mode_switched_at`` / ``_forced_mode``.
+        """
+        # Lazy import to avoid the runtime cycle with battery_pool.py
+        # (BatteryPool imports Mode from this module; we keep it in
+        # TYPE_CHECKING above for type hints).
+        from solalex.battery_pool import BatteryPool
+        from solalex.persistence.repositories.devices import list_devices
+
+        async with self._db_conn_factory() as conn:
+            devices = await list_devices(conn)
+        devices_by_role: dict[str, DeviceRecord] = {}
+        for device in devices:
+            if device.commissioned_at is not None:
+                devices_by_role[device.role] = device
+        battery_pool = BatteryPool.from_devices(devices, self._adapter_registry)
+        self._devices_by_role = devices_by_role
+        self._battery_pool = battery_pool
+        self._wr_limit_device = devices_by_role.get("wr_limit")
+        _logger.info(
+            "controller_reload_devices",
+            extra={
+                "pool_member_count": (
+                    len(battery_pool.members) if battery_pool else 0
+                ),
+                "wr_charge_present": "wr_charge" in devices_by_role,
+                "wr_limit_present": "wr_limit" in devices_by_role,
+            },
+        )
 
     async def aclose(self) -> None:
         """Cancel and await pending dispatch tasks — called by FastAPI lifespan shutdown.
@@ -519,7 +575,8 @@ class Controller:
         update, no set_mode call. Caller in :meth:`on_sensor_update` runs
         the side effects via :meth:`_record_mode_switch_cycle`.
         """
-        del sensor_device
+        if sensor_device.role != "grid_meter":
+            return None
         # Manual override fully suppresses the hysteresis (AC 29 — user
         # will trumps auto). Cleared overrides return through the normal
         # path on the next sensor event.
@@ -591,6 +648,9 @@ class Controller:
         # cycle's flag (Story 3.4 flag pattern, AC 12).
         self._speicher_max_soc_capped = False
         self._speicher_min_soc_capped = False
+        # Story 3.6 — reset alongside the SoC cap-flags so the next visit
+        # to the night-gate band logs an info line again.
+        self._speicher_night_gate_active = False
 
         _logger.info(
             "mode_switch",
@@ -598,6 +658,7 @@ class Controller:
                 "old_mode": old_mode.value,
                 "new_mode": new_mode.value,
                 "reason": reason_detail,
+                "aggregated_pct": _extract_reason_soc_pct(reason_detail),
                 "baseline_mode": self._mode_baseline.value,
                 "sensor_device_id": sensor_device.id,
             },
@@ -658,9 +719,11 @@ class Controller:
         (AC 33). Clearing an override does not write a cycle — the next
         auto-triggered switch will produce one normally.
         """
+        now = self._now_fn()
         old_forced = self._forced_mode
         self._forced_mode = mode
         if mode is not None:
+            self._mode_switched_at = now
             _logger.info(
                 "mode_override_set",
                 extra={
@@ -687,8 +750,10 @@ class Controller:
                     new_mode=mode,
                     reason_detail="manual_override",
                     sensor_device=anchor,
-                    now=self._now_fn(),
+                    now=now,
                 )
+            else:
+                self._state_cache.update_mode(mode.value)
         else:
             _logger.info(
                 "mode_override_cleared",
@@ -700,8 +765,6 @@ class Controller:
                     "baseline_mode": self._mode_baseline.value,
                 },
             )
-            # Bump dwell so the first auto-switch waits the full window.
-            self._mode_switched_at = self._now_fn()
             self._state_cache.update_mode(self._current_mode.value)
 
     def _anchor_device_for_audit(self) -> DeviceRecord | None:
@@ -761,7 +824,12 @@ class Controller:
 
         speicher_decisions = self._policy_speicher(device, sensor_value_w)
         if speicher_decisions:
-            return speicher_decisions
+            drossel_decision = self._drossel_for_unhandled_feed_in(
+                device, speicher_decisions
+            )
+            if drossel_decision is None:
+                return speicher_decisions
+            return [*speicher_decisions, drossel_decision]
 
         # Speicher returned [] — only Drossel-fallback when the pool is at
         # Max-SoC AND there is feed-in. Min-SoC + import (AC 3 + 19) must
@@ -786,7 +854,62 @@ class Controller:
         if not buf:
             return False
         smoothed = sum(buf) / len(buf)
-        return smoothed < 0.0
+        threshold_w = self._speicher_deadband_w()
+        if threshold_w is None:
+            return False
+        return smoothed < -float(threshold_w)
+
+    def _drossel_for_unhandled_feed_in(
+        self,
+        grid_meter_device: DeviceRecord,
+        speicher_decisions: list[PolicyDecision],
+    ) -> PolicyDecision | None:
+        """Drossel residual feed-in that the pool cannot absorb in this tick."""
+        smoothed = next(
+            (
+                decision.sensor_value_w
+                for decision in speicher_decisions
+                if decision.sensor_value_w is not None
+            ),
+            None,
+        )
+        if smoothed is None or smoothed >= 0.0:
+            return None
+        absorbed_w = sum(
+            max(decision.target_value_w, 0)
+            for decision in speicher_decisions
+            if decision.command_kind == "set_charge"
+        )
+        residual_w = smoothed + absorbed_w
+        if not math.isfinite(residual_w):
+            return None
+        if not self._is_drossel_feed_in_over_deadband(residual_w):
+            return None
+        return self._policy_drossel(grid_meter_device, residual_w)
+
+    def _is_drossel_feed_in_over_deadband(self, smoothed_w: float) -> bool:
+        """Return True when residual feed-in is worth a WR-limit command."""
+        if smoothed_w >= 0.0:
+            return False
+        wr_device = self._wr_limit_device
+        if wr_device is None:
+            return False
+        adapter = self._adapter_registry.get(wr_device.adapter_key)
+        if adapter is None:
+            return False
+        params = adapter.get_drossel_params(wr_device)
+        return smoothed_w < -float(params.deadband_w)
+
+    def _speicher_deadband_w(self) -> int | None:
+        """Return the current Speicher deadband or ``None`` when unavailable."""
+        pool = self._battery_pool
+        if pool is None or not pool.members:
+            return None
+        first_charge = pool.members[0].charge_device
+        adapter = self._adapter_registry.get(first_charge.adapter_key)
+        if adapter is None:
+            return None
+        return adapter.get_speicher_params(first_charge).deadband_w
 
     # ------------------------------------------------------------------
     # Story 3.4 — Speicher policy: reactive battery charge/discharge to
@@ -884,6 +1007,42 @@ class Controller:
                 )
                 self._speicher_min_soc_capped = True
             return []
+
+        # Story 3.6 — Nacht-Entlade-Zeitfenster gate. Only the discharge
+        # intent (smoothed > 0, would discharge) is gated; charge
+        # (smoothed < 0, surplus PV) flows freely 24/7. Outside-window
+        # discharge falls through to []; ``_speicher_night_gate_active``
+        # carries the once-per-band log discipline (Story 3.4 cap-flag
+        # pattern). The flag resets as soon as we leave the gated branch
+        # (charge / deadband / disabled toggle / inside window), so a
+        # later re-entry logs again.
+        if smoothed > 0:
+            night_enabled, night_start, night_end = _read_night_discharge_window(
+                first_charge
+            )
+            if night_enabled:
+                local_now = self._local_now_fn()
+                if not _is_in_night_window(
+                    local_now.time(), night_start, night_end
+                ):
+                    if not self._speicher_night_gate_active:
+                        _logger.info(
+                            "speicher_discharge_blocked_outside_night_window",
+                            extra={
+                                "aggregated_pct": aggregated,
+                                "night_start": night_start,
+                                "night_end": night_end,
+                                "local_time": local_now.strftime("%H:%M"),
+                            },
+                        )
+                        self._speicher_night_gate_active = True
+                    return []
+                else:
+                    self._speicher_night_gate_active = False
+            else:
+                self._speicher_night_gate_active = False
+        else:
+            self._speicher_night_gate_active = False
 
         # Sign-flip: feed-in (negative smoothed) → positive charge setpoint;
         # import (positive smoothed) → negative discharge setpoint. ``round``
@@ -1234,6 +1393,69 @@ def _read_soc_bounds(charge_device: DeviceRecord) -> tuple[int, int]:
     return (max_soc, min_soc)
 
 
+_HHMM_PATTERN: Final = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def _is_valid_hhmm(value: str) -> bool:
+    """Return True iff *value* matches the ``HH:MM`` 24-hour wall-clock format."""
+    return bool(_HHMM_PATTERN.match(value))
+
+
+def _read_night_discharge_window(
+    charge_device: DeviceRecord,
+) -> tuple[bool, str, str]:
+    """Return ``(enabled, start_hhmm, end_hhmm)`` from charge_device.config_json.
+
+    Wizard 2.1 + Settings 3.6 persist these keys. Defaults match the
+    Wizard defaults (enabled=True, 20:00–06:00). Malformed payloads
+    collapse to defaults rather than crashing the dispatch task.
+    """
+    try:
+        cfg = charge_device.config()
+    except Exception:
+        _logger.exception(
+            "speicher_night_window_parse_failed",
+            extra={"entity_id": charge_device.entity_id},
+        )
+        return (True, "20:00", "06:00")
+    if not isinstance(cfg, dict):
+        return (True, "20:00", "06:00")
+    raw_enabled = cfg.get("night_discharge_enabled", True)
+    enabled = bool(raw_enabled) if raw_enabled is not None else True
+    raw_start = cfg.get("night_start", "20:00")
+    raw_end = cfg.get("night_end", "06:00")
+    start = (
+        raw_start
+        if isinstance(raw_start, str) and _is_valid_hhmm(raw_start)
+        else "20:00"
+    )
+    end = (
+        raw_end
+        if isinstance(raw_end, str) and _is_valid_hhmm(raw_end)
+        else "06:00"
+    )
+    return (enabled, start, end)
+
+
+def _is_in_night_window(
+    local_time_obj: dt_time, start_hhmm: str, end_hhmm: str
+) -> bool:
+    """Return True if *local_time_obj* falls within the ``[start, end)`` window.
+
+    Wraparound semantics: if ``start > end`` (e.g. ``20:00–06:00``), the
+    window spans midnight — return True for ``now >= start OR now < end``.
+    Boundaries: ``now == start`` → inside; ``now == end`` → outside
+    (half-open interval).
+    """
+    start_h, start_m = (int(x) for x in start_hhmm.split(":"))
+    end_h, end_m = (int(x) for x in end_hhmm.split(":"))
+    start_t = dt_time(hour=start_h, minute=start_m)
+    end_t = dt_time(hour=end_h, minute=end_m)
+    if start_t <= end_t:
+        return start_t <= local_time_obj < end_t
+    return local_time_obj >= start_t or local_time_obj < end_t
+
+
 def _clamp_step(current: int, proposed: int, max_step: int) -> int:
     """Clamp the delta between *current* and *proposed* to ±``max_step`` W.
 
@@ -1307,6 +1529,22 @@ def _truncate_reason(reason: str) -> str:
     if len(reason) <= _REASON_MAX_LEN:
         return reason
     return reason[: _REASON_MAX_LEN - 1] + "…"
+
+
+def _extract_reason_soc_pct(reason_detail: str) -> float | None:
+    marker = "soc="
+    start = reason_detail.find(marker)
+    if start < 0:
+        return None
+    value_start = start + len(marker)
+    value_end = reason_detail.find("%", value_start)
+    if value_end < 0:
+        return None
+    try:
+        value = float(reason_detail[value_start:value_end])
+    except ValueError:
+        return None
+    return value if math.isfinite(value) else None
 
 
 def _extract_new_state(event_msg: dict[str, Any]) -> dict[str, Any]:

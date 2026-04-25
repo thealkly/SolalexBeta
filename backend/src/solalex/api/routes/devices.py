@@ -1,18 +1,22 @@
 """Device configuration routes.
 
-GET  /api/v1/devices  — list all configured devices.
-POST /api/v1/devices  — save (replace) hardware configuration.
+GET   /api/v1/devices                       — list all configured devices.
+POST  /api/v1/devices                       — save (replace) hardware configuration.
+PATCH /api/v1/devices/battery-config        — update Akku-Bounds + Nacht-Fenster post-Commissioning (Story 3.6).
 """
 
 from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from solalex.adapters.base import DeviceRecord
 from solalex.api.schemas.devices import (
+    BatteryConfigPatchRequest,
+    BatteryConfigResponse,
     DeviceResponse,
     HardwareConfigRequest,
     SaveDevicesResponse,
@@ -23,6 +27,7 @@ from solalex.persistence.db import connection_context
 from solalex.persistence.repositories.devices import (
     list_devices,
     replace_all,
+    update_device_config_json,
 )
 
 _logger = get_logger(__name__)
@@ -134,4 +139,85 @@ async def save_devices(
         status="saved",
         device_count=len(rows),
         next_action="functional_test",
+    )
+
+
+@router.patch("/battery-config", response_model=BatteryConfigResponse)
+async def patch_battery_config(
+    request: Request,
+    body: BatteryConfigPatchRequest,
+) -> BatteryConfigResponse:
+    """Update Akku-Bounds + Nacht-Fenster on the commissioned ``wr_charge`` device.
+
+    Story 3.6: post-commissioning Settings surface. Merges the five
+    config keys into the existing ``wr_charge.config_json`` blob (keeps
+    ``allow_surplus_export`` from Story 3.8 untouched), persists via the
+    targeted single-row repository helper, then triggers a synchronous
+    Controller reload so the next sensor event reads the new bounds.
+    """
+    db_path = get_settings().db_path
+    async with connection_context(db_path) as conn:
+        devices = await list_devices(conn)
+    wr_charge = next(
+        (
+            d
+            for d in devices
+            if d.role == "wr_charge" and d.commissioned_at is not None
+        ),
+        None,
+    )
+    if wr_charge is None or wr_charge.id is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Kein wr_charge-Device commissioned — Akku-Setup nicht vorhanden",
+        )
+
+    try:
+        existing_config_raw: Any = json.loads(wr_charge.config_json or "{}")
+    except json.JSONDecodeError:
+        existing_config_raw = {}
+    if isinstance(existing_config_raw, dict):
+        existing_config: dict[str, Any] = dict(existing_config_raw)
+    else:
+        existing_config = {}
+    existing_config.update(
+        {
+            "min_soc": body.min_soc,
+            "max_soc": body.max_soc,
+            "night_discharge_enabled": body.night_discharge_enabled,
+            "night_start": body.night_start,
+            "night_end": body.night_end,
+        }
+    )
+
+    async with connection_context(db_path) as conn:
+        rows = await update_device_config_json(
+            conn, wr_charge.id, json.dumps(existing_config)
+        )
+    if rows == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="wr_charge-Device verschwand zwischen GET und UPDATE",
+        )
+
+    controller = getattr(request.app.state, "controller", None)
+    if controller is not None:
+        await controller.reload_devices_from_db()
+
+    _logger.info(
+        "battery_config_patched",
+        extra={
+            "device_id": wr_charge.id,
+            "min_soc": body.min_soc,
+            "max_soc": body.max_soc,
+            "night_discharge_enabled": body.night_discharge_enabled,
+        },
+    )
+
+    return BatteryConfigResponse(
+        min_soc=body.min_soc,
+        max_soc=body.max_soc,
+        night_discharge_enabled=body.night_discharge_enabled,
+        night_start=body.night_start,
+        night_end=body.night_end,
     )

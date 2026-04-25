@@ -305,6 +305,23 @@ async def test_multi_no_hysteresis_switch_at_low_soc(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_mode_switch_ignores_non_grid_meter_events(tmp_path: Path) -> None:
+    """AC 16 — only grid_meter events may trigger a mode-switch audit row."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_speicher_setup(db)
+    cache = StateCache()
+    controller = _build_controller(
+        db, seeds, cache, mode=Mode.SPEICHER, soc_pct=98.0
+    )
+    battery_soc = next(d for d in seeds["all_devices"] if d.role == "battery_soc")
+    now = datetime(2026, 4, 25, 12, 0, tzinfo=UTC)
+    assert (
+        controller._evaluate_mode_switch(sensor_device=battery_soc, now=now)
+        is None
+    )
+
+
 # ----- AC 8: Dwell-Time-Anti-Oszillation ---------------------------------
 
 
@@ -431,6 +448,7 @@ async def test_mode_switch_logs_info_record_with_extra(
     assert record.old_mode == "speicher"  # type: ignore[attr-defined]
     assert record.new_mode == "drossel"  # type: ignore[attr-defined]
     assert "pool_full" in record.reason  # type: ignore[attr-defined]
+    assert record.aggregated_pct == 98.0  # type: ignore[attr-defined]
     assert record.baseline_mode == "speicher"  # type: ignore[attr-defined]
 
 
@@ -686,26 +704,21 @@ async def test_clearing_forced_mode_resumes_hysteresis_at_current_mode(
         cache,
         mode=Mode.SPEICHER,
         soc_pct=98.0,
-        forced_mode=Mode.SPEICHER,
         now=base_now,
     )
     controller._now_fn = lambda: current_now[0]
 
-    # Clear override.
-    await controller.set_forced_mode(None)
-    assert controller._forced_mode is None
-    # Dwell tracker is bumped to "now" so first auto-switch waits the window.
+    await controller.set_forced_mode(Mode.SPEICHER)
+    assert controller._forced_mode == Mode.SPEICHER
     assert controller._mode_switched_at == base_now
 
-    # Within dwell window → no switch despite SoC=98 % triggering hysteresis.
-    current_now[0] = base_now + timedelta(seconds=10)
-    switch = controller._evaluate_mode_switch(
-        sensor_device=seeds["grid_meter"], now=current_now[0]
-    )
-    assert switch is None
+    # Clear override after the dwell window elapsed. AC34 expects the next
+    # sensor event to resume hysteresis immediately, not start a new window.
+    current_now[0] = base_now + timedelta(minutes=5)
+    await controller.set_forced_mode(None)
+    assert controller._forced_mode is None
+    assert controller._mode_switched_at == base_now
 
-    # After dwell window expires → hysteresis fires.
-    current_now[0] = base_now + timedelta(seconds=MODE_SWITCH_MIN_DWELL_S + 5)
     switch = controller._evaluate_mode_switch(
         sensor_device=seeds["grid_meter"], now=current_now[0]
     )

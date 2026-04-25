@@ -1,6 +1,6 @@
 # Story 3.5: Adaptive Strategie-Auswahl & Hysterese-basierter Modus-Wechsel (inkl. Multi-Modus)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -325,6 +325,14 @@ so that ich nie einen Modus manuell einstellen muss und im Grenzbereich (Akku-kn
   - [x] SQL-Migrations-Ordering: `001` + `002` + `003` (keine 004).
   - [x] Frontend: `npm run lint`, `npm run check`, `npm run test` → grün.
   - [x] Manual-Smoke: `PUT /api/v1/control/mode` mit `{"forced_mode":"drossel"}` aus Config-Page → Polling-Endpoint zeigt sofort `current_mode='drossel'`; `control_cycles` enthält Audit-Row mit `reason='mode_switch: speicher→drossel (manual_override)'`. Anschließend `PUT {"forced_mode":null}` → Auto-Detection + Hysterese resumed.
+
+### Review Findings
+
+- [x] [Review][Patch] Override-Clear-Dwell auf AC34 ausrichten [backend/src/solalex/controller.py:703] — Entscheidung: Dwell läuft ab Override-Set-Zeit. AC34 beschreibt: User setzt `forced_mode="speicher"`, wartet 5 Min, setzt `forced_mode=null`, und der nächste Sensor-Event darf sofort normal per Hysterese nach DROSSEL wechseln. Die Implementierung setzt beim Clear aber `_mode_switched_at = now` und der Test erwartet explizit ein neues 60-s-Blocking-Fenster ([backend/tests/unit/test_controller_mode_switch.py:694]).
+- [x] [Review][Patch] MULTI drosselt Rest-Überschuss nicht, solange Speicher-Decisions existieren [backend/src/solalex/controller.py:762] — `_policy_multi` returnt sofort `speicher_decisions`, sobald der Pool irgendeinen Ladebefehl erzeugt. Dadurch erreicht Rest-PV, die der Pool wegen Hardware-Cap/Ramp/Step nicht aufnehmen kann, nie `_policy_drossel`; das verletzt AC2 inkl. Beispiel „Pool nimmt 2500 W, WR-Limit drosselt den Rest".
+- [x] [Review][Patch] Mode-Switch kann von Nicht-`grid_meter`-Events ausgelöst und falsch verankert werden [backend/src/solalex/controller.py:283] — `main.py` subscribed alle commissioned entities, aber `_evaluate_mode_switch` ignoriert `sensor_device` und `_record_mode_switch_cycle` persistiert `device_id=sensor_device.id`. Ein `battery_soc`-/`wr_charge`-Event kann so den Switch schreiben, obwohl AC16 den `grid_meter` als Audit-Anker verlangt.
+- [x] [Review][Patch] MULTI Feed-in-Gate ignoriert Speicher-Deadband [backend/src/solalex/controller.py:775] — `_is_feed_in_after_smoothing` returnt `True` für jedes `smoothed < 0.0`; die Story empfiehlt für diesen Gate explizit `< -deadband_w`. Bei Max-SoC kann dadurch kleines negatives Rauschen den Drossel-Fallback anstoßen.
+- [x] [Review][Patch] `mode_switch`-Log omittiert strukturiertes `aggregated_pct` [backend/src/solalex/controller.py:595] — AC6 verlangt `extra={'old_mode', 'new_mode', 'reason', 'aggregated_pct': float|None, 'baseline_mode'}`; aktuell steht der SoC nur im freien `reason`-String und fehlt als maschinenlesbares Log-Feld.
 
 ## Dev Notes
 

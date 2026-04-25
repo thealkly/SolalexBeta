@@ -1,5 +1,7 @@
 import { ApiError } from './errors.js';
 import type {
+  BatteryConfigPatchRequest,
+  BatteryConfigResponse,
   CommissioningResponse,
   ControlModeResponse,
   DeviceResponse,
@@ -82,5 +84,15 @@ export async function setForcedMode(mode: ForcedMode | null): Promise<ControlMod
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ forced_mode: mode }),
+  });
+}
+
+export async function patchBatteryConfig(
+  body: BatteryConfigPatchRequest,
+): Promise<BatteryConfigResponse> {
+  return request<BatteryConfigResponse>('/api/v1/devices/battery-config', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 }

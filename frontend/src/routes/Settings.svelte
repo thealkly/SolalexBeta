@@ -1,0 +1,531 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import * as client from '../lib/api/client.js';
+  import { isApiError } from '../lib/api/errors.js';
+  import type { DeviceResponse } from '../lib/api/types.js';
+
+  // Story 3.6 — Settings surface for post-commissioning Akku-bounds and
+  // night-discharge window. Hidden route (#/settings); no Running.svelte
+  // link by design (analogous to 4.0a Diagnose-Schnellexport).
+
+  let loading = $state(true);
+  let loadError = $state<string | null>(null);
+
+  // True when the commissioned device set has a wr_charge — the form
+  // renders only then. Drossel-only setups land on the no-battery hint.
+  let hasBattery = $state(false);
+
+  let minSoc = $state(15);
+  let maxSoc = $state(95);
+  let nightDischargeEnabled = $state(true);
+  let nightStart = $state('20:00');
+  let nightEnd = $state('06:00');
+
+  // Tracks the last-known-safe Min-SoC so the user can revert from the
+  // plausibility-confirm block without losing context.
+  let lastSafeMinSoc = $state(15);
+
+  let saving = $state(false);
+  let saveError = $state<string | null>(null);
+  let savedNotice = $state<string | null>(null);
+
+  // True while the user dwells on a Min-SoC value < 10 % — gates the
+  // regular Save button until they pick "Trotzdem speichern" or revert.
+  let lowMinSocPending = $state(false);
+  // Sticks once the user explicitly accepted the low-Min-SoC warning;
+  // travels into the PATCH body so the backend lets the value through.
+  let lowMinSocAcknowledged = $state(false);
+
+  let gapInvalid = $derived(maxSoc <= minSoc + 10);
+  let nightWindowEmpty = $derived(nightDischargeEnabled && nightStart === nightEnd);
+  let canSave = $derived(
+    hasBattery && !gapInvalid && !nightWindowEmpty && !lowMinSocPending && !saving,
+  );
+
+  function parseConfig(raw: string): Record<string, unknown> {
+    try {
+      const parsed: unknown = JSON.parse(raw || '{}');
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to empty defaults.
+    }
+    return {};
+  }
+
+  function loadFromDevice(device: DeviceResponse): void {
+    const cfg = parseConfig(device.config_json);
+    if (typeof cfg.min_soc === 'number') minSoc = cfg.min_soc;
+    if (typeof cfg.max_soc === 'number') maxSoc = cfg.max_soc;
+    if (typeof cfg.night_discharge_enabled === 'boolean')
+      nightDischargeEnabled = cfg.night_discharge_enabled;
+    if (typeof cfg.night_start === 'string') nightStart = cfg.night_start;
+    if (typeof cfg.night_end === 'string') nightEnd = cfg.night_end;
+    lastSafeMinSoc = minSoc >= 10 ? minSoc : 15;
+  }
+
+  onMount(async () => {
+    const startTs = Date.now();
+    try {
+      const devices = await client.getDevices();
+      const wrCharge = devices.find((d) => d.role === 'wr_charge' && d.commissioned_at !== null);
+      if (wrCharge) {
+        hasBattery = true;
+        loadFromDevice(wrCharge);
+      }
+    } catch (err) {
+      loadError = isApiError(err) ? err.detail : 'Verbindungsfehler. Bitte Seite neu laden.';
+    } finally {
+      const elapsed = Date.now() - startTs;
+      if (elapsed < 400) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 400 - elapsed));
+      }
+      loading = false;
+    }
+  });
+
+  function handleMinSocChange(): void {
+    savedNotice = null;
+    if (minSoc >= 10) {
+      lowMinSocPending = false;
+      lowMinSocAcknowledged = false;
+      lastSafeMinSoc = minSoc;
+    } else if (minSoc >= 5) {
+      lowMinSocPending = true;
+      lowMinSocAcknowledged = false;
+    } else {
+      // Field constraint < 5 — backend will reject; keep the confirm
+      // visible so the user notices, but leave the regular save disabled.
+      lowMinSocPending = true;
+      lowMinSocAcknowledged = false;
+    }
+  }
+
+  function cancelLowMinSocConfirm(): void {
+    minSoc = lastSafeMinSoc;
+    lowMinSocPending = false;
+    lowMinSocAcknowledged = false;
+  }
+
+  async function confirmLowMinSocAndSave(): Promise<void> {
+    lowMinSocAcknowledged = true;
+    lowMinSocPending = false;
+    await handleSave();
+  }
+
+  async function handleSave(): Promise<void> {
+    if (!hasBattery || gapInvalid || nightWindowEmpty) return;
+    saving = true;
+    saveError = null;
+    savedNotice = null;
+    try {
+      const response = await client.patchBatteryConfig({
+        min_soc: minSoc,
+        max_soc: maxSoc,
+        night_discharge_enabled: nightDischargeEnabled,
+        night_start: nightStart,
+        night_end: nightEnd,
+        ...(minSoc < 10 ? { acknowledged_low_min_soc: lowMinSocAcknowledged } : {}),
+      });
+      minSoc = response.min_soc;
+      maxSoc = response.max_soc;
+      nightDischargeEnabled = response.night_discharge_enabled;
+      nightStart = response.night_start;
+      nightEnd = response.night_end;
+      lastSafeMinSoc = minSoc >= 10 ? minSoc : lastSafeMinSoc;
+      savedNotice = 'Einstellungen gespeichert.';
+    } catch (err) {
+      saveError = isApiError(err)
+        ? err.detail
+        : 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+    } finally {
+      saving = false;
+    }
+  }
+</script>
+
+<main class="settings-page">
+  <header class="settings-header">
+    <p class="eyebrow">Solalex</p>
+    <h1>Einstellungen</h1>
+  </header>
+
+  {#if loading}
+    <div class="skeleton-section" data-testid="settings-skeleton">
+      <div class="skeleton-pulse" style="height: 120px;"></div>
+      <div class="skeleton-pulse" style="height: 120px; margin-top: 16px;"></div>
+    </div>
+  {:else if loadError}
+    <div class="error-block">
+      <p>{loadError}</p>
+    </div>
+  {:else if !hasBattery}
+    <section class="settings-section" data-testid="no-battery-hint">
+      <h2>Kein Akku konfiguriert</h2>
+      <p class="hint">
+        Dieses Setup hat keinen Akku. Min-/Max-SoC und Nacht-Entladung sind hier nicht
+        konfigurierbar. Wenn du später einen Akku hinzufügst, durchläufst du den Setup-Wizard
+        erneut.
+      </p>
+    </section>
+  {:else}
+    <section class="settings-section">
+      <h2>Akku-Konfiguration</h2>
+      <div class="field-row">
+        <label class="field-label">
+          Min-SoC
+          <div class="input-unit-row">
+            <input
+              type="number"
+              bind:value={minSoc}
+              min="5"
+              max="40"
+              class="number-input"
+              oninput={handleMinSocChange}
+              aria-label="Min-SoC"
+            />
+            <span class="field-unit">%</span>
+          </div>
+        </label>
+        <label class="field-label">
+          Max-SoC
+          <div class="input-unit-row">
+            <input
+              type="number"
+              bind:value={maxSoc}
+              min="51"
+              max="100"
+              class="number-input"
+              aria-label="Max-SoC"
+            />
+            <span class="field-unit">%</span>
+          </div>
+        </label>
+      </div>
+      {#if gapInvalid}
+        <p class="error-line" data-testid="gap-error">
+          Max-SoC muss mehr als 10 % über Min-SoC liegen.
+        </p>
+      {/if}
+      {#if lowMinSocPending}
+        <div class="confirm-block" data-testid="low-min-soc-confirm">
+          <p class="warn-line">
+            Min-SoC unterhalb Herstellerspezifikation (Marstek Venus: empfohlen ≥ 10 %) —
+            Akku-Schäden bei wiederholter Tiefentladung möglich.
+          </p>
+          <div class="confirm-actions">
+            <button
+              type="button"
+              class="ghost-button"
+              onclick={cancelLowMinSocConfirm}
+              data-testid="low-min-soc-cancel"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              class="warn-button"
+              onclick={confirmLowMinSocAndSave}
+              disabled={saving || gapInvalid || nightWindowEmpty}
+              data-testid="low-min-soc-confirm-save"
+            >
+              Trotzdem speichern
+            </button>
+          </div>
+        </div>
+      {/if}
+    </section>
+
+    <section class="settings-section">
+      <h2>Nacht-Entladung</h2>
+      <label class="checkbox-row">
+        <input type="checkbox" bind:checked={nightDischargeEnabled} />
+        <span>Nacht-Entladung aktivieren</span>
+      </label>
+      {#if nightDischargeEnabled}
+        <div class="field-row" style="margin-top: 12px;">
+          <label class="field-label">
+            Startzeit
+            <input
+              type="time"
+              bind:value={nightStart}
+              class="time-input"
+              aria-label="Nacht-Start"
+            />
+          </label>
+          <label class="field-label">
+            Endzeit
+            <input type="time" bind:value={nightEnd} class="time-input" aria-label="Nacht-Ende" />
+          </label>
+        </div>
+        {#if nightWindowEmpty}
+          <p class="error-line" data-testid="night-window-error">
+            Start- und Endzeit müssen sich unterscheiden.
+          </p>
+        {/if}
+      {/if}
+    </section>
+
+    <div class="save-row">
+      <button
+        type="button"
+        class="save-button"
+        onclick={handleSave}
+        disabled={!canSave}
+        data-testid="settings-save"
+      >
+        {saving ? 'Speichern…' : 'Speichern'}
+      </button>
+      {#if saveError}
+        <p class="error-line" data-testid="save-error">{saveError}</p>
+      {/if}
+      {#if savedNotice}
+        <p class="confirm-line" data-testid="save-confirm">{savedNotice}</p>
+      {/if}
+    </div>
+  {/if}
+</main>
+
+<style>
+  .settings-page {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: clamp(20px, 4vw, 40px);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .settings-header {
+    width: min(100%, 640px);
+    margin: 0 auto;
+  }
+
+  .settings-header h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+    line-height: 1.1;
+  }
+
+  .settings-section {
+    width: min(100%, 640px);
+    margin: 0 auto;
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
+    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg) 4%);
+    padding: var(--space-3);
+  }
+
+  .settings-section h2 {
+    margin: 0 0 var(--space-2) 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .skeleton-section {
+    width: min(100%, 640px);
+    margin: 0 auto;
+  }
+
+  .skeleton-pulse {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface) 25%,
+      color-mix(in srgb, var(--color-surface) 70%, var(--color-text) 30%) 50%,
+      var(--color-surface) 75%
+    );
+    background-size: 200% 100%;
+    animation: pulse 1.4s ease-in-out infinite;
+    border-radius: var(--radius-card);
+  }
+
+  @keyframes pulse {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .error-block {
+    width: min(100%, 640px);
+    margin: 0 auto;
+    border-radius: var(--radius-card);
+    border: 1px solid color-mix(in srgb, var(--color-accent-warning) 40%, transparent);
+    background: color-mix(in srgb, var(--color-accent-warning) 8%, var(--color-bg) 92%);
+    padding: var(--space-3);
+    color: var(--color-accent-warning);
+  }
+
+  .field-row {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .field-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+  }
+
+  .input-unit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .number-input {
+    width: 80px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+  }
+
+  .time-input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+  }
+
+  .field-unit {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .checkbox-row input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-accent-primary);
+  }
+
+  .confirm-block {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--color-accent-warning) 40%, transparent);
+    background: color-mix(in srgb, var(--color-accent-warning) 8%, var(--color-bg) 92%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .warn-line {
+    margin: 0;
+    color: var(--color-accent-warning);
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .ghost-button {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .warn-button {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 0;
+    background: var(--color-accent-warning);
+    color: white;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .warn-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .save-row {
+    width: min(100%, 640px);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .save-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border-radius: 999px;
+    padding: 0 32px;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-accent-primary) 92%, white 8%),
+      color-mix(in srgb, var(--color-accent-primary) 76%, var(--color-brand-ink) 24%)
+    );
+    color: var(--color-button-text);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent-primary) 40%, transparent);
+    align-self: flex-start;
+  }
+
+  .save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .error-line {
+    margin: var(--space-1) 0 0 0;
+    font-size: 0.88rem;
+    color: var(--color-accent-warning);
+  }
+
+  .confirm-line {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--color-accent-primary);
+  }
+</style>

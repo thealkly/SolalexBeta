@@ -219,6 +219,27 @@ async def test_multi_pool_below_max_soc_no_drossel_call(
     assert drossel_calls[0] == 0
 
 
+@pytest.mark.asyncio
+async def test_multi_large_feed_in_drossels_unabsorbed_surplus(
+    tmp_path: Path,
+) -> None:
+    """AC 2 — if pool ramping cannot absorb all feed-in, Drossel handles rest."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_multi_setup(db, pool_size=2)
+    cache = StateCache()
+    controller = _build_multi_controller(db, seeds, cache, soc_pct=50.0)
+
+    decisions = controller._policy_multi(seeds["grid_meter"], sensor_value_w=-2700.0)
+    charge_decisions = [d for d in decisions if d.command_kind == "set_charge"]
+    drossel_decisions = [d for d in decisions if d.command_kind == "set_limit"]
+
+    assert len(charge_decisions) == 2
+    assert sum(d.target_value_w for d in charge_decisions) == 500
+    assert len(drossel_decisions) == 1
+    assert drossel_decisions[0].sensor_value_w == -2200.0
+    assert drossel_decisions[0].device.entity_id == _WR_LIMIT_ENTITY
+
+
 # ----- AC 20: Max-SoC + Einspeisung → Drossel übernimmt ------------------
 
 
@@ -240,6 +261,31 @@ async def test_multi_at_max_soc_with_feed_in_drossel_takes_over(
     assert decisions[0].command_kind == "set_limit"
     assert decisions[0].mode == Mode.DROSSEL.value
     assert decisions[0].device.entity_id == _WR_LIMIT_ENTITY
+
+
+@pytest.mark.asyncio
+async def test_multi_max_soc_small_feed_in_inside_deadband_skips_drossel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review patch — stale cap flag + tiny feed-in must not call Drossel."""
+    db = tmp_path / "test.db"
+    seeds = await _seed_multi_setup(db, pool_size=2)
+    cache = StateCache()
+    controller = _build_multi_controller(db, seeds, cache, soc_pct=98.0)
+    controller._speicher_max_soc_capped = True
+
+    drossel_calls = [0]
+    real_drossel = controller._policy_drossel
+
+    def _spy(device: DeviceRecord, sensor_value_w: float | None) -> Any:
+        drossel_calls[0] += 1
+        return real_drossel(device, sensor_value_w)
+
+    monkeypatch.setattr(controller, "_policy_drossel", _spy)
+    decisions = controller._policy_multi(seeds["grid_meter"], sensor_value_w=-10.0)
+
+    assert decisions == []
+    assert drossel_calls[0] == 0
 
 
 # ----- AC 19: Min-SoC + Bezug → kein Drossel-Anstieg ---------------------

@@ -108,3 +108,21 @@ export interface StateSnapshot {
   recent_cycles: RecentCycle[];
   rate_limit_status: RateLimitEntry[];
 }
+
+// Story 3.6 — Settings PATCH /api/v1/devices/battery-config.
+export interface BatteryConfigPatchRequest {
+  min_soc: number;
+  max_soc: number;
+  night_discharge_enabled: boolean;
+  night_start: string;
+  night_end: string;
+  acknowledged_low_min_soc?: boolean;
+}
+
+export interface BatteryConfigResponse {
+  min_soc: number;
+  max_soc: number;
+  night_discharge_enabled: boolean;
+  night_start: string;
+  night_end: string;
+}

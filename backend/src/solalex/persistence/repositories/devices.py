@@ -127,6 +127,31 @@ async def replace_all(
         raise
 
 
+async def update_device_config_json(
+    conn: aiosqlite.Connection,
+    device_id: int,
+    new_config_json: str,
+    *,
+    commit: bool = True,
+) -> int:
+    """Update only ``config_json`` for the row with *device_id*.
+
+    Returns the affected rowcount so the caller can reply with HTTP 404
+    when no row matched. Single-column UPDATE — preserves
+    ``commissioned_at`` and the ``(entity_id, role)`` identity.
+    """
+    async with conn.execute(
+        "UPDATE devices SET config_json = ?, "
+        "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+        "WHERE id = ?",
+        (new_config_json, device_id),
+    ) as cur:
+        rowcount = cur.rowcount or 0
+    if commit:
+        await conn.commit()
+    return int(rowcount)
+
+
 async def mark_all_commissioned(
     conn: aiosqlite.Connection, ts: datetime | None = None
 ) -> int:

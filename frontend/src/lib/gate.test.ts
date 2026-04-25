@@ -206,6 +206,45 @@ describe('evaluateGate — uncommissioned users, pre-disclaimer accepted', () =>
   });
 });
 
+describe('evaluateGate — Story 3.6 settings route', () => {
+  const commissioned = [makeDevice({ commissioned_at: '2026-04-24T00:00:00Z' })];
+
+  it('lets a commissioned user reach /settings without a wizard redirect', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/settings',
+        devices: commissioned,
+        preAccepted: true,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'stay' });
+  });
+
+  it('redirects to /disclaimer when pre-disclaimer is not accepted', () => {
+    expect(
+      evaluateGate({
+        currentRoute: '/settings',
+        devices: commissioned,
+        preAccepted: false,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'redirect', hash: '#/disclaimer' });
+  });
+
+  it('stays on /settings when no devices yet but pre-disclaimer is accepted', () => {
+    // Drossel-only setup or pre-commissioning user landing on /settings via
+    // the hidden URL — the page itself renders the AC 19 hint.
+    expect(
+      evaluateGate({
+        currentRoute: '/settings',
+        devices: [],
+        preAccepted: true,
+        allowAutoForward: false,
+      }),
+    ).toEqual({ kind: 'stay' });
+  });
+});
+
 describe('evaluateGate — partial commissioning', () => {
   it('treats any uncommissioned device as "not fully commissioned"', () => {
     const mixed = [

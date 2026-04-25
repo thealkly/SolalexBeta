@@ -7,6 +7,28 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+# ---------------------------------------------------------------------------
+# Shared validator helpers (Story 3.6 — DRY between HardwareConfigRequest and
+# BatteryConfigPatchRequest). Modul-Top-Level free functions, kein Mixin.
+# ---------------------------------------------------------------------------
+
+
+def _validate_soc_gap(min_soc: int, max_soc: int) -> None:
+    """Raise ``ValueError`` when max_soc is not at least 11 % above min_soc."""
+    if max_soc <= min_soc + 10:
+        raise ValueError(
+            f"max_soc ({max_soc}) muss mehr als 10 % über min_soc ({min_soc}) liegen"
+        )
+
+
+def _validate_night_window(enabled: bool, start: str, end: str) -> None:
+    """Raise ``ValueError`` when an enabled night window has identical bounds."""
+    if enabled and start == end:
+        raise ValueError(
+            "Nacht-Entlade-Fenster darf nicht leer sein — "
+            "Start- und Endzeit müssen sich unterscheiden"
+        )
+
 
 class HardwareConfigRequest(BaseModel):
     """Body for POST /api/v1/devices."""
@@ -31,10 +53,7 @@ class HardwareConfigRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_soc_range(self) -> HardwareConfigRequest:
-        if self.max_soc <= self.min_soc + 10:
-            raise ValueError(
-                f"max_soc ({self.max_soc}) muss mehr als 10 % über min_soc ({self.min_soc}) liegen"
-            )
+        _validate_soc_gap(self.min_soc, self.max_soc)
         if (
             self.min_limit_w is not None
             and self.max_limit_w is not None
@@ -53,11 +72,9 @@ class HardwareConfigRequest(BaseModel):
                     "Akku-SoC-Entity und Lade-Entity dürfen nicht identisch sein — "
                     "bitte separate HA-Entities zuweisen"
                 )
-            if self.night_discharge_enabled and self.night_start == self.night_end:
-                raise ValueError(
-                    "Nacht-Entlade-Fenster darf nicht leer sein — "
-                    "Start- und Endzeit müssen sich unterscheiden"
-                )
+            _validate_night_window(
+                self.night_discharge_enabled, self.night_start, self.night_end
+            )
         return self
 
 
@@ -82,3 +99,44 @@ class DeviceResponse(BaseModel):
     commissioned_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Story 3.6 — Settings-Page PATCH /api/v1/devices/battery-config
+# ---------------------------------------------------------------------------
+
+
+class BatteryConfigPatchRequest(BaseModel):
+    """Body for PATCH /api/v1/devices/battery-config (Story 3.6)."""
+
+    min_soc: int = Field(..., ge=5, le=40)
+    max_soc: int = Field(..., ge=51, le=100)
+    night_discharge_enabled: bool
+    night_start: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    night_end: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    # Plausibility confirm — required when min_soc < 10 (Marstek-spec floor).
+    # Hard-rejection at min_soc < 5 stays in the Field constraint above.
+    acknowledged_low_min_soc: bool = False
+
+    @model_validator(mode="after")
+    def validate_constraints(self) -> BatteryConfigPatchRequest:
+        _validate_soc_gap(self.min_soc, self.max_soc)
+        _validate_night_window(
+            self.night_discharge_enabled, self.night_start, self.night_end
+        )
+        if self.min_soc < 10 and not self.acknowledged_low_min_soc:
+            raise ValueError(
+                "Min-SoC unter Herstellerspezifikation — "
+                "Bestätigung erforderlich (acknowledged_low_min_soc=true)"
+            )
+        return self
+
+
+class BatteryConfigResponse(BaseModel):
+    """Response from PATCH /api/v1/devices/battery-config."""
+
+    min_soc: int
+    max_soc: int
+    night_discharge_enabled: bool
+    night_start: str
+    night_end: str

@@ -173,9 +173,16 @@ def _make_speicher_controller(
     ha_ws_connected: bool = True,
     now: datetime | None = None,
     pool: BatteryPool | None = None,
+    local_now: datetime | None = None,
 ) -> tuple[Controller, BatteryPool]:
-    """Build a Controller wired with a BatteryPool from *seeds*."""
+    """Build a Controller wired with a BatteryPool from *seeds*.
+
+    ``local_now`` defaults to a wall-clock time inside the default
+    night-discharge window (22:00) so existing 3.4 discharge tests keep
+    passing under the 3.6 night gate.
+    """
     fixed_now = now or datetime(2026, 4, 25, 12, 0, tzinfo=UTC)
+    fixed_local_now = local_now or datetime(2026, 4, 25, 22, 0)
     devices: list[DeviceRecord] = [seeds["grid_meter"]]
     for charge, soc in seeds["pool_devices"]:
         devices.append(charge)
@@ -211,6 +218,7 @@ def _make_speicher_controller(
         battery_pool=pool,
         mode=Mode.SPEICHER,
         now_fn=lambda: fixed_now,
+        local_now_fn=lambda: fixed_local_now,
     )
     return controller, pool
 

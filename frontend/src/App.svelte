@@ -7,6 +7,7 @@
   import FunctionalTest from './routes/FunctionalTest.svelte';
   import PreSetupDisclaimer from './routes/PreSetupDisclaimer.svelte';
   import Running from './routes/Running.svelte';
+  import Settings from './routes/Settings.svelte';
   import * as client from './lib/api/client.js';
   import type { DeviceResponse } from './lib/api/types.js';
   import { evaluateGate } from './lib/gate.js';
@@ -45,6 +46,7 @@
     '/disclaimer',
     '/activate',
     '/diagnostics',
+    '/settings',
   ]);
 
   function syncRoute(): void {
@@ -154,6 +156,8 @@
     <Running />
   {:else if currentRoute === '/diagnostics'}
     <Diagnostics />
+  {:else if currentRoute === '/settings'}
+    <Settings />
   {:else}
     <section class="empty-state-card">
       <header class="empty-state-header">

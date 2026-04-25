@@ -12,9 +12,7 @@ const WIZARD_ROUTES = new Set<string>([
   '/config',
 ]);
 
-export type GateDecision =
-  | { kind: 'stay' }
-  | { kind: 'redirect'; hash: `#${string}` };
+export type GateDecision = { kind: 'stay' } | { kind: 'redirect'; hash: `#${string}` };
 
 export interface GateInput {
   currentRoute: string;
@@ -29,10 +27,17 @@ export interface GateInput {
 export function evaluateGate(input: GateInput): GateDecision {
   const { currentRoute, devices, preAccepted, allowAutoForward } = input;
   if (currentRoute === '/diagnostics') return { kind: 'stay' };
+  // Story 3.6 — Settings is post-commissioning surface. Pre-disclaimer
+  // users still get bounced to the disclaimer; everyone else stays.
+  // Settings is NOT in WIZARD_ROUTES, so a commissioned user is not
+  // redirected to #/running by the wizard-route branch.
+  if (currentRoute === '/settings') {
+    if (!preAccepted) return { kind: 'redirect', hash: '#/disclaimer' };
+    return { kind: 'stay' };
+  }
   if (devices === null) return { kind: 'stay' };
 
-  const allCommissioned =
-    devices.length > 0 && devices.every((d) => d.commissioned_at !== null);
+  const allCommissioned = devices.length > 0 && devices.every((d) => d.commissioned_at !== null);
   if (allCommissioned) {
     if (WIZARD_ROUTES.has(currentRoute)) {
       return { kind: 'redirect', hash: '#/running' };
