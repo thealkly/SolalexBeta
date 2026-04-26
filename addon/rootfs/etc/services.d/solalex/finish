@@ -1,0 +1,37 @@
+#!/usr/bin/with-contenv bashio
+# s6-overlay v3 finish handler.
+#
+# The service exit code arrives as $1. s6-overlay uses OUR exit code to
+# decide what to do with the container:
+#   - exit 0           -> restart the service (default)
+#   - exit 125         -> bring the whole container down (stop everything)
+# (These are s6-overlay v3 semantics; in v1 the stop-all code was 256.)
+#
+# Policy: propagate fatal service exits so the HA Supervisor sees a failure
+# instead of letting s6 spin in a silent restart loop.
+
+declare exit_code="${1:-0}"
+if [[ ! "${exit_code}" =~ ^[0-9]+$ ]]; then
+    bashio::log.warning "Received non-numeric exit code '${exit_code}' from s6; treating as 1"
+    exit_code=1
+fi
+
+bashio::log.info "Solalex service exited with code ${exit_code}"
+
+case "${exit_code}" in
+    0)
+        # Clean shutdown (e.g. `s6-svc -d`). Let s6 restart as normal.
+        exit 0
+        ;;
+    125)
+        # Explicit "halt the container" signal from the service itself.
+        bashio::log.warning "Service requested container halt — passing 125 to s6"
+        exit 125
+        ;;
+    *)
+        # Any other non-zero exit is a crash. Halt the container so the
+        # Supervisor surfaces the failure and restart backoff applies.
+        bashio::log.error "Service crashed (code ${exit_code}) — halting container"
+        exit 125
+        ;;
+esac
