@@ -1,0 +1,35 @@
+Solalex — Proprietary Software License
+
+Copyright (c) 2026 ALKLY (Alexander, info@alkly.de)
+
+All rights reserved.
+
+This software is provided as a commercial Home Assistant add-on. The source
+code in this repository is made available for transparency and auditability.
+It is NOT released under an open-source license.
+
+You MAY:
+- Read, audit, and inspect the source code.
+- Build and run the software on Home Assistant installations you own or operate,
+  provided you hold a valid Solalex license key obtained through the official
+  purchase flow.
+- File bug reports and feature requests via the repository's issue tracker.
+
+You MAY NOT, without prior written permission from ALKLY:
+- Redistribute, sublicense, sell, rent, lease, or host the software or any
+  derivative work.
+- Use the software for commercial service provisioning to third parties.
+- Remove, obscure, or modify the license check, license attribution, or
+  branding.
+- Reverse engineer, decompile, or disassemble the compiled artifacts beyond
+  what is explicitly permitted by applicable law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+For license inquiries, contact: info@alkly.de
