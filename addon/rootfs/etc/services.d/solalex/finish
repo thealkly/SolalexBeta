@@ -1,0 +1,69 @@
+#!/usr/bin/with-contenv bashio
+# s6-overlay v3 finish handler.
+#
+# Arguments:
+#   $1  exit code of the longrun
+#   $2  signal number when $1 == 256 (s6-overlay v3: "killed by signal")
+#
+# OUR exit code tells s6 what to do next:
+#   - exit 0    -> let s6 restart the longrun (default cycle)
+#   - exit 1    -> service crashed; s6 restarts with backoff
+#   - exit 125  -> bring the WHOLE container down (escape hatch only)
+#
+# Story 3.9: SIGTERM/SIGINT from the HA Supervisor (add-on update,
+# config reload, snapshot) arrive as $1=256, $2=15|2 — that is a
+# clean stop, NOT a crash. Returning 125 in that case forces an
+# unnecessary container halt and the Supervisor restarts the add-on,
+# which Alex observed every ~2 hours in the 2026-04-26 smoketest.
+
+declare exit_code="${1:-0}"
+declare signal_nr="${2:-?}"
+
+if [[ ! "${exit_code}" =~ ^[0-9]+$ ]]; then
+    bashio::log.warning "Received non-numeric exit code '${exit_code}' from s6; treating as 1"
+    exit_code=1
+fi
+
+bashio::log.info "Solalex service exited with code ${exit_code}"
+
+case "${exit_code}" in
+    0)
+        # Clean shutdown (e.g. `s6-svc -d`). Let s6 restart as normal.
+        exit 0
+        ;;
+    125)
+        # Explicit "halt the container" signal from the service itself.
+        bashio::log.warning "Service requested container halt — passing 125 to s6"
+        exit 125
+        ;;
+    256)
+        # s6-overlay v3: exit 256 = service was killed by a signal.
+        # SIGTERM (15) and SIGINT (2) are normal stop requests from the
+        # HA Supervisor — not a crash. Other signals (SIGKILL via OOM,
+        # SIGSEGV from a bug) are real crashes; return 1 so s6 restarts
+        # the longrun without halting the whole container.
+        case "${signal_nr}" in
+            15|2)
+                bashio::log.info "Service stopped via signal ${signal_nr} (clean stop)"
+                exit 0
+                ;;
+            \?)
+                # s6 invoked finish with $1=256 but no $2 (signal number missing).
+                # Treat as a crash so the service is restarted, but make the
+                # log line clearer for support than "killed by signal ?".
+                bashio::log.error "Service killed by signal (number missing) — s6 will restart"
+                exit 1
+                ;;
+            *)
+                bashio::log.error "Service killed by signal ${signal_nr} — s6 will restart"
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        # Any other non-zero exit is a crash. Let s6 restart the longrun
+        # (do NOT halt the container — HA Supervisor decides on retries).
+        bashio::log.error "Service exited with code ${exit_code} — s6 will restart"
+        exit 1
+        ;;
+esac
