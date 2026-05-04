@@ -1,0 +1,103 @@
+# Solalex by ALKLY — Add-on Dokumentation
+
+Diese Datei ist die offizielle In-HA-Dokumentation des Add-ons. Der HA-Supervisor
+rendert sie im Add-on-Detail-View.
+
+## Installation
+
+1. **Einstellungen → Add-ons → Add-on-Store** öffnen.
+2. Oben rechts **⋮ → Repositories**.
+3. URL eintragen: `https://github.com/alkly/solalex`
+4. Nach dem Refresh erscheint **Solalex by ALKLY** in der Liste. **Installieren**.
+5. Nach Start öffnet sich der Setup-Wizard im Ingress-Frame.
+
+## Voraussetzungen
+
+- **Home Assistant OS** (ausschließlich — siehe Abschnitt „Unterstützte
+  HA-Versionen" für Details zu nicht unterstützten Varianten).
+- Mindestens einen unterstützten Wechselrichter oder Akku im HA-Netzwerk.
+- Gültige Solalex-Lizenz (wird im Wizard via LemonSqueezy gekauft).
+
+## Unterstützte HA-Versionen
+
+- **Minimum:** 2026.4.0 (im `addon/config.yaml` via `homeassistant:`-Feld
+  gepinnt; niedrigere Versionen erhalten eine Install-Warning im Add-on-Store).
+- **Getestet bis:** 2026.4.3 (aktuelle stable zum Release-Zeitpunkt).
+- **Unterstützt:** ausschließlich **Home Assistant OS**.
+- **Nicht unterstützt:** Home Assistant Supervised, Home Assistant Container,
+  Home Assistant Core.
+
+Du weißt nicht, welche Variante du hast? Öffne in HA:
+**Einstellungen → System → Info**.
+
+## Unterstützte Hardware (Day 1)
+
+- **Hoymiles / OpenDTU** — Wechselrichter-Limit-Regelung
+- **Marstek Venus 3E/D** — Akku-Lade-/Entlade-Steuerung
+- **Shelly 3EM** — Smart-Meter-Lesung
+
+Weitere Adapter (Anker Solix, Generic HA Entity) folgen in v1.5.
+
+## Ressourcen-Budget (Raspberry Pi 4 Referenz)
+
+- **Idle-RSS Ziel:** ≤ 150 MB
+- **Idle-CPU Ziel:** ≤ 2 %
+- **Aktiver Regelzyklus:** kurze Peaks bis ~10 % CPU
+
+### Messung (Story 1.1 Skeleton, lokal via Docker)
+
+| Messgröße | Gemessen | Ziel | Status |
+|---|---|---|---|
+| Idle-RSS | 64.9 MiB | ≤ 150 MB | ✅ 43 % des Budgets |
+| Idle-CPU | 0.49 % | ≤ 2 % | ✅ 25 % des Budgets |
+
+> Gemessen auf Docker Desktop (macOS, Apple Silicon) mit dem amd64-Image
+> via Rosetta-Emulation. Auf einem echten Pi 4 (aarch64 nativ) sind die
+> Werte tendenziell niedriger. Finale Validation erfolgt in der Beta-Phase
+> auf echter Pi-4-Hardware.
+
+## Daten-Persistenz
+
+Alle dauerhaften Daten (SQLite-DB, Lizenz, Logs, Backup-Slot) liegen unter
+`/data/` und überleben Add-on-Restart sowie Update.
+
+```
+/data/
+├── solalex.db         # Betriebsdaten (KPIs, Config, Audit)
+├── license.json       # Lizenz-Check-Response
+├── logs/
+│   └── solalex.log    # JSON-Zeilen, 10 MB × 5 Rotation
+└── .backup/
+    └── solalex.db     # 1-Slot-Backup vor jedem Update
+```
+
+## Keine externen Ports
+
+Solalex kommuniziert ausschließlich über den Home-Assistant-Ingress-Proxy.
+Es gibt keine externen Port-Expositionen. Dies ist eine harte Policy
+(AC 7 Story 1.1, NFR28) und wird im `addon/config.yaml` via `ports: {}`
+durchgesetzt.
+
+## Robustheit
+
+- **Closed-Loop-Readback:** Jeder Steuerbefehl an die Hardware wird nach
+  dem Senden aus Home Assistant zurückgelesen. Stimmen Soll- und Ist-Wert
+  nicht überein, schlägt der Cycle fehl und der Audit-Trail im Live-Tab
+  zeigt den Grund.
+- **Sensor-Verfügbarkeits-Guard:** Bevor Solalex einen Wert schreibt,
+  prüft es, ob der Readback-Sensor in Home Assistant gerade einen Wert
+  liefert. Ist der Sensor `unavailable` / `unknown` (z. B. Marstek-Modbus
+  zwischen zwei Polls), überspringt Solalex den Schreibvorgang und
+  schreibt eine Audit-Zeile „Sensor nicht verfügbar". Das verhindert
+  blinde Schreibversuche und reduziert Log-Rauschen in HA. Notfall-Bypass
+  für Hardware ohne sinnvollen Availability-State: in der DB für das
+  betreffende Device `config_json["skip_readback_availability_check"] =
+  true` setzen — kein UI in v1.
+- **Rate-Limit pro Gerät:** Standard 60 s Mindestabstand zwischen
+  Schreibvorgängen pro WR/Akku, persistent in der DB (überlebt Restart).
+
+## Support & Issues
+
+- **Bug-Reports:** Über den Diagnose-Tab des Add-ons (ab Epic 4).
+  Bis dahin: [GitHub Issues](https://github.com/alkly/solalex/issues).
+- **Kontakt:** info@alkly.de
