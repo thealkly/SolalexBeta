@@ -1,0 +1,4 @@
+configuration:
+  log_level:
+    name: Log level
+    description: Only set to debug for support cases - produces more logs.
