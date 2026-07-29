@@ -1,0 +1,4 @@
+configuration:
+  log_level:
+    name: Log-Level
+    description: Nur fuer Support-Anfragen auf debug stellen - produziert mehr Logs.
