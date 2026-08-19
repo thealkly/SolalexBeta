@@ -1,0 +1,43 @@
+#!/usr/bin/with-contenv bashio
+# s6-overlay v3 service entry point for Soalex.
+set -euo pipefail
+
+bashio::log.info "Soalex backend starting on ingress port ${SOALEX_PORT:-8777}..."
+
+cd /opt/soalex
+
+# Read add-on option `log_level` and forward it as SOALEX_LOG_LEVEL.
+# Normalize to lowercase + restrict to the allowed enum so Pydantic-Settings
+# never sees "DEBUG", "Debug", a tilde, or a manual-edit typo and crashes the
+# add-on at startup. Anything outside the whitelist falls back to "info" with
+# a bashio warning so the user sees what happened in the add-on log.
+SOALEX_LOG_LEVEL_OPT="$(bashio::config 'log_level')"
+SOALEX_LOG_LEVEL_OPT="$(printf '%s' "${SOALEX_LOG_LEVEL_OPT}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+case "${SOALEX_LOG_LEVEL_OPT}" in
+    debug|info|warning|error)
+        ;;
+    ""|"null"|"~")
+        SOALEX_LOG_LEVEL_OPT="info"
+        ;;
+    *)
+        bashio::log.warning "Unbekanntes log_level '${SOALEX_LOG_LEVEL_OPT}', falle auf 'info' zurueck."
+        SOALEX_LOG_LEVEL_OPT="info"
+        ;;
+esac
+
+SOALEX_ADDON_VERSION_OPT="$(bashio::addon.version)"
+if [ -z "${SOALEX_ADDON_VERSION_OPT}" ] || [ "${SOALEX_ADDON_VERSION_OPT}" = "null" ]; then
+    SOALEX_ADDON_VERSION_OPT="unknown"
+fi
+
+export SOALEX_DB_PATH="${SOALEX_DB_PATH:-/data/soalex.db}"
+export SOALEX_PORT="${SOALEX_PORT:-8777}"
+export SOALEX_LOG_LEVEL="${SOALEX_LOG_LEVEL_OPT}"
+export SOALEX_ADDON_VERSION="${SOALEX_ADDON_VERSION_OPT}"
+export PYTHONPATH="/opt/soalex/src:${PYTHONPATH:-}"
+
+exec /opt/soalex/.venv/bin/uvicorn soalex.main:app \
+    --host 0.0.0.0 \
+    --port "${SOALEX_PORT}" \
+    --proxy-headers \
+    --forwarded-allow-ips "*"
